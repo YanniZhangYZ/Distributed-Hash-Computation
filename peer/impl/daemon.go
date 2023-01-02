@@ -9,14 +9,16 @@ import (
 	"time"
 )
 
-type DaemonModule struct {
-	address  string              // The node's address
-	conf     *peer.Configuration // The configuration contains Socket and MessageRegistry
-	message  *MessageModule
-	stopChan chan bool // Communication channel about whether we should stop the node
+type daemonModule struct {
+	address             string              // The node's address
+	conf                *peer.Configuration // The configuration contains Socket and MessageRegistry
+	message             *messageModule
+	stopListenChan      chan bool
+	stopAntiEntropyChan chan bool
+	stopHeartbeatChan   chan bool
 }
 
-func (d *DaemonModule) start() error {
+func (d *daemonModule) start() error {
 	/* Start listening to the socket */
 	go d.listenDaemon()
 	/* Start the anti-entropy daemon*/
@@ -26,15 +28,17 @@ func (d *DaemonModule) start() error {
 	return nil
 }
 
-func (d *DaemonModule) stop() error {
-	d.stopChan <- true
+func (d *daemonModule) stop() error {
+	d.stopListenChan <- true
+	d.stopAntiEntropyChan <- true
+	d.stopHeartbeatChan <- true
 	return nil
 }
 
-func (d *DaemonModule) listenDaemon() {
+func (d *daemonModule) listenDaemon() {
 	for {
 		select {
-		case <-d.stopChan:
+		case <-d.stopListenChan:
 			/* The node receives the stop message from the Stop() function,
 			exit from the goroutine */
 			return
@@ -65,7 +69,7 @@ func (d *DaemonModule) listenDaemon() {
 	}
 }
 
-func (d *DaemonModule) antiEntropyDaemon() {
+func (d *daemonModule) antiEntropyDaemon() {
 	if d.conf.AntiEntropyInterval == 0 {
 		/* Anti-entropy mechanism is disabled */
 		return
@@ -74,7 +78,7 @@ func (d *DaemonModule) antiEntropyDaemon() {
 	ticker := time.NewTicker(d.conf.AntiEntropyInterval)
 	for {
 		select {
-		case <-d.stopChan:
+		case <-d.stopAntiEntropyChan:
 			/* The node receives the stop message from the Stop() function,
 			exit from the goroutine */
 			ticker.Stop()
@@ -100,7 +104,7 @@ func (d *DaemonModule) antiEntropyDaemon() {
 
 }
 
-func (d *DaemonModule) heartbeatDaemon() {
+func (d *daemonModule) heartbeatDaemon() {
 	if d.conf.HeartbeatInterval == 0 {
 		/* Heartbeat mechanism is disabled */
 		return
@@ -122,7 +126,7 @@ func (d *DaemonModule) heartbeatDaemon() {
 	ticker := time.NewTicker(d.conf.HeartbeatInterval)
 	for {
 		select {
-		case <-d.stopChan:
+		case <-d.stopHeartbeatChan:
 			/* The node receives the stop message from the Stop() function,
 			exit from the goroutine */
 			ticker.Stop()

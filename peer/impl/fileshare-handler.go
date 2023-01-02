@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (f *FileModule) execDataRequestMessage(msg types.Message, pkt transport.Packet) error {
+func (f *fileModule) execDataRequestMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	dataRequestMsg, ok := msg.(*types.DataRequestMessage)
 	if !ok {
@@ -38,7 +38,7 @@ func (f *FileModule) execDataRequestMessage(msg types.Message, pkt transport.Pac
 	return nil
 }
 
-func (f *FileModule) execDataReplyMessage(msg types.Message, pkt transport.Packet) error {
+func (f *fileModule) execDataReplyMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	dataReplyMsg, ok := msg.(*types.DataReplyMessage)
 	if !ok {
@@ -51,7 +51,7 @@ func (f *FileModule) execDataReplyMessage(msg types.Message, pkt transport.Packe
 	return nil
 }
 
-func (f *FileModule) execSearchRequestMessage(msg types.Message, pkt transport.Packet) error {
+func (f *fileModule) execSearchRequestMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	searchRequestMsg, ok := msg.(*types.SearchRequestMessage)
 	if !ok {
@@ -127,7 +127,7 @@ func (f *FileModule) execSearchRequestMessage(msg types.Message, pkt transport.P
 	return nil
 }
 
-func (f *FileModule) execSearchReplyMessage(msg types.Message, pkt transport.Packet) error {
+func (f *fileModule) execSearchReplyMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	searchReplyMsg, ok := msg.(*types.SearchReplyMessage)
 	if !ok {

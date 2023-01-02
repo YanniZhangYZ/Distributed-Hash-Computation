@@ -79,6 +79,21 @@ type Configuration struct {
 	// retries to send a prepare when it doesn't get enough promises or accepts.
 	// Default: 5s.
 	PaxosProposerRetry time.Duration
+
+	// ChordBits is the number of hash bits in chord.
+	// This value should be the same as the salt bits (which is the key inside the Chord)
+	ChordBits int
+
+	// ChordNumSuccessors is the number of successors to maintain
+	ChordNumSuccessors int
+
+	// ChordStabilizeInterval is the interval the chord node wait until it checks its
+	// successor pointer is up-to-date
+	ChordStabilizeInterval time.Duration
+
+	// ChordFixFingerInterval is the interval the chord node wait until it checks its
+	// finger table entry is up-to-date
+	ChordFixFingerInterval time.Duration
 }
 
 // Backoff describes parameters for a backoff algorithm. The initial time must

@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-type MessageModule struct {
+type messageModule struct {
 	address               string
 	conf                  *peer.Configuration // The configuration contains Socket and MessageRegistry
 	originTable           *sync.Map           // The table contains routing info, sequence number for each origin
@@ -18,7 +18,7 @@ type MessageModule struct {
 	seenRequest           *sync.Map // File search duplicates
 }
 
-func (m *MessageModule) addPeer(addr ...string) {
+func (m *messageModule) addPeer(addr ...string) {
 	// Iterate and add all addresses
 	m.originTableUpdateLock.Lock()
 	defer m.originTableUpdateLock.Unlock()
@@ -27,7 +27,7 @@ func (m *MessageModule) addPeer(addr ...string) {
 	}
 }
 
-func (m *MessageModule) getRoutingTable() peer.RoutingTable {
+func (m *messageModule) getRoutingTable() peer.RoutingTable {
 	// Make a copy of the routing table
 	var copyRoutingTable = make(peer.RoutingTable)
 
@@ -39,7 +39,7 @@ func (m *MessageModule) getRoutingTable() peer.RoutingTable {
 	return copyRoutingTable
 }
 
-func (m *MessageModule) setRoutingEntry(origin, relayAddr string) {
+func (m *messageModule) setRoutingEntry(origin, relayAddr string) {
 	m.originTableUpdateLock.Lock()
 	defer m.originTableUpdateLock.Unlock()
 	if relayAddr == "" {
@@ -59,7 +59,7 @@ func (m *MessageModule) setRoutingEntry(origin, relayAddr string) {
 	}
 }
 
-func (m *MessageModule) unicast(dest string, msg transport.Message) error {
+func (m *messageModule) unicast(dest string, msg transport.Message) error {
 	originInfo, ok := m.originTable.Load(dest)
 	if !ok {
 		return xerrors.Errorf("Unicast unknown address: %v %v", m.address, dest)
@@ -82,7 +82,7 @@ func (m *MessageModule) unicast(dest string, msg transport.Message) error {
 	return m.conf.Socket.Send(nextPeer, pkt, 0)
 }
 
-func (m *MessageModule) broadcast(msg transport.Message) error {
+func (m *messageModule) broadcast(msg transport.Message) error {
 	m.originTableUpdateLock.Lock()
 	originInfo, _ := m.originTable.Load(m.address)
 	seq := originInfo.(originInfoEntry).seq + 1

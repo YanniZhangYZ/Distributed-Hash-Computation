@@ -2,7 +2,7 @@ package impl
 
 import (
 	"go.dedis.ch/cs438/peer"
-	"go.dedis.ch/cs438/peer/chord"
+	"go.dedis.ch/cs438/peer/impl/chord"
 	"go.dedis.ch/cs438/transport"
 	"go.dedis.ch/cs438/types"
 	"io"
@@ -24,17 +24,16 @@ type node struct {
 	peer.Peer                     // The node implements peer.Peer
 	address   string              // The node's address
 	conf      *peer.Configuration // The configuration contains Socket and MessageRegistry
-	message   *MessageModule      // message module, handles packet sending
-	daemon    *DaemonModule       // daemon module, runs all daemons
-	file      *FileModule         // file module, handles file upload download
-	consensus *ConsensusModule    // The node's consensus component
-	chord     *chord.Module       // TODO
+	message   *messageModule      // message module, handles packet sending
+	daemon    *daemonModule       // daemon module, runs all daemons
+	file      *fileModule         // file module, handles file upload download
+	consensus *consensusModule    // The node's consensus component
+	chord     *chord.ChordModule  // TODO
 }
 
 // NewPeer creates a new peer. You can change the content and location of this
 // function but you MUST NOT change its signature and package location.
 func NewPeer(conf peer.Configuration) peer.Peer {
-	var stopChan = make(chan bool, 1)
 	var originTable, async, catalog, fullKnown, seenRequest sync.Map
 
 	/* The routing table should have the peer's own address */
@@ -43,7 +42,7 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 		uint(0),
 		[]types.Rumor{}})
 
-	message := MessageModule{
+	message := messageModule{
 		address:     conf.Socket.GetAddress(),
 		conf:        &conf,
 		originTable: &originTable,
@@ -51,14 +50,16 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 		seenRequest: &seenRequest,
 	}
 
-	daemon := DaemonModule{
-		address:  conf.Socket.GetAddress(),
-		conf:     &conf,
-		message:  &message,
-		stopChan: stopChan,
+	daemon := daemonModule{
+		address:             conf.Socket.GetAddress(),
+		conf:                &conf,
+		message:             &message,
+		stopListenChan:      make(chan bool, 1),
+		stopAntiEntropyChan: make(chan bool, 1),
+		stopHeartbeatChan:   make(chan bool, 1),
 	}
 
-	file := FileModule{
+	file := fileModule{
 		address:   conf.Socket.GetAddress(),
 		conf:      &conf,
 		message:   &message,
@@ -66,7 +67,7 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 		fullKnown: &fullKnown,
 	}
 
-	consensus := ConsensusModule{
+	consensus := consensusModule{
 		address:       conf.Socket.GetAddress(),
 		conf:          &conf,
 		message:       &message,
@@ -79,7 +80,7 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 	consensus.cond = sync.NewCond(&consensus.RWMutex)
 	consensus.createNewPaxos()
 
-	chordModule := chord.Module{} // TODO
+	chordModule := chord.ChordModule{} // TODO
 
 	n := node{
 		address:   conf.Socket.GetAddress(),

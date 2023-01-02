@@ -11,12 +11,12 @@ import (
 	"sync"
 )
 
-type ConsensusModule struct {
+type consensusModule struct {
 	sync.RWMutex
 	cond          *sync.Cond
 	address       string
 	conf          *peer.Configuration
-	message       *MessageModule
+	message       *messageModule
 	threshold     int
 	totalPeers    uint
 	tlcStep       uint
@@ -26,14 +26,14 @@ type ConsensusModule struct {
 	tlcChangeChan chan *types.BlockchainBlock
 }
 
-func (c *ConsensusModule) createNewPaxos() {
+func (c *consensusModule) createNewPaxos() {
 	c.paxos = Paxos{
 		proposeID: c.conf.PaxosID,
 		acceptCnt: make(map[string]int),
 	}
 }
 
-func (c *ConsensusModule) buildTLCMsg() types.TLCMessage {
+func (c *consensusModule) buildTLCMsg() types.TLCMessage {
 	/* To be called from ExecPaxosAcceptMessage when the paxos reaches consensus */
 	h := crypto.SHA256.New()
 	h.Write([]byte(strconv.Itoa(int(c.tlcStep))))
@@ -60,7 +60,7 @@ func (c *ConsensusModule) buildTLCMsg() types.TLCMessage {
 	return tlcMsg
 }
 
-func (c *ConsensusModule) advanceTLC(catchup bool) error {
+func (c *consensusModule) advanceTLC(catchup bool) error {
 	/* To be called from ExecTLCMessage or itself when catchup*/
 	/* Add block to the blockchain */
 	block := c.tlcValue[c.tlcStep]
@@ -110,7 +110,7 @@ func (c *ConsensusModule) advanceTLC(catchup bool) error {
 	return nil
 }
 
-func (c *ConsensusModule) tag(name string, mh string) error {
+func (c *consensusModule) tag(name string, mh string) error {
 	/* Check if the name already exists in the name store */
 	if c.conf.Storage.GetNamingStore().Get(name) != nil {
 		return xerrors.Errorf("Tag name already exists!")
