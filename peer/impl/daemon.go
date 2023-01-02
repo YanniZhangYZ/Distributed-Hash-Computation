@@ -9,14 +9,14 @@ import (
 	"time"
 )
 
-type daemonModule struct {
+type DaemonModule struct {
 	address  string              // The node's address
 	conf     *peer.Configuration // The configuration contains Socket and MessageRegistry
-	message  *messageModule
+	message  *MessageModule
 	stopChan chan bool // Communication channel about whether we should stop the node
 }
 
-func (d *daemonModule) start() error {
+func (d *DaemonModule) start() error {
 	/* Start listening to the socket */
 	go d.listenDaemon()
 	/* Start the anti-entropy daemon*/
@@ -26,12 +26,12 @@ func (d *daemonModule) start() error {
 	return nil
 }
 
-func (d *daemonModule) stop() error {
+func (d *DaemonModule) stop() error {
 	d.stopChan <- true
 	return nil
 }
 
-func (d *daemonModule) listenDaemon() {
+func (d *DaemonModule) listenDaemon() {
 	for {
 		select {
 		case <-d.stopChan:
@@ -65,7 +65,7 @@ func (d *daemonModule) listenDaemon() {
 	}
 }
 
-func (d *daemonModule) antiEntropyDaemon() {
+func (d *DaemonModule) antiEntropyDaemon() {
 	if d.conf.AntiEntropyInterval == 0 {
 		/* Anti-entropy mechanism is disabled */
 		return
@@ -100,7 +100,7 @@ func (d *daemonModule) antiEntropyDaemon() {
 
 }
 
-func (d *daemonModule) heartbeatDaemon() {
+func (d *DaemonModule) heartbeatDaemon() {
 	if d.conf.HeartbeatInterval == 0 {
 		/* Heartbeat mechanism is disabled */
 		return
