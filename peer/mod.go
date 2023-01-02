@@ -81,8 +81,8 @@ type Configuration struct {
 	PaxosProposerRetry time.Duration
 
 	// ChordBits is the number of hash bits in chord.
-	// This value should be the same as the salt bits (which is the key inside the Chord)
-	ChordBits int
+	// This value should be the same as the salt bytes (which is the key inside the Chord)
+	ChordBytes int
 
 	// ChordNumSuccessors is the number of successors to maintain
 	ChordNumSuccessors int
