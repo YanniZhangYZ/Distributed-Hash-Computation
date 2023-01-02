@@ -1,4 +1,4 @@
-package impl
+package message
 
 import (
 	"go.dedis.ch/cs438/transport"
@@ -8,7 +8,7 @@ import (
 	"math/rand"
 )
 
-func (m *messageModule) execChatMessage(msg types.Message, pkt transport.Packet) error {
+func (m *MessageModule) execChatMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	chatMsg, ok := msg.(*types.ChatMessage)
 	if !ok {
@@ -20,7 +20,7 @@ func (m *messageModule) execChatMessage(msg types.Message, pkt transport.Packet)
 	return nil
 }
 
-func (m *messageModule) execEmptyMessage(msg types.Message, pkt transport.Packet) error {
+func (m *MessageModule) execEmptyMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	_, ok := msg.(*types.EmptyMessage)
 	if !ok {
@@ -30,7 +30,7 @@ func (m *messageModule) execEmptyMessage(msg types.Message, pkt transport.Packet
 	return nil
 }
 
-func (m *messageModule) execPrivateMessage(msg types.Message, pkt transport.Packet) error {
+func (m *MessageModule) execPrivateMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	privateMsg, ok := msg.(*types.PrivateMessage)
 	if !ok {
@@ -51,7 +51,7 @@ func (m *messageModule) execPrivateMessage(msg types.Message, pkt transport.Pack
 	return nil
 }
 
-func (m *messageModule) execRumorsMessage(msg types.Message, pkt transport.Packet) error {
+func (m *MessageModule) execRumorsMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	rumorsMsg, ok := msg.(*types.RumorsMessage)
 	if !ok {
@@ -119,7 +119,7 @@ func (m *messageModule) execRumorsMessage(msg types.Message, pkt transport.Packe
 	}
 
 	/* Send back the ACK message direct, to mark the reception of packet */
-	statusMsg := m.createStatusMessage()
+	statusMsg := m.CreateStatusMessage()
 	ackMsg := types.AckMessage{
 		AckedPacketID: pkt.Header.PacketID,
 		Status:        statusMsg,
@@ -128,10 +128,10 @@ func (m *messageModule) execRumorsMessage(msg types.Message, pkt transport.Packe
 	if err != nil {
 		return err
 	}
-	return m.sendDirectMsg(pkt.Header.RelayedBy, pkt.Header.RelayedBy, ackMsgTrans)
+	return m.SendDirectMsg(pkt.Header.RelayedBy, pkt.Header.RelayedBy, ackMsgTrans)
 }
 
-func (m *messageModule) execStatusMessage(msg types.Message, pkt transport.Packet) error {
+func (m *MessageModule) execStatusMessage(msg types.Message, pkt transport.Packet) error {
 
 	/* cast the message to its actual type. You assume it is the right type. */
 	statusMsg, ok := msg.(*types.StatusMessage)
@@ -141,7 +141,7 @@ func (m *messageModule) execStatusMessage(msg types.Message, pkt transport.Packe
 
 	localMissing, remoteMissing, localSync, remoteMissingRumors := m.checkLocalRemoteSync(statusMsg, pkt.Header.Source)
 
-	statusMsgTrans, err := m.createStatusMessageTrans()
+	statusMsgTrans, err := m.CreateStatusMessageTrans()
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (m *messageModule) execStatusMessage(msg types.Message, pkt transport.Packe
 	/* Local is missing rumors, send our status to the remote */
 	if localMissing {
 		/* Send our status to the remote peer */
-		err = m.sendDirectMsg(pkt.Header.Source, pkt.Header.Source, statusMsgTrans)
+		err = m.SendDirectMsg(pkt.Header.Source, pkt.Header.Source, statusMsgTrans)
 		if err != nil {
 			return err
 		}
@@ -164,7 +164,7 @@ func (m *messageModule) execStatusMessage(msg types.Message, pkt transport.Packe
 			return err
 		}
 		/* Send and do not wait for an ACK */
-		err = m.sendDirectMsg(pkt.Header.Source, pkt.Header.Source, rumorMsgTrans)
+		err = m.SendDirectMsg(pkt.Header.Source, pkt.Header.Source, rumorMsgTrans)
 		if err != nil {
 			return err
 		}
@@ -175,17 +175,17 @@ func (m *messageModule) execStatusMessage(msg types.Message, pkt transport.Packe
 		/* Select a random node to send the rumor Message, with given probability */
 		previousRelay := map[string]struct{}{}
 		previousRelay[pkt.Header.RelayedBy] = struct{}{}
-		directNeighborSet := m.directNeighbor(previousRelay)
+		directNeighborSet := m.DirectNeighbor(previousRelay)
 		if len(directNeighborSet) == 0 {
 			return nil
 		}
-		rumorNeighbor := m.selectRandomNeighbor(directNeighborSet)
-		return m.sendDirectMsg(rumorNeighbor, rumorNeighbor, statusMsgTrans)
+		rumorNeighbor := m.SelectRandomNeighbor(directNeighborSet)
+		return m.SendDirectMsg(rumorNeighbor, rumorNeighbor, statusMsgTrans)
 	}
 	return nil
 }
 
-func (m *messageModule) execAckMessage(msg types.Message, pkt transport.Packet) error {
+func (m *MessageModule) execAckMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	ackMsg, ok := msg.(*types.AckMessage)
 	if !ok {
@@ -193,7 +193,7 @@ func (m *messageModule) execAckMessage(msg types.Message, pkt transport.Packet) 
 	}
 
 	/* Load the channel from the map and send the finish signal, if we are waiting for it */
-	finChan, ok := m.async.Load(ackMsg.AckedPacketID)
+	finChan, ok := m.Async.Load(ackMsg.AckedPacketID)
 	if ok {
 		finChan.(chan int) <- 1
 	}

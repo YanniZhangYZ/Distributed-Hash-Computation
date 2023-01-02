@@ -20,7 +20,7 @@ natb/
 pubnode/
 *.iml
 
-.DS_Store
+**/.DS_Store
 
 peer/impl/graph.dot
 peer/impl/graph.pdf

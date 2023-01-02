@@ -1,4 +1,4 @@
-package impl
+package consensus
 
 import (
 	"github.com/rs/xid"
@@ -37,7 +37,7 @@ type Paxos struct {
 	collectEnoughAccept  *chan *types.PaxosValue
 }
 
-func (c *consensusModule) paxosPropose(name string, mh string) proposeResult {
+func (c *ConsensusModule) paxosPropose(name string, mh string) proposeResult {
 	for {
 		phase1Res := c.paxosPhase1(name, mh)
 		if phase1Res.err != nil {
@@ -62,7 +62,7 @@ func (c *consensusModule) paxosPropose(name string, mh string) proposeResult {
 	}
 }
 
-func (c *consensusModule) paxosPhase1(name string, mh string) phase1Result {
+func (c *ConsensusModule) paxosPhase1(name string, mh string) phase1Result {
 	for {
 		/* Broadcast a PaxosPrepareMessage, collect the promises */
 		c.Lock()
@@ -83,7 +83,7 @@ func (c *consensusModule) paxosPhase1(name string, mh string) phase1Result {
 		c.paxos.collectEnoughPromise = &promiseChan
 		c.Unlock()
 
-		err = c.message.broadcast(paxosPrepareMsgTrans)
+		err = c.message.Broadcast(paxosPrepareMsgTrans)
 		if err != nil {
 			return phase1Result{false, false, err}
 		}
@@ -107,7 +107,7 @@ func (c *consensusModule) paxosPhase1(name string, mh string) phase1Result {
 	}
 }
 
-func (c *consensusModule) paxosPhase2(name string, mh string) phase2Result {
+func (c *ConsensusModule) paxosPhase2(name string, mh string) phase2Result {
 	c.Lock()
 	c.paxos.phase = 2
 	/* If we have received nothing from peers, we set the value to ours */
@@ -135,7 +135,7 @@ func (c *consensusModule) paxosPhase2(name string, mh string) phase2Result {
 	c.paxos.collectEnoughAccept = &acceptedChan
 	c.Unlock()
 
-	err = c.message.broadcast(paxosProposeMsgTrans)
+	err = c.message.Broadcast(paxosProposeMsgTrans)
 	if err != nil {
 		return phase2Result{false, false, false, err}
 	}

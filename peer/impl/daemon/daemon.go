@@ -1,24 +1,37 @@
-package impl
+package daemon
 
 import (
 	"errors"
 	"go.dedis.ch/cs438/peer"
+	"go.dedis.ch/cs438/peer/impl/message"
 	"go.dedis.ch/cs438/transport"
 	"go.dedis.ch/cs438/types"
 	"log"
 	"time"
 )
 
-type daemonModule struct {
+func NewDaemonModule(conf *peer.Configuration, message *message.MessageModule) *DaemonModule {
+	daemon := DaemonModule{
+		address:             conf.Socket.GetAddress(),
+		conf:                conf,
+		message:             message,
+		stopListenChan:      make(chan bool, 1),
+		stopAntiEntropyChan: make(chan bool, 1),
+		stopHeartbeatChan:   make(chan bool, 1),
+	}
+	return &daemon
+}
+
+type DaemonModule struct {
 	address             string              // The node's address
 	conf                *peer.Configuration // The configuration contains Socket and MessageRegistry
-	message             *messageModule
+	message             *message.MessageModule
 	stopListenChan      chan bool
 	stopAntiEntropyChan chan bool
 	stopHeartbeatChan   chan bool
 }
 
-func (d *daemonModule) start() error {
+func (d *DaemonModule) Start() error {
 	/* Start listening to the socket */
 	go d.listenDaemon()
 	/* Start the anti-entropy daemon*/
@@ -28,14 +41,14 @@ func (d *daemonModule) start() error {
 	return nil
 }
 
-func (d *daemonModule) stop() error {
+func (d *DaemonModule) Stop() error {
 	d.stopListenChan <- true
 	d.stopAntiEntropyChan <- true
 	d.stopHeartbeatChan <- true
 	return nil
 }
 
-func (d *daemonModule) listenDaemon() {
+func (d *DaemonModule) listenDaemon() {
 	for {
 		select {
 		case <-d.stopListenChan:
@@ -69,7 +82,7 @@ func (d *daemonModule) listenDaemon() {
 	}
 }
 
-func (d *daemonModule) antiEntropyDaemon() {
+func (d *DaemonModule) antiEntropyDaemon() {
 	if d.conf.AntiEntropyInterval == 0 {
 		/* Anti-entropy mechanism is disabled */
 		return
@@ -85,16 +98,16 @@ func (d *daemonModule) antiEntropyDaemon() {
 			return
 		case <-ticker.C:
 			/* Send the status information to a random neighbor */
-			statusMsgTrans, err := d.message.createStatusMessageTrans()
+			statusMsgTrans, err := d.message.CreateStatusMessageTrans()
 			if err != nil {
 				log.Panicln("AntiEntropyDaemon: ", err)
 			}
 
 			/* Select a random node to send the rumor Message */
-			directNeighborSet := d.message.directNeighbor(map[string]struct{}{})
+			directNeighborSet := d.message.DirectNeighbor(map[string]struct{}{})
 			if len(directNeighborSet) > 0 {
-				rumorNeighbor := d.message.selectRandomNeighbor(directNeighborSet)
-				err = d.message.sendDirectMsg(rumorNeighbor, rumorNeighbor, statusMsgTrans)
+				rumorNeighbor := d.message.SelectRandomNeighbor(directNeighborSet)
+				err = d.message.SendDirectMsg(rumorNeighbor, rumorNeighbor, statusMsgTrans)
 				if err != nil {
 					log.Panicln("AntiEntropyDaemon: ", err)
 				}
@@ -104,7 +117,7 @@ func (d *daemonModule) antiEntropyDaemon() {
 
 }
 
-func (d *daemonModule) heartbeatDaemon() {
+func (d *DaemonModule) heartbeatDaemon() {
 	if d.conf.HeartbeatInterval == 0 {
 		/* Heartbeat mechanism is disabled */
 		return
@@ -117,7 +130,7 @@ func (d *daemonModule) heartbeatDaemon() {
 		log.Panicln("HeartbeatDaemon: ", err)
 	}
 
-	err = d.message.broadcast(emptyMsgTrans)
+	err = d.message.Broadcast(emptyMsgTrans)
 	if err != nil {
 		log.Panicln("HeartbeatDaemon: ", err)
 	}
@@ -133,7 +146,7 @@ func (d *daemonModule) heartbeatDaemon() {
 			return
 		case <-ticker.C:
 			/* Send the rumor with empty embedded message to a random neighbor */
-			err = d.message.broadcast(emptyMsgTrans)
+			err = d.message.Broadcast(emptyMsgTrans)
 			if err != nil {
 				log.Panicln("AntiEntropyDaemon: ", err)
 			}

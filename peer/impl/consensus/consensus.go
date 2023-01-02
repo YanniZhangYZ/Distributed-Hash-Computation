@@ -1,9 +1,10 @@
-package impl
+package consensus
 
 import (
 	"crypto"
 	"encoding/hex"
 	"go.dedis.ch/cs438/peer"
+	"go.dedis.ch/cs438/peer/impl/message"
 	"go.dedis.ch/cs438/storage"
 	"go.dedis.ch/cs438/types"
 	"golang.org/x/xerrors"
@@ -11,12 +12,36 @@ import (
 	"sync"
 )
 
-type consensusModule struct {
+func NewConsensusModule(conf *peer.Configuration, message *message.MessageModule) *ConsensusModule {
+	consensus := ConsensusModule{
+		address:       conf.Socket.GetAddress(),
+		conf:          conf,
+		message:       message,
+		threshold:     conf.PaxosThreshold(conf.TotalPeers),
+		totalPeers:    conf.TotalPeers,
+		tlcCnt:        make(map[uint]int),
+		tlcValue:      make(map[uint]*types.BlockchainBlock),
+		tlcChangeChan: make(chan *types.BlockchainBlock, 1000),
+	}
+	consensus.cond = sync.NewCond(&consensus.RWMutex)
+	consensus.createNewPaxos()
+
+	/* Consensus callbacks */
+	conf.MessageRegistry.RegisterMessageCallback(types.PaxosPrepareMessage{}, consensus.execPaxosPrepareMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.PaxosProposeMessage{}, consensus.execPaxosProposeMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.PaxosPromiseMessage{}, consensus.execPaxosPromiseMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.PaxosAcceptMessage{}, consensus.execPaxosAcceptMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.TLCMessage{}, consensus.execTLCMessage)
+
+	return &consensus
+}
+
+type ConsensusModule struct {
 	sync.RWMutex
 	cond          *sync.Cond
 	address       string
 	conf          *peer.Configuration
-	message       *messageModule
+	message       *message.MessageModule
 	threshold     int
 	totalPeers    uint
 	tlcStep       uint
@@ -26,14 +51,14 @@ type consensusModule struct {
 	tlcChangeChan chan *types.BlockchainBlock
 }
 
-func (c *consensusModule) createNewPaxos() {
+func (c *ConsensusModule) createNewPaxos() {
 	c.paxos = Paxos{
 		proposeID: c.conf.PaxosID,
 		acceptCnt: make(map[string]int),
 	}
 }
 
-func (c *consensusModule) buildTLCMsg() types.TLCMessage {
+func (c *ConsensusModule) buildTLCMsg() types.TLCMessage {
 	/* To be called from ExecPaxosAcceptMessage when the paxos reaches consensus */
 	h := crypto.SHA256.New()
 	h.Write([]byte(strconv.Itoa(int(c.tlcStep))))
@@ -60,7 +85,7 @@ func (c *consensusModule) buildTLCMsg() types.TLCMessage {
 	return tlcMsg
 }
 
-func (c *consensusModule) advanceTLC(catchup bool) error {
+func (c *ConsensusModule) advanceTLC(catchup bool) error {
 	/* To be called from ExecTLCMessage or itself when catchup*/
 	/* Add block to the blockchain */
 	block := c.tlcValue[c.tlcStep]
@@ -87,7 +112,7 @@ func (c *consensusModule) advanceTLC(catchup bool) error {
 			return err
 		}
 
-		err = c.message.broadcast(tlcMsgTrans)
+		err = c.message.Broadcast(tlcMsgTrans)
 		if err != nil {
 			return err
 		}
@@ -110,7 +135,7 @@ func (c *consensusModule) advanceTLC(catchup bool) error {
 	return nil
 }
 
-func (c *consensusModule) tag(name string, mh string) error {
+func (c *ConsensusModule) Tag(name string, mh string) error {
 	/* Check if the name already exists in the name store */
 	if c.conf.Storage.GetNamingStore().Get(name) != nil {
 		return xerrors.Errorf("Tag name already exists!")
@@ -122,7 +147,7 @@ func (c *consensusModule) tag(name string, mh string) error {
 		c.cond.Wait()
 		c.Unlock()
 		/* Start again */
-		return c.tag(name, mh)
+		return c.Tag(name, mh)
 	}
 	/* If it is not proposing, start proposing */
 	c.Unlock()
@@ -134,5 +159,5 @@ func (c *consensusModule) tag(name string, mh string) error {
 	if proposeRes.isOurs {
 		return nil
 	}
-	return c.tag(name, mh)
+	return c.Tag(name, mh)
 }

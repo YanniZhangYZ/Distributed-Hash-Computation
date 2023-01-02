@@ -1,4 +1,4 @@
-package impl
+package consensus
 
 import (
 	"go.dedis.ch/cs438/transport"
@@ -7,7 +7,7 @@ import (
 	"log"
 )
 
-func (c *consensusModule) execPaxosPrepareMessage(msg types.Message, pkt transport.Packet) error {
+func (c *ConsensusModule) execPaxosPrepareMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	paxosPrepareMsg, ok := msg.(*types.PaxosPrepareMessage)
 	if !ok {
@@ -50,10 +50,10 @@ func (c *consensusModule) execPaxosPrepareMessage(msg types.Message, pkt transpo
 	if err != nil {
 		return err
 	}
-	return c.message.broadcast(privateMsgTrans)
+	return c.message.Broadcast(privateMsgTrans)
 }
 
-func (c *consensusModule) execPaxosPromiseMessage(msg types.Message, pkt transport.Packet) error {
+func (c *ConsensusModule) execPaxosPromiseMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	paxosPromiseMsg, ok := msg.(*types.PaxosPromiseMessage)
 	if !ok {
@@ -105,7 +105,7 @@ func (c *consensusModule) execPaxosPromiseMessage(msg types.Message, pkt transpo
 	return nil
 }
 
-func (c *consensusModule) execPaxosProposeMessage(msg types.Message, pkt transport.Packet) error {
+func (c *ConsensusModule) execPaxosProposeMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	paxosProposeMsg, ok := msg.(*types.PaxosProposeMessage)
 	if !ok {
@@ -138,10 +138,10 @@ func (c *consensusModule) execPaxosProposeMessage(msg types.Message, pkt transpo
 	if err != nil {
 		return err
 	}
-	return c.message.broadcast(paxosAcceptMsgTrans)
+	return c.message.Broadcast(paxosAcceptMsgTrans)
 }
 
-func (c *consensusModule) execPaxosAcceptMessage(msg types.Message, pkt transport.Packet) error {
+func (c *ConsensusModule) execPaxosAcceptMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	paxosAcceptMsg, ok := msg.(*types.PaxosAcceptMessage)
 	if !ok {
@@ -189,12 +189,12 @@ func (c *consensusModule) execPaxosAcceptMessage(msg types.Message, pkt transpor
 		if err != nil {
 			return err
 		}
-		return c.message.broadcast(tlcMsgTrans)
+		return c.message.Broadcast(tlcMsgTrans)
 	}
 	return nil
 }
 
-func (c *consensusModule) execTLCMessage(msg types.Message, pkt transport.Packet) error {
+func (c *ConsensusModule) execTLCMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	tlcMsg, ok := msg.(*types.TLCMessage)
 	if !ok {

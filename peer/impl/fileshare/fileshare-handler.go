@@ -1,4 +1,4 @@
-package impl
+package fileshare
 
 import (
 	"go.dedis.ch/cs438/peer"
@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (f *fileModule) execDataRequestMessage(msg types.Message, pkt transport.Packet) error {
+func (f *FileModule) execDataRequestMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	dataRequestMsg, ok := msg.(*types.DataRequestMessage)
 	if !ok {
@@ -30,7 +30,7 @@ func (f *fileModule) execDataRequestMessage(msg types.Message, pkt transport.Pac
 		return err
 	}
 
-	err = f.message.unicast(pkt.Header.Source, dataReplyMsgTrans)
+	err = f.message.Unicast(pkt.Header.Source, dataReplyMsgTrans)
 	if err != nil {
 		log.Println("ExecDataRequestMessage: ", err)
 	}
@@ -38,7 +38,7 @@ func (f *fileModule) execDataRequestMessage(msg types.Message, pkt transport.Pac
 	return nil
 }
 
-func (f *fileModule) execDataReplyMessage(msg types.Message, pkt transport.Packet) error {
+func (f *FileModule) execDataReplyMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	dataReplyMsg, ok := msg.(*types.DataReplyMessage)
 	if !ok {
@@ -46,12 +46,12 @@ func (f *fileModule) execDataReplyMessage(msg types.Message, pkt transport.Packe
 	}
 
 	/* Load the channel from the map and send the chunks */
-	chunkChan, _ := f.message.async.Load(dataReplyMsg.RequestID)
+	chunkChan, _ := f.message.Async.Load(dataReplyMsg.RequestID)
 	chunkChan.(chan []byte) <- dataReplyMsg.Value
 	return nil
 }
 
-func (f *fileModule) execSearchRequestMessage(msg types.Message, pkt transport.Packet) error {
+func (f *FileModule) execSearchRequestMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	searchRequestMsg, ok := msg.(*types.SearchRequestMessage)
 	if !ok {
@@ -59,11 +59,11 @@ func (f *fileModule) execSearchRequestMessage(msg types.Message, pkt transport.P
 	}
 
 	/* Ignore duplicate searches */
-	_, ok = f.message.seenRequest.Load(searchRequestMsg.RequestID)
+	_, ok = f.message.SeenRequest.Load(searchRequestMsg.RequestID)
 	if ok {
 		return nil
 	}
-	f.message.seenRequest.Store(searchRequestMsg.RequestID, struct{}{})
+	f.message.SeenRequest.Store(searchRequestMsg.RequestID, struct{}{})
 
 	/* Find out local match files, only if the peer has the corresponding metafile in its blob store */
 	reg := regexp.MustCompile(searchRequestMsg.Pattern)
@@ -101,7 +101,7 @@ func (f *fileModule) execSearchRequestMessage(msg types.Message, pkt transport.P
 		Responses: matchFiles,
 	}
 	searchReplyMsgTrans, _ := f.conf.MessageRegistry.MarshalMessage(searchReplyMsg)
-	err := f.message.sendDirectMsg(pkt.Header.Source, searchRequestMsg.Origin, searchReplyMsgTrans)
+	err := f.message.SendDirectMsg(pkt.Header.Source, searchRequestMsg.Origin, searchReplyMsgTrans)
 	if err != nil {
 		return err
 	}
@@ -114,9 +114,9 @@ func (f *fileModule) execSearchRequestMessage(msg types.Message, pkt transport.P
 	/* Exclude the node that we receive the packet */
 	previousTargets := map[string]struct{}{}
 	previousTargets[pkt.Header.Source] = struct{}{}
-	remoteNeighborSet := f.message.remoteNeighbor(previousTargets)
+	remoteNeighborSet := f.message.RemoteNeighbor(previousTargets)
 	if len(remoteNeighborSet) > 0 {
-		selectedNeighbors, budgets := f.message.selectKNeighbors(searchRequestMsg.Budget-1, remoteNeighborSet)
+		selectedNeighbors, budgets := f.message.SelectKNeighbors(searchRequestMsg.Budget-1, remoteNeighborSet)
 		for idx := range selectedNeighbors {
 			selectNeighbor := selectedNeighbors[idx]
 			neighborBudget := budgets[idx]
@@ -127,7 +127,7 @@ func (f *fileModule) execSearchRequestMessage(msg types.Message, pkt transport.P
 	return nil
 }
 
-func (f *fileModule) execSearchReplyMessage(msg types.Message, pkt transport.Packet) error {
+func (f *FileModule) execSearchReplyMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	searchReplyMsg, ok := msg.(*types.SearchReplyMessage)
 	if !ok {
@@ -137,12 +137,12 @@ func (f *fileModule) execSearchReplyMessage(msg types.Message, pkt transport.Pac
 	for _, fileInfo := range searchReplyMsg.Responses {
 		/* Update the naming store and catalog */
 		f.conf.Storage.GetNamingStore().Set(fileInfo.Name, []byte(fileInfo.Metahash))
-		f.updateCatalog(fileInfo.Metahash, pkt.Header.Source)
+		f.UpdateCatalog(fileInfo.Metahash, pkt.Header.Source)
 
 		remoteFullKnown := true
 		for _, chunkHash := range fileInfo.Chunks {
 			if chunkHash != nil {
-				f.updateCatalog(string(chunkHash), pkt.Header.Source)
+				f.UpdateCatalog(string(chunkHash), pkt.Header.Source)
 			} else {
 				remoteFullKnown = false
 			}

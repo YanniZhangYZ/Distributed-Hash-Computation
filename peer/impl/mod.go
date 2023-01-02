@@ -3,193 +3,127 @@ package impl
 import (
 	"go.dedis.ch/cs438/peer"
 	"go.dedis.ch/cs438/peer/impl/chord"
+	"go.dedis.ch/cs438/peer/impl/consensus"
+	"go.dedis.ch/cs438/peer/impl/daemon"
+	"go.dedis.ch/cs438/peer/impl/fileshare"
+	"go.dedis.ch/cs438/peer/impl/message"
 	"go.dedis.ch/cs438/transport"
-	"go.dedis.ch/cs438/types"
 	"io"
 	"regexp"
-	"sync"
 	"time"
 )
-
-type originInfoEntry struct {
-	nextPeer string
-	seq      uint
-	rumors   []types.Rumor
-}
 
 // node implements a peer to build a Peerster system
 //
 // - implements peer.Peer
 type node struct {
-	peer.Peer                     // The node implements peer.Peer
-	address   string              // The node's address
-	conf      *peer.Configuration // The configuration contains Socket and MessageRegistry
-	message   *messageModule      // message module, handles packet sending
-	daemon    *daemonModule       // daemon module, runs all daemons
-	file      *fileModule         // file module, handles file upload download
-	consensus *consensusModule    // The node's consensus component
-	chord     *chord.ChordModule  // TODO
+	peer.Peer                            // The node implements peer.Peer
+	address   string                     // The node's address
+	conf      *peer.Configuration        // The configuration contains Socket and MessageRegistry
+	message   *message.MessageModule     // message module, handles packet sending
+	daemon    *daemon.DaemonModule       // daemon module, runs all daemons
+	file      *fileshare.FileModule      // file module, handles file upload download
+	consensus *consensus.ConsensusModule // The node's consensus component
+	chord     *chord.ChordModule         // TODO
 }
 
 // NewPeer creates a new peer. You can change the content and location of this
 // function but you MUST NOT change its signature and package location.
 func NewPeer(conf peer.Configuration) peer.Peer {
-	var originTable, async, catalog, fullKnown, seenRequest sync.Map
-
-	/* The routing table should have the peer's own address */
-	originTable.Store(conf.Socket.GetAddress(), originInfoEntry{
-		conf.Socket.GetAddress(),
-		uint(0),
-		[]types.Rumor{}})
-
-	message := messageModule{
-		address:     conf.Socket.GetAddress(),
-		conf:        &conf,
-		originTable: &originTable,
-		async:       &async,
-		seenRequest: &seenRequest,
-	}
-
-	daemon := daemonModule{
-		address:             conf.Socket.GetAddress(),
-		conf:                &conf,
-		message:             &message,
-		stopListenChan:      make(chan bool, 1),
-		stopAntiEntropyChan: make(chan bool, 1),
-		stopHeartbeatChan:   make(chan bool, 1),
-	}
-
-	file := fileModule{
-		address:   conf.Socket.GetAddress(),
-		conf:      &conf,
-		message:   &message,
-		catalog:   &catalog,
-		fullKnown: &fullKnown,
-	}
-
-	consensus := consensusModule{
-		address:       conf.Socket.GetAddress(),
-		conf:          &conf,
-		message:       &message,
-		threshold:     conf.PaxosThreshold(conf.TotalPeers),
-		totalPeers:    conf.TotalPeers,
-		tlcCnt:        make(map[uint]int),
-		tlcValue:      make(map[uint]*types.BlockchainBlock),
-		tlcChangeChan: make(chan *types.BlockchainBlock, 1000),
-	}
-	consensus.cond = sync.NewCond(&consensus.RWMutex)
-	consensus.createNewPaxos()
-
-	chordModule := chord.ChordModule{} // TODO
+	messageMod := message.NewMessageModule(&conf)
+	daemonMod := daemon.NewDaemonModule(&conf, messageMod)
+	fileMod := fileshare.NewFileModule(&conf, messageMod)
+	consensusMod := consensus.NewConsensusModule(&conf, messageMod)
+	chordMod := chord.NewChordModule(&conf, messageMod)
 
 	n := node{
 		address:   conf.Socket.GetAddress(),
 		conf:      &conf,
-		message:   &message,
-		daemon:    &daemon,
-		file:      &file,
-		consensus: &consensus,
-		chord:     &chordModule,
+		message:   messageMod,
+		daemon:    daemonMod,
+		file:      fileMod,
+		consensus: consensusMod,
+		chord:     chordMod,
 	}
 
-	/* Register different message callbacks */
-	conf.MessageRegistry.RegisterMessageCallback(types.ChatMessage{}, message.execChatMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.RumorsMessage{}, message.execRumorsMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.StatusMessage{}, message.execStatusMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.AckMessage{}, message.execAckMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.EmptyMessage{}, message.execEmptyMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.PrivateMessage{}, message.execPrivateMessage)
-
-	/* File sharing callbacks */
-	conf.MessageRegistry.RegisterMessageCallback(types.DataRequestMessage{}, file.execDataRequestMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.DataReplyMessage{}, file.execDataReplyMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.SearchRequestMessage{}, file.execSearchRequestMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.SearchReplyMessage{}, file.execSearchReplyMessage)
-
-	/* Consensus callbacks */
-	conf.MessageRegistry.RegisterMessageCallback(types.PaxosPrepareMessage{}, consensus.execPaxosPrepareMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.PaxosProposeMessage{}, consensus.execPaxosProposeMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.PaxosPromiseMessage{}, consensus.execPaxosPromiseMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.PaxosAcceptMessage{}, consensus.execPaxosAcceptMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.TLCMessage{}, consensus.execTLCMessage)
 	return &n
 }
 
 // Start implements peer.Service
 func (n *node) Start() error {
-	return n.daemon.start()
+	return n.daemon.Start()
 }
 
 // Stop implements peer.Service
 func (n *node) Stop() error {
-	return n.daemon.stop()
+	return n.daemon.Stop()
 }
 
 // AddPeer implements peer.Service
 func (n *node) AddPeer(addr ...string) {
-	n.message.addPeer(addr...)
+	n.message.AddPeer(addr...)
 }
 
 // GetRoutingTable implements peer.Service
 func (n *node) GetRoutingTable() peer.RoutingTable {
-	return n.message.getRoutingTable()
+	return n.message.GetRoutingTable()
 }
 
 // SetRoutingEntry implements peer.Service
 func (n *node) SetRoutingEntry(origin, relayAddr string) {
-	n.message.setRoutingEntry(origin, relayAddr)
+	n.message.SetRoutingEntry(origin, relayAddr)
 }
 
 // Unicast implements peer.Messaging
 func (n *node) Unicast(dest string, msg transport.Message) error {
-	return n.message.unicast(dest, msg)
+	return n.message.Unicast(dest, msg)
 }
 
 // Broadcast implements peer.Messaging
 func (n *node) Broadcast(msg transport.Message) error {
-	return n.message.broadcast(msg)
+	return n.message.Broadcast(msg)
 }
 
 // Upload implements peer.DataSharing
 func (n *node) Upload(data io.Reader) (string, error) {
-	return n.file.upload(data)
+	return n.file.Upload(data)
 }
 
 // Download implements peer.DataSharing
 func (n *node) Download(metahash string) ([]byte, error) {
-	return n.file.download(metahash)
+	return n.file.Download(metahash)
 }
 
 // Tag implements peer.DataSharing
 func (n *node) Tag(name string, mh string) error {
 	if n.conf.TotalPeers > 1 {
 		/* Use consensus to tag name to metahash */
-		return n.consensus.tag(name, mh)
+		return n.consensus.Tag(name, mh)
 	}
-	return n.file.tag(name, mh)
+	return n.file.Tag(name, mh)
 }
 
 // Resolve implements peer.DataSharing
 func (n *node) Resolve(name string) string {
-	return n.file.resolve(name)
+	return n.file.Resolve(name)
 }
 
 // GetCatalog implements peer.DataSharing
 func (n *node) GetCatalog() peer.Catalog {
-	return n.file.getCatalog()
+	return n.file.GetCatalog()
 }
 
 // UpdateCatalog implements peer.DataSharing
 func (n *node) UpdateCatalog(key string, peer string) {
-	n.file.updateCatalog(key, peer)
+	n.file.UpdateCatalog(key, peer)
 }
 
 // SearchAll implements peer.DataSharing
 func (n *node) SearchAll(reg regexp.Regexp, budget uint, timeout time.Duration) (names []string, err error) {
-	return n.file.searchAll(reg, budget, timeout)
+	return n.file.SearchAll(reg, budget, timeout)
 }
 
 // SearchFirst implements peer.DataSharing
 func (n *node) SearchFirst(pattern regexp.Regexp, conf peer.ExpandingRing) (string, error) {
-	return n.file.searchFirst(pattern, conf)
+	return n.file.SearchFirst(pattern, conf)
 }

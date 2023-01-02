@@ -1,4 +1,4 @@
-package impl
+package message
 
 import (
 	"go.dedis.ch/cs438/peer"
@@ -9,16 +9,48 @@ import (
 	"sync"
 )
 
-type messageModule struct {
+type originInfoEntry struct {
+	nextPeer string
+	seq      uint
+	rumors   []types.Rumor
+}
+
+func NewMessageModule(conf *peer.Configuration) *MessageModule {
+	var originTable, async, seenRequest sync.Map
+	originTable.Store(conf.Socket.GetAddress(), originInfoEntry{
+		conf.Socket.GetAddress(),
+		uint(0),
+		[]types.Rumor{}})
+
+	message := MessageModule{
+		address:     conf.Socket.GetAddress(),
+		conf:        conf,
+		originTable: &originTable,
+		Async:       &async,
+		SeenRequest: &seenRequest,
+	}
+
+	/* Register different message callbacks */
+	conf.MessageRegistry.RegisterMessageCallback(types.ChatMessage{}, message.execChatMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.RumorsMessage{}, message.execRumorsMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.StatusMessage{}, message.execStatusMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.AckMessage{}, message.execAckMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.EmptyMessage{}, message.execEmptyMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.PrivateMessage{}, message.execPrivateMessage)
+
+	return &message
+}
+
+type MessageModule struct {
 	address               string
 	conf                  *peer.Configuration // The configuration contains Socket and MessageRegistry
 	originTable           *sync.Map           // The table contains routing info, sequence number for each origin
 	originTableUpdateLock sync.Mutex
-	async                 *sync.Map // The asynchronous notification channel for ACK / Chunks
-	seenRequest           *sync.Map // File search duplicates
+	Async                 *sync.Map // The asynchronous notification channel for ACK / Chunks
+	SeenRequest           *sync.Map // File search duplicates
 }
 
-func (m *messageModule) addPeer(addr ...string) {
+func (m *MessageModule) AddPeer(addr ...string) {
 	// Iterate and add all addresses
 	m.originTableUpdateLock.Lock()
 	defer m.originTableUpdateLock.Unlock()
@@ -27,7 +59,7 @@ func (m *messageModule) addPeer(addr ...string) {
 	}
 }
 
-func (m *messageModule) getRoutingTable() peer.RoutingTable {
+func (m *MessageModule) GetRoutingTable() peer.RoutingTable {
 	// Make a copy of the routing table
 	var copyRoutingTable = make(peer.RoutingTable)
 
@@ -39,7 +71,7 @@ func (m *messageModule) getRoutingTable() peer.RoutingTable {
 	return copyRoutingTable
 }
 
-func (m *messageModule) setRoutingEntry(origin, relayAddr string) {
+func (m *MessageModule) SetRoutingEntry(origin, relayAddr string) {
 	m.originTableUpdateLock.Lock()
 	defer m.originTableUpdateLock.Unlock()
 	if relayAddr == "" {
@@ -59,7 +91,7 @@ func (m *messageModule) setRoutingEntry(origin, relayAddr string) {
 	}
 }
 
-func (m *messageModule) unicast(dest string, msg transport.Message) error {
+func (m *MessageModule) Unicast(dest string, msg transport.Message) error {
 	originInfo, ok := m.originTable.Load(dest)
 	if !ok {
 		return xerrors.Errorf("Unicast unknown address: %v %v", m.address, dest)
@@ -82,7 +114,7 @@ func (m *messageModule) unicast(dest string, msg transport.Message) error {
 	return m.conf.Socket.Send(nextPeer, pkt, 0)
 }
 
-func (m *messageModule) broadcast(msg transport.Message) error {
+func (m *MessageModule) Broadcast(msg transport.Message) error {
 	m.originTableUpdateLock.Lock()
 	originInfo, _ := m.originTable.Load(m.address)
 	seq := originInfo.(originInfoEntry).seq + 1

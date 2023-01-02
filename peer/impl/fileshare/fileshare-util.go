@@ -1,4 +1,4 @@
-package impl
+package fileshare
 
 import (
 	"github.com/rs/xid"
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func (f *fileModule) tryDownloadBlockRemote(dest string, dataRequestMsg types.DataRequestMessage,
+func (f *FileModule) tryDownloadBlockRemote(dest string, dataRequestMsg types.DataRequestMessage,
 	chunkChan *chan []byte, timeout time.Duration) ([]byte, error) {
 
 	dataRequestMsgTrans, err := f.conf.MessageRegistry.MarshalMessage(dataRequestMsg)
@@ -19,7 +19,7 @@ func (f *fileModule) tryDownloadBlockRemote(dest string, dataRequestMsg types.Da
 		return nil, err
 	}
 
-	err = f.message.unicast(dest, dataRequestMsgTrans)
+	err = f.message.Unicast(dest, dataRequestMsgTrans)
 	if err != nil {
 		return nil, err
 	}
@@ -28,16 +28,16 @@ func (f *fileModule) tryDownloadBlockRemote(dest string, dataRequestMsg types.Da
 	select {
 	case chunk := <-*chunkChan:
 		/* Delete the entry in the channels */
-		f.message.async.Delete(dataRequestMsg.RequestID)
+		f.message.Async.Delete(dataRequestMsg.RequestID)
 		return chunk, nil
 	case <-time.After(timeout):
 		/* Back off and retry */
-		f.message.async.Delete(dataRequestMsg.RequestID)
+		f.message.Async.Delete(dataRequestMsg.RequestID)
 		return nil, xerrors.Errorf("downloadBlock timeout")
 	}
 }
 
-func (f *fileModule) downloadBlock(hash string) ([]byte, error) {
+func (f *FileModule) downloadBlock(hash string) ([]byte, error) {
 	/* Check the local storage */
 	localStorage := f.conf.Storage.GetDataBlobStore().Get(hash)
 	if localStorage != nil {
@@ -54,7 +54,7 @@ func (f *fileModule) downloadBlock(hash string) ([]byte, error) {
 	if len(remoteStorage.(map[string]struct{})) == 0 {
 		return nil, xerrors.Errorf("Unable to locate file with hash: %v", hash)
 	}
-	randomPeer := f.message.selectRandomNeighbor(remoteStorage.(map[string]struct{}))
+	randomPeer := f.message.SelectRandomNeighbor(remoteStorage.(map[string]struct{}))
 
 	dataRequestMsg := types.DataRequestMessage{
 		RequestID: xid.New().String(),
@@ -63,7 +63,7 @@ func (f *fileModule) downloadBlock(hash string) ([]byte, error) {
 
 	/* Make a channel for DataReplyMessage handler to send back the chunk received */
 	chunkChan := make(chan []byte, 1)
-	f.message.async.Store(dataRequestMsg.RequestID, chunkChan)
+	f.message.Async.Store(dataRequestMsg.RequestID, chunkChan)
 
 	/* Send the DataRequestMessage to the peer and wait for the response, retry in case of timeout */
 	timeout := f.conf.BackoffDataRequest.Initial
@@ -82,7 +82,7 @@ func (f *fileModule) downloadBlock(hash string) ([]byte, error) {
 	return nil, xerrors.Errorf("Unable to locate file with hash: %v", hash)
 }
 
-func (f *fileModule) sendSearchRequest(reg regexp.Regexp, requestID string, origin string, selectNeighbor string,
+func (f *FileModule) sendSearchRequest(reg regexp.Regexp, requestID string, origin string, selectNeighbor string,
 	neighborBudget uint) {
 	searchRequestMsg := types.SearchRequestMessage{
 		RequestID: requestID,
@@ -96,13 +96,13 @@ func (f *fileModule) sendSearchRequest(reg regexp.Regexp, requestID string, orig
 		log.Panicln("sendSearchRequest: ", f.address, err)
 	}
 
-	err = f.message.unicast(selectNeighbor, searchRequestMsgTrans)
+	err = f.message.Unicast(selectNeighbor, searchRequestMsgTrans)
 	if err != nil {
 		log.Panicln("sendSearchRequest: ", f.address, err)
 	}
 }
 
-func (f *fileModule) localFullKnown(pattern regexp.Regexp) string {
+func (f *FileModule) localFullKnown(pattern regexp.Regexp) string {
 	fullKnownName := ""
 	f.conf.Storage.GetNamingStore().ForEach(func(name string, metahash []byte) bool {
 		found := true
@@ -127,7 +127,7 @@ func (f *fileModule) localFullKnown(pattern regexp.Regexp) string {
 	return fullKnownName
 }
 
-func (f *fileModule) expandRingSearch(pattern regexp.Regexp, conf peer.ExpandingRing) string {
+func (f *FileModule) expandRingSearch(pattern regexp.Regexp, conf peer.ExpandingRing) string {
 	f.fullKnown.Range(func(fileName, _ interface{}) bool {
 		f.fullKnown.Delete(fileName)
 		return true
@@ -137,9 +137,9 @@ func (f *fileModule) expandRingSearch(pattern regexp.Regexp, conf peer.Expanding
 	budget := conf.Initial
 	var retry uint
 	for retry < conf.Retry {
-		remoteNeighborSet := f.message.remoteNeighbor(map[string]struct{}{})
+		remoteNeighborSet := f.message.RemoteNeighbor(map[string]struct{}{})
 		if len(remoteNeighborSet) > 0 && budget > 0 {
-			selectedNeighbors, budgets := f.message.selectKNeighbors(budget, remoteNeighborSet)
+			selectedNeighbors, budgets := f.message.SelectKNeighbors(budget, remoteNeighborSet)
 			requestID := xid.New().String()
 			for idx := range selectedNeighbors {
 				selectNeighbor := selectedNeighbors[idx]

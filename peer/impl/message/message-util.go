@@ -1,4 +1,4 @@
-package impl
+package message
 
 import (
 	"go.dedis.ch/cs438/transport"
@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-func (m *messageModule) createStatusMessageTrans() (transport.Message, error) {
-	statusMsg := m.createStatusMessage()
+func (m *MessageModule) CreateStatusMessageTrans() (transport.Message, error) {
+	statusMsg := m.CreateStatusMessage()
 	statusMsgTrans, err := m.conf.MessageRegistry.MarshalMessage(statusMsg)
 	return statusMsgTrans, err
 }
 
-func (m *messageModule) createStatusMessage() types.StatusMessage {
+func (m *MessageModule) CreateStatusMessage() types.StatusMessage {
 	statusMsg := make(types.StatusMessage)
 	m.originTable.Range(func(origin, originInfo interface{}) bool {
 		if originInfo.(originInfoEntry).seq > 0 {
@@ -26,7 +26,7 @@ func (m *messageModule) createStatusMessage() types.StatusMessage {
 	return statusMsg
 }
 
-func (m *messageModule) sendDirectMsg(nextPeer string, dest string, msg transport.Message) error {
+func (m *MessageModule) SendDirectMsg(nextPeer string, dest string, msg transport.Message) error {
 	header := transport.NewHeader(m.address, m.address, dest, 0)
 	pkt := transport.Packet{
 		Header: &header,
@@ -36,7 +36,7 @@ func (m *messageModule) sendDirectMsg(nextPeer string, dest string, msg transpor
 	return err
 }
 
-func (m *messageModule) directNeighbor(except map[string]struct{}) map[string]struct{} {
+func (m *MessageModule) DirectNeighbor(except map[string]struct{}) map[string]struct{} {
 	/* Select a direct neighbor set that are outside the set "except", and the neighbor is not ourselves */
 	directNeighborSet := map[string]struct{}{}
 	m.originTable.Range(func(origin, originInfo interface{}) bool {
@@ -49,7 +49,7 @@ func (m *messageModule) directNeighbor(except map[string]struct{}) map[string]st
 	return directNeighborSet
 }
 
-func (m *messageModule) remoteNeighbor(except map[string]struct{}) map[string]struct{} {
+func (m *MessageModule) RemoteNeighbor(except map[string]struct{}) map[string]struct{} {
 	/* Select a remote neighbor set that are outside the set "except", and the neighbor is not ourselves */
 	remoteNeighborSet := map[string]struct{}{}
 	m.originTable.Range(func(origin, originInfo interface{}) bool {
@@ -62,7 +62,7 @@ func (m *messageModule) remoteNeighbor(except map[string]struct{}) map[string]st
 	return remoteNeighborSet
 }
 
-func (m *messageModule) selectRandomNeighbor(neighborSet map[string]struct{}) string {
+func (m *MessageModule) SelectRandomNeighbor(neighborSet map[string]struct{}) string {
 	/* Read out the neighbors to an array */
 	neighbors := make([]string, len(neighborSet))
 	i := 0
@@ -79,7 +79,7 @@ func (m *messageModule) selectRandomNeighbor(neighborSet map[string]struct{}) st
 	return ""
 }
 
-func (m *messageModule) selectKNeighbors(budget uint, neighborSet map[string]struct{}) ([]string, []uint) {
+func (m *MessageModule) SelectKNeighbors(budget uint, neighborSet map[string]struct{}) ([]string, []uint) {
 	if budget > uint(len(neighborSet)) {
 		/* We will send to all neighbors but with different budgets */
 		budgets := make([]uint, len(neighborSet))
@@ -111,14 +111,14 @@ func (m *messageModule) selectKNeighbors(budget uint, neighborSet map[string]str
 		neighborSetCopy[k] = struct{}{}
 	}
 	for uint(len(neighbors)) < budget {
-		randomNeighbor := m.selectRandomNeighbor(neighborSetCopy)
+		randomNeighbor := m.SelectRandomNeighbor(neighborSetCopy)
 		neighbors = append(neighbors, randomNeighbor)
 		delete(neighborSetCopy, randomNeighbor)
 	}
 	return neighbors, budgets
 }
 
-func (m *messageModule) checkLocalRemoteSync(statusMsg *types.StatusMessage,
+func (m *MessageModule) checkLocalRemoteSync(statusMsg *types.StatusMessage,
 	source string) (bool, bool, bool, []types.Rumor) {
 	localMissing := false
 	remoteMissing := false
@@ -166,14 +166,14 @@ func (m *messageModule) checkLocalRemoteSync(statusMsg *types.StatusMessage,
 	return localMissing, remoteMissing, localSync, remoteMissingRumors
 }
 
-func (m *messageModule) tryNewNeighbor(previousTargets map[string]struct{},
+func (m *MessageModule) tryNewNeighbor(previousTargets map[string]struct{},
 	source string, rumorMsgTrans transport.Message) {
-	directNeighborSet := m.directNeighbor(previousTargets)
+	directNeighborSet := m.DirectNeighbor(previousTargets)
 	if len(directNeighborSet) == 0 {
 		/* We cannot find another neighbor */
 		return
 	}
-	rumorNeighbor := m.selectRandomNeighbor(directNeighborSet)
+	rumorNeighbor := m.SelectRandomNeighbor(directNeighborSet)
 
 	header := transport.NewHeader(source, m.address, rumorNeighbor, 0)
 	pkt := transport.Packet{
@@ -183,7 +183,7 @@ func (m *messageModule) tryNewNeighbor(previousTargets map[string]struct{},
 
 	/* Make a channel for ackMessage handler to ack the reception of the packet */
 	pktChan := make(chan int, 1)
-	m.async.Store(pkt.Header.PacketID, pktChan)
+	m.Async.Store(pkt.Header.PacketID, pktChan)
 
 	err := m.conf.Socket.Send(rumorNeighbor, pkt, 0)
 	if err != nil {
@@ -202,10 +202,10 @@ func (m *messageModule) tryNewNeighbor(previousTargets map[string]struct{},
 		select {
 		case <-pktChan:
 			/* Delete the entry in the ack channels */
-			m.async.Delete(pkt.Header.PacketID)
+			m.Async.Delete(pkt.Header.PacketID)
 			return
 		case <-time.After(timeoutDur):
-			m.async.Delete(pkt.Header.PacketID)
+			m.Async.Delete(pkt.Header.PacketID)
 			previousTargets[rumorNeighbor] = struct{}{}
 			m.tryNewNeighbor(previousTargets, source, rumorMsgTrans)
 			return
