@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func (f *FileModule) tryDownloadBlockRemote(dest string, dataRequestMsg types.DataRequestMessage,
+func (f *File) tryDownloadBlockRemote(dest string, dataRequestMsg types.DataRequestMessage,
 	chunkChan *chan []byte, timeout time.Duration) ([]byte, error) {
 
 	dataRequestMsgTrans, err := f.conf.MessageRegistry.MarshalMessage(dataRequestMsg)
@@ -37,7 +37,7 @@ func (f *FileModule) tryDownloadBlockRemote(dest string, dataRequestMsg types.Da
 	}
 }
 
-func (f *FileModule) downloadBlock(hash string) ([]byte, error) {
+func (f *File) downloadBlock(hash string) ([]byte, error) {
 	/* Check the local storage */
 	localStorage := f.conf.Storage.GetDataBlobStore().Get(hash)
 	if localStorage != nil {
@@ -82,7 +82,7 @@ func (f *FileModule) downloadBlock(hash string) ([]byte, error) {
 	return nil, xerrors.Errorf("Unable to locate file with hash: %v", hash)
 }
 
-func (f *FileModule) sendSearchRequest(reg regexp.Regexp, requestID string, origin string, selectNeighbor string,
+func (f *File) sendSearchRequest(reg regexp.Regexp, requestID string, origin string, selectNeighbor string,
 	neighborBudget uint) {
 	searchRequestMsg := types.SearchRequestMessage{
 		RequestID: requestID,
@@ -102,7 +102,7 @@ func (f *FileModule) sendSearchRequest(reg regexp.Regexp, requestID string, orig
 	}
 }
 
-func (f *FileModule) localFullKnown(pattern regexp.Regexp) string {
+func (f *File) localFullKnown(pattern regexp.Regexp) string {
 	fullKnownName := ""
 	f.conf.Storage.GetNamingStore().ForEach(func(name string, metahash []byte) bool {
 		found := true
@@ -127,7 +127,7 @@ func (f *FileModule) localFullKnown(pattern regexp.Regexp) string {
 	return fullKnownName
 }
 
-func (f *FileModule) expandRingSearch(pattern regexp.Regexp, conf peer.ExpandingRing) string {
+func (f *File) expandRingSearch(pattern regexp.Regexp, conf peer.ExpandingRing) string {
 	f.fullKnown.Range(func(fileName, _ interface{}) bool {
 		f.fullKnown.Delete(fileName)
 		return true

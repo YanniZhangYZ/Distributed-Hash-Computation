@@ -17,24 +17,24 @@ import (
 //
 // - implements peer.Peer
 type node struct {
-	peer.Peer                            // The node implements peer.Peer
-	address   string                     // The node's address
-	conf      *peer.Configuration        // The configuration contains Socket and MessageRegistry
-	message   *message.MessageModule     // message module, handles packet sending
-	daemon    *daemon.DaemonModule       // daemon module, runs all daemons
-	file      *fileshare.FileModule      // file module, handles file upload download
-	consensus *consensus.ConsensusModule // The node's consensus component
-	chord     *chord.ChordModule         // TODO
+	peer.Peer                      // The node implements peer.Peer
+	address   string               // The node's address
+	conf      *peer.Configuration  // The configuration contains Socket and MessageRegistry
+	message   *message.Message     // message module, handles packet sending
+	daemon    *daemon.Daemon       // daemon module, runs all daemons
+	file      *fileshare.File      // file module, handles file upload download
+	consensus *consensus.Consensus // The node's consensus component
+	chord     *chord.Chord         // TODO
 }
 
 // NewPeer creates a new peer. You can change the content and location of this
 // function but you MUST NOT change its signature and package location.
 func NewPeer(conf peer.Configuration) peer.Peer {
-	messageMod := message.NewMessageModule(&conf)
-	daemonMod := daemon.NewDaemonModule(&conf, messageMod)
-	fileMod := fileshare.NewFileModule(&conf, messageMod)
-	consensusMod := consensus.NewConsensusModule(&conf, messageMod)
-	chordMod := chord.NewChordModule(&conf, messageMod)
+	messageMod := message.NewMessage(&conf)
+	daemonMod := daemon.NewDaemon(&conf, messageMod)
+	fileMod := fileshare.NewFile(&conf, messageMod)
+	consensusMod := consensus.NewConsensus(&conf, messageMod)
+	chordMod := chord.NewChord(&conf, messageMod)
 
 	n := node{
 		address:   conf.Socket.GetAddress(),

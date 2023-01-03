@@ -17,7 +17,7 @@ func (c ChordQueryMessage) Name() string {
 
 // String implements types.Message.
 func (c ChordQueryMessage) String() string {
-	return fmt.Sprintf("{chordquery %d}", c.Key)
+	return fmt.Sprintf("{chordquery %d from %s}", c.Key, c.Source)
 }
 
 // HTML implements types.Message.

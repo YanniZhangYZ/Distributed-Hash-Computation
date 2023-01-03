@@ -12,8 +12,8 @@ import (
 	"sync"
 )
 
-func NewConsensusModule(conf *peer.Configuration, message *message.MessageModule) *ConsensusModule {
-	consensus := ConsensusModule{
+func NewConsensus(conf *peer.Configuration, message *message.Message) *Consensus {
+	consensus := Consensus{
 		address:       conf.Socket.GetAddress(),
 		conf:          conf,
 		message:       message,
@@ -36,12 +36,12 @@ func NewConsensusModule(conf *peer.Configuration, message *message.MessageModule
 	return &consensus
 }
 
-type ConsensusModule struct {
+type Consensus struct {
 	sync.RWMutex
 	cond          *sync.Cond
 	address       string
 	conf          *peer.Configuration
-	message       *message.MessageModule
+	message       *message.Message
 	threshold     int
 	totalPeers    uint
 	tlcStep       uint
@@ -51,14 +51,14 @@ type ConsensusModule struct {
 	tlcChangeChan chan *types.BlockchainBlock
 }
 
-func (c *ConsensusModule) createNewPaxos() {
+func (c *Consensus) createNewPaxos() {
 	c.paxos = Paxos{
 		proposeID: c.conf.PaxosID,
 		acceptCnt: make(map[string]int),
 	}
 }
 
-func (c *ConsensusModule) buildTLCMsg() types.TLCMessage {
+func (c *Consensus) buildTLCMsg() types.TLCMessage {
 	/* To be called from ExecPaxosAcceptMessage when the paxos reaches consensus */
 	h := crypto.SHA256.New()
 	h.Write([]byte(strconv.Itoa(int(c.tlcStep))))
@@ -85,7 +85,7 @@ func (c *ConsensusModule) buildTLCMsg() types.TLCMessage {
 	return tlcMsg
 }
 
-func (c *ConsensusModule) advanceTLC(catchup bool) error {
+func (c *Consensus) advanceTLC(catchup bool) error {
 	/* To be called from ExecTLCMessage or itself when catchup*/
 	/* Add block to the blockchain */
 	block := c.tlcValue[c.tlcStep]
@@ -135,7 +135,7 @@ func (c *ConsensusModule) advanceTLC(catchup bool) error {
 	return nil
 }
 
-func (c *ConsensusModule) Tag(name string, mh string) error {
+func (c *Consensus) Tag(name string, mh string) error {
 	/* Check if the name already exists in the name store */
 	if c.conf.Storage.GetNamingStore().Get(name) != nil {
 		return xerrors.Errorf("Tag name already exists!")

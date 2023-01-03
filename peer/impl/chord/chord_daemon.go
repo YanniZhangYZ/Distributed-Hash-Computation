@@ -5,23 +5,23 @@ import (
 	"time"
 )
 
-type daemonModule struct {
+type daemon struct {
 	address           string              // The node's address
 	conf              *peer.Configuration // The configuration contains Socket and MessageRegistry
 	message           *peer.Messaging     // Messaging used to communicate among nodes
 	stopStabilizeChan chan bool           // Communication channel about whether we should stop the node
 }
 
-func (d *daemonModule) start() error {
+func (d *daemon) start() error {
 	return nil
 }
 
-func (d *daemonModule) stop() error {
+func (d *daemon) stop() error {
 	d.stopStabilizeChan <- true
 	return nil
 }
 
-func (d *daemonModule) stabilizeDaemon() {
+func (d *daemon) stabilizeDaemon() {
 	if d.conf.ChordStabilizeInterval == 0 {
 		/* Anti-entropy mechanism is disabled */
 		return

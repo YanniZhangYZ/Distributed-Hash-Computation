@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-func (m *MessageModule) CreateStatusMessageTrans() (transport.Message, error) {
+func (m *Message) CreateStatusMessageTrans() (transport.Message, error) {
 	statusMsg := m.CreateStatusMessage()
 	statusMsgTrans, err := m.conf.MessageRegistry.MarshalMessage(statusMsg)
 	return statusMsgTrans, err
 }
 
-func (m *MessageModule) CreateStatusMessage() types.StatusMessage {
+func (m *Message) CreateStatusMessage() types.StatusMessage {
 	statusMsg := make(types.StatusMessage)
 	m.originTable.Range(func(origin, originInfo interface{}) bool {
 		if originInfo.(originInfoEntry).seq > 0 {
@@ -26,7 +26,7 @@ func (m *MessageModule) CreateStatusMessage() types.StatusMessage {
 	return statusMsg
 }
 
-func (m *MessageModule) SendDirectMsg(nextPeer string, dest string, msg transport.Message) error {
+func (m *Message) SendDirectMsg(nextPeer string, dest string, msg transport.Message) error {
 	header := transport.NewHeader(m.address, m.address, dest, 0)
 	pkt := transport.Packet{
 		Header: &header,
@@ -36,7 +36,7 @@ func (m *MessageModule) SendDirectMsg(nextPeer string, dest string, msg transpor
 	return err
 }
 
-func (m *MessageModule) DirectNeighbor(except map[string]struct{}) map[string]struct{} {
+func (m *Message) DirectNeighbor(except map[string]struct{}) map[string]struct{} {
 	/* Select a direct neighbor set that are outside the set "except", and the neighbor is not ourselves */
 	directNeighborSet := map[string]struct{}{}
 	m.originTable.Range(func(origin, originInfo interface{}) bool {
@@ -49,7 +49,7 @@ func (m *MessageModule) DirectNeighbor(except map[string]struct{}) map[string]st
 	return directNeighborSet
 }
 
-func (m *MessageModule) RemoteNeighbor(except map[string]struct{}) map[string]struct{} {
+func (m *Message) RemoteNeighbor(except map[string]struct{}) map[string]struct{} {
 	/* Select a remote neighbor set that are outside the set "except", and the neighbor is not ourselves */
 	remoteNeighborSet := map[string]struct{}{}
 	m.originTable.Range(func(origin, originInfo interface{}) bool {
@@ -62,7 +62,7 @@ func (m *MessageModule) RemoteNeighbor(except map[string]struct{}) map[string]st
 	return remoteNeighborSet
 }
 
-func (m *MessageModule) SelectRandomNeighbor(neighborSet map[string]struct{}) string {
+func (m *Message) SelectRandomNeighbor(neighborSet map[string]struct{}) string {
 	/* Read out the neighbors to an array */
 	neighbors := make([]string, len(neighborSet))
 	i := 0
@@ -79,7 +79,7 @@ func (m *MessageModule) SelectRandomNeighbor(neighborSet map[string]struct{}) st
 	return ""
 }
 
-func (m *MessageModule) SelectKNeighbors(budget uint, neighborSet map[string]struct{}) ([]string, []uint) {
+func (m *Message) SelectKNeighbors(budget uint, neighborSet map[string]struct{}) ([]string, []uint) {
 	if budget > uint(len(neighborSet)) {
 		/* We will send to all neighbors but with different budgets */
 		budgets := make([]uint, len(neighborSet))
@@ -118,7 +118,7 @@ func (m *MessageModule) SelectKNeighbors(budget uint, neighborSet map[string]str
 	return neighbors, budgets
 }
 
-func (m *MessageModule) checkLocalRemoteSync(statusMsg *types.StatusMessage,
+func (m *Message) checkLocalRemoteSync(statusMsg *types.StatusMessage,
 	source string) (bool, bool, bool, []types.Rumor) {
 	localMissing := false
 	remoteMissing := false
@@ -166,7 +166,7 @@ func (m *MessageModule) checkLocalRemoteSync(statusMsg *types.StatusMessage,
 	return localMissing, remoteMissing, localSync, remoteMissingRumors
 }
 
-func (m *MessageModule) tryNewNeighbor(previousTargets map[string]struct{},
+func (m *Message) tryNewNeighbor(previousTargets map[string]struct{},
 	source string, rumorMsgTrans transport.Message) {
 	directNeighborSet := m.DirectNeighbor(previousTargets)
 	if len(directNeighborSet) == 0 {

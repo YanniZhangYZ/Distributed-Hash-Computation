@@ -84,8 +84,9 @@ type Configuration struct {
 	// This value should be the same as the salt bytes (which is the key inside the Chord)
 	ChordBytes int
 
-	// ChordNumSuccessors is the number of successors to maintain
-	ChordNumSuccessors int
+	// ChordTimeout is the timeout that a chord peer wait, until it considers the remote
+	// peer won't reply to the message it sends out
+	ChordTimeout time.Duration
 
 	// ChordStabilizeInterval is the interval the chord node wait until it checks its
 	// successor pointer is up-to-date

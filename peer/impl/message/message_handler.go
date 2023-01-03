@@ -8,7 +8,7 @@ import (
 	"math/rand"
 )
 
-func (m *MessageModule) execChatMessage(msg types.Message, pkt transport.Packet) error {
+func (m *Message) execChatMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	chatMsg, ok := msg.(*types.ChatMessage)
 	if !ok {
@@ -20,7 +20,7 @@ func (m *MessageModule) execChatMessage(msg types.Message, pkt transport.Packet)
 	return nil
 }
 
-func (m *MessageModule) execEmptyMessage(msg types.Message, pkt transport.Packet) error {
+func (m *Message) execEmptyMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	_, ok := msg.(*types.EmptyMessage)
 	if !ok {
@@ -30,7 +30,7 @@ func (m *MessageModule) execEmptyMessage(msg types.Message, pkt transport.Packet
 	return nil
 }
 
-func (m *MessageModule) execPrivateMessage(msg types.Message, pkt transport.Packet) error {
+func (m *Message) execPrivateMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	privateMsg, ok := msg.(*types.PrivateMessage)
 	if !ok {
@@ -51,7 +51,7 @@ func (m *MessageModule) execPrivateMessage(msg types.Message, pkt transport.Pack
 	return nil
 }
 
-func (m *MessageModule) execRumorsMessage(msg types.Message, pkt transport.Packet) error {
+func (m *Message) execRumorsMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	rumorsMsg, ok := msg.(*types.RumorsMessage)
 	if !ok {
@@ -131,7 +131,7 @@ func (m *MessageModule) execRumorsMessage(msg types.Message, pkt transport.Packe
 	return m.SendDirectMsg(pkt.Header.RelayedBy, pkt.Header.RelayedBy, ackMsgTrans)
 }
 
-func (m *MessageModule) execStatusMessage(msg types.Message, pkt transport.Packet) error {
+func (m *Message) execStatusMessage(msg types.Message, pkt transport.Packet) error {
 
 	/* cast the message to its actual type. You assume it is the right type. */
 	statusMsg, ok := msg.(*types.StatusMessage)
@@ -185,7 +185,7 @@ func (m *MessageModule) execStatusMessage(msg types.Message, pkt transport.Packe
 	return nil
 }
 
-func (m *MessageModule) execAckMessage(msg types.Message, pkt transport.Packet) error {
+func (m *Message) execAckMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	ackMsg, ok := msg.(*types.AckMessage)
 	if !ok {

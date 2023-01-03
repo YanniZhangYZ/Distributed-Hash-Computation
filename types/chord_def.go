@@ -8,6 +8,9 @@ type ChordQueryMessage struct {
 	// it.
 	RequestID string
 
+	// Source is the address of the peer that initiate the query
+	Source string
+
 	// Key is the key to query
-	Key int
+	Key uint
 }

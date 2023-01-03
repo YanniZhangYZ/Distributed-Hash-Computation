@@ -7,7 +7,7 @@ import (
 	"log"
 )
 
-func (c *ConsensusModule) execPaxosPrepareMessage(msg types.Message, pkt transport.Packet) error {
+func (c *Consensus) execPaxosPrepareMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	paxosPrepareMsg, ok := msg.(*types.PaxosPrepareMessage)
 	if !ok {
@@ -53,7 +53,7 @@ func (c *ConsensusModule) execPaxosPrepareMessage(msg types.Message, pkt transpo
 	return c.message.Broadcast(privateMsgTrans)
 }
 
-func (c *ConsensusModule) execPaxosPromiseMessage(msg types.Message, pkt transport.Packet) error {
+func (c *Consensus) execPaxosPromiseMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	paxosPromiseMsg, ok := msg.(*types.PaxosPromiseMessage)
 	if !ok {
@@ -105,7 +105,7 @@ func (c *ConsensusModule) execPaxosPromiseMessage(msg types.Message, pkt transpo
 	return nil
 }
 
-func (c *ConsensusModule) execPaxosProposeMessage(msg types.Message, pkt transport.Packet) error {
+func (c *Consensus) execPaxosProposeMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	paxosProposeMsg, ok := msg.(*types.PaxosProposeMessage)
 	if !ok {
@@ -141,7 +141,7 @@ func (c *ConsensusModule) execPaxosProposeMessage(msg types.Message, pkt transpo
 	return c.message.Broadcast(paxosAcceptMsgTrans)
 }
 
-func (c *ConsensusModule) execPaxosAcceptMessage(msg types.Message, pkt transport.Packet) error {
+func (c *Consensus) execPaxosAcceptMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	paxosAcceptMsg, ok := msg.(*types.PaxosAcceptMessage)
 	if !ok {
@@ -194,7 +194,7 @@ func (c *ConsensusModule) execPaxosAcceptMessage(msg types.Message, pkt transpor
 	return nil
 }
 
-func (c *ConsensusModule) execTLCMessage(msg types.Message, pkt transport.Packet) error {
+func (c *Consensus) execTLCMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	tlcMsg, ok := msg.(*types.TLCMessage)
 	if !ok {

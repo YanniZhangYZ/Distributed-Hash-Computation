@@ -15,9 +15,9 @@ import (
 	"time"
 )
 
-func NewFileModule(conf *peer.Configuration, message *message.MessageModule) *FileModule {
+func NewFile(conf *peer.Configuration, message *message.Message) *File {
 	var catalog, fullKnown sync.Map
-	file := FileModule{
+	file := File{
 		address:   conf.Socket.GetAddress(),
 		conf:      conf,
 		message:   message,
@@ -34,16 +34,16 @@ func NewFileModule(conf *peer.Configuration, message *message.MessageModule) *Fi
 	return &file
 }
 
-type FileModule struct {
+type File struct {
 	address           string
 	conf              *peer.Configuration // The configuration contains Socket and MessageRegistry
-	message           *message.MessageModule
+	message           *message.Message
 	catalog           *sync.Map // The catalog for file sharing of the peer
 	catalogUpdateLock sync.Mutex
 	fullKnown         *sync.Map // Full known file names for remote peers
 }
 
-func (f *FileModule) Upload(data io.Reader) (string, error) {
+func (f *File) Upload(data io.Reader) (string, error) {
 	var metafileKey []byte
 	var metafileValue []string
 
@@ -79,7 +79,7 @@ func (f *FileModule) Upload(data io.Reader) (string, error) {
 	return metahashHex, nil
 }
 
-func (f *FileModule) Download(metahash string) ([]byte, error) {
+func (f *File) Download(metahash string) ([]byte, error) {
 	var file []byte
 
 	/* First get the meta file */
@@ -104,16 +104,16 @@ func (f *FileModule) Download(metahash string) ([]byte, error) {
 	return file, nil
 }
 
-func (f *FileModule) Tag(name string, mh string) error {
+func (f *File) Tag(name string, mh string) error {
 	f.conf.Storage.GetNamingStore().Set(name, []byte(mh))
 	return nil
 }
 
-func (f *FileModule) Resolve(name string) string {
+func (f *File) Resolve(name string) string {
 	return string(f.conf.Storage.GetNamingStore().Get(name))
 }
 
-func (f *FileModule) GetCatalog() peer.Catalog {
+func (f *File) GetCatalog() peer.Catalog {
 	/* Make a copy of the catalog */
 	var copyCatalog = make(peer.Catalog)
 
@@ -125,7 +125,7 @@ func (f *FileModule) GetCatalog() peer.Catalog {
 	return copyCatalog
 }
 
-func (f *FileModule) UpdateCatalog(key string, peer string) {
+func (f *File) UpdateCatalog(key string, peer string) {
 	/* Update or create the entry */
 	f.catalogUpdateLock.Lock()
 	fileHosts, ok := f.catalog.Load(key)
@@ -140,7 +140,7 @@ func (f *FileModule) UpdateCatalog(key string, peer string) {
 	f.catalogUpdateLock.Unlock()
 }
 
-func (f *FileModule) SearchAll(reg regexp.Regexp, budget uint, timeout time.Duration) (names []string, err error) {
+func (f *File) SearchAll(reg regexp.Regexp, budget uint, timeout time.Duration) (names []string, err error) {
 	/* Check for remote peers, and wait for responses */
 	remoteNeighborSet := f.message.RemoteNeighbor(map[string]struct{}{})
 	if len(remoteNeighborSet) > 0 && budget > 0 {
@@ -167,7 +167,7 @@ func (f *FileModule) SearchAll(reg regexp.Regexp, budget uint, timeout time.Dura
 	return matchNames, nil
 }
 
-func (f *FileModule) SearchFirst(pattern regexp.Regexp, conf peer.ExpandingRing) (string, error) {
+func (f *File) SearchFirst(pattern regexp.Regexp, conf peer.ExpandingRing) (string, error) {
 	/* Check that local already have a full file */
 	localFullKnownName := f.localFullKnown(pattern)
 	if localFullKnownName != "" {

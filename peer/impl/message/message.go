@@ -15,14 +15,14 @@ type originInfoEntry struct {
 	rumors   []types.Rumor
 }
 
-func NewMessageModule(conf *peer.Configuration) *MessageModule {
+func NewMessage(conf *peer.Configuration) *Message {
 	var originTable, async, seenRequest sync.Map
 	originTable.Store(conf.Socket.GetAddress(), originInfoEntry{
 		conf.Socket.GetAddress(),
 		uint(0),
 		[]types.Rumor{}})
 
-	message := MessageModule{
+	message := Message{
 		address:     conf.Socket.GetAddress(),
 		conf:        conf,
 		originTable: &originTable,
@@ -41,16 +41,16 @@ func NewMessageModule(conf *peer.Configuration) *MessageModule {
 	return &message
 }
 
-type MessageModule struct {
+type Message struct {
 	address               string
 	conf                  *peer.Configuration // The configuration contains Socket and MessageRegistry
 	originTable           *sync.Map           // The table contains routing info, sequence number for each origin
-	originTableUpdateLock sync.Mutex
-	Async                 *sync.Map // The asynchronous notification channel for ACK / Chunks
-	SeenRequest           *sync.Map // File search duplicates
+	originTableUpdateLock sync.Mutex          // The mutex to protect (read from + write to) to the originTable
+	Async                 *sync.Map           // The asynchronous notification channel for ACK / Chunks
+	SeenRequest           *sync.Map           // File search duplicates
 }
 
-func (m *MessageModule) AddPeer(addr ...string) {
+func (m *Message) AddPeer(addr ...string) {
 	// Iterate and add all addresses
 	m.originTableUpdateLock.Lock()
 	defer m.originTableUpdateLock.Unlock()
@@ -59,7 +59,7 @@ func (m *MessageModule) AddPeer(addr ...string) {
 	}
 }
 
-func (m *MessageModule) GetRoutingTable() peer.RoutingTable {
+func (m *Message) GetRoutingTable() peer.RoutingTable {
 	// Make a copy of the routing table
 	var copyRoutingTable = make(peer.RoutingTable)
 
@@ -71,7 +71,7 @@ func (m *MessageModule) GetRoutingTable() peer.RoutingTable {
 	return copyRoutingTable
 }
 
-func (m *MessageModule) SetRoutingEntry(origin, relayAddr string) {
+func (m *Message) SetRoutingEntry(origin, relayAddr string) {
 	m.originTableUpdateLock.Lock()
 	defer m.originTableUpdateLock.Unlock()
 	if relayAddr == "" {
@@ -91,7 +91,7 @@ func (m *MessageModule) SetRoutingEntry(origin, relayAddr string) {
 	}
 }
 
-func (m *MessageModule) Unicast(dest string, msg transport.Message) error {
+func (m *Message) Unicast(dest string, msg transport.Message) error {
 	originInfo, ok := m.originTable.Load(dest)
 	if !ok {
 		return xerrors.Errorf("Unicast unknown address: %v %v", m.address, dest)
@@ -114,7 +114,7 @@ func (m *MessageModule) Unicast(dest string, msg transport.Message) error {
 	return m.conf.Socket.Send(nextPeer, pkt, 0)
 }
 
-func (m *MessageModule) Broadcast(msg transport.Message) error {
+func (m *Message) Broadcast(msg transport.Message) error {
 	m.originTableUpdateLock.Lock()
 	originInfo, _ := m.originTable.Load(m.address)
 	seq := originInfo.(originInfoEntry).seq + 1

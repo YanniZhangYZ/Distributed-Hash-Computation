@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-func NewDaemonModule(conf *peer.Configuration, message *message.MessageModule) *DaemonModule {
-	daemon := DaemonModule{
+func NewDaemon(conf *peer.Configuration, message *message.Message) *Daemon {
+	daemon := Daemon{
 		address:             conf.Socket.GetAddress(),
 		conf:                conf,
 		message:             message,
@@ -22,16 +22,16 @@ func NewDaemonModule(conf *peer.Configuration, message *message.MessageModule) *
 	return &daemon
 }
 
-type DaemonModule struct {
+type Daemon struct {
 	address             string              // The node's address
 	conf                *peer.Configuration // The configuration contains Socket and MessageRegistry
-	message             *message.MessageModule
+	message             *message.Message
 	stopListenChan      chan bool
 	stopAntiEntropyChan chan bool
 	stopHeartbeatChan   chan bool
 }
 
-func (d *DaemonModule) Start() error {
+func (d *Daemon) Start() error {
 	/* Start listening to the socket */
 	go d.listenDaemon()
 	/* Start the anti-entropy daemon*/
@@ -41,14 +41,14 @@ func (d *DaemonModule) Start() error {
 	return nil
 }
 
-func (d *DaemonModule) Stop() error {
+func (d *Daemon) Stop() error {
 	d.stopListenChan <- true
 	d.stopAntiEntropyChan <- true
 	d.stopHeartbeatChan <- true
 	return nil
 }
 
-func (d *DaemonModule) listenDaemon() {
+func (d *Daemon) listenDaemon() {
 	for {
 		select {
 		case <-d.stopListenChan:
@@ -82,7 +82,7 @@ func (d *DaemonModule) listenDaemon() {
 	}
 }
 
-func (d *DaemonModule) antiEntropyDaemon() {
+func (d *Daemon) antiEntropyDaemon() {
 	if d.conf.AntiEntropyInterval == 0 {
 		/* Anti-entropy mechanism is disabled */
 		return
@@ -117,7 +117,7 @@ func (d *DaemonModule) antiEntropyDaemon() {
 
 }
 
-func (d *DaemonModule) heartbeatDaemon() {
+func (d *Daemon) heartbeatDaemon() {
 	if d.conf.HeartbeatInterval == 0 {
 		/* Heartbeat mechanism is disabled */
 		return

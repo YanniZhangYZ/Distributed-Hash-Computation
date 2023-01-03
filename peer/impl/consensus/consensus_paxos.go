@@ -37,7 +37,7 @@ type Paxos struct {
 	collectEnoughAccept  *chan *types.PaxosValue
 }
 
-func (c *ConsensusModule) paxosPropose(name string, mh string) proposeResult {
+func (c *Consensus) paxosPropose(name string, mh string) proposeResult {
 	for {
 		phase1Res := c.paxosPhase1(name, mh)
 		if phase1Res.err != nil {
@@ -62,7 +62,7 @@ func (c *ConsensusModule) paxosPropose(name string, mh string) proposeResult {
 	}
 }
 
-func (c *ConsensusModule) paxosPhase1(name string, mh string) phase1Result {
+func (c *Consensus) paxosPhase1(name string, mh string) phase1Result {
 	for {
 		/* Broadcast a PaxosPrepareMessage, collect the promises */
 		c.Lock()
@@ -107,7 +107,7 @@ func (c *ConsensusModule) paxosPhase1(name string, mh string) phase1Result {
 	}
 }
 
-func (c *ConsensusModule) paxosPhase2(name string, mh string) phase2Result {
+func (c *Consensus) paxosPhase2(name string, mh string) phase2Result {
 	c.Lock()
 	c.paxos.phase = 2
 	/* If we have received nothing from peers, we set the value to ours */
