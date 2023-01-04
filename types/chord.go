@@ -3,7 +3,7 @@ package types
 import "fmt"
 
 // -----------------------------------------------------------------------------
-// PaxosPrepareMessage
+// ChordQueryMessage
 
 // NewEmpty implements types.Message.
 func (c ChordQueryMessage) NewEmpty() Message {
@@ -22,5 +22,28 @@ func (c ChordQueryMessage) String() string {
 
 // HTML implements types.Message.
 func (c ChordQueryMessage) HTML() string {
+	return c.String()
+}
+
+// -----------------------------------------------------------------------------
+// ChordReplyMessage
+
+// NewEmpty implements types.Message.
+func (c ChordReplyMessage) NewEmpty() Message {
+	return &ChordReplyMessage{}
+}
+
+// Name implements types.Message.
+func (c ChordReplyMessage) Name() string {
+	return "chordreply"
+}
+
+// String implements types.Message.
+func (c ChordReplyMessage) String() string {
+	return fmt.Sprintf("{chordreply for packet: %s}", c.ReplyPacketID)
+}
+
+// HTML implements types.Message.
+func (c ChordReplyMessage) HTML() string {
 	return c.String()
 }
