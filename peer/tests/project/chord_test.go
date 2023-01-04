@@ -50,9 +50,6 @@ func Test_Chord_Join_Simple(t *testing.T) {
 	n1Ins := node1.GetIns()
 	n2Ins := node2.GetIns()
 
-	//n1Outs := node1.GetOuts()
-	//n2Outs := node2.GetOuts()
-
 	// > n2 should have received a QuerySucc from n1
 	require.Len(t, n2Ins, 1)
 	pkt := n2Ins[0]
@@ -85,11 +82,11 @@ func Test_Chord_Join_With_Stabilization(t *testing.T) {
 	transp := channel.NewTransport()
 
 	node1 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithTotalPeers(1), z.WithChordBytes(4),
-		z.WithChordStabilizeInterval(time.Second*2), z.WithChordFixFingerInterval(0))
+		z.WithChordStabilizeInterval(time.Second), z.WithChordFixFingerInterval(0))
 	defer node1.Stop()
 
 	node2 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithTotalPeers(1), z.WithChordBytes(4),
-		z.WithChordStabilizeInterval(time.Second*2), z.WithChordFixFingerInterval(0))
+		z.WithChordStabilizeInterval(time.Second), z.WithChordFixFingerInterval(0))
 	defer node2.Stop()
 
 	node1.AddPeer(node2.GetAddr())
@@ -113,4 +110,64 @@ func Test_Chord_Join_With_Stabilization(t *testing.T) {
 
 	successor2 := node2.GetSuccessor()
 	require.Equal(t, node1.GetAddr(), successor2)
+}
+
+// Test_Chord_Join_Three_Node tests a chord ring consisting of 3 nodes
+// For chordBytes = 2, Node 1 has chord ID 24963, Node 2 has chord ID 25694, Node 3 has chord ID 14865
+// Therefore, the Chord ring should look like as follows
+// Topology:
+//
+//	Node3 (14865)  ---->  Node1 (24963)
+//	  ↖--- Node2 (25694) ---↙
+func Test_Chord_Join_Three_Node(t *testing.T) {
+	transp := channel.NewTransport()
+
+	node1 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:1", z.WithTotalPeers(1), z.WithChordBytes(2),
+		z.WithChordStabilizeInterval(time.Second), z.WithChordFixFingerInterval(0))
+	defer node1.Stop()
+
+	node2 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:2", z.WithTotalPeers(1), z.WithChordBytes(2),
+		z.WithChordStabilizeInterval(time.Second), z.WithChordFixFingerInterval(0))
+	defer node2.Stop()
+
+	node3 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:3", z.WithTotalPeers(1), z.WithChordBytes(2),
+		z.WithChordStabilizeInterval(time.Second), z.WithChordFixFingerInterval(0))
+	defer node3.Stop()
+
+	node1.AddPeer(node2.GetAddr())
+	node1.AddPeer(node3.GetAddr())
+	node2.AddPeer(node1.GetAddr())
+	node2.AddPeer(node3.GetAddr())
+	node3.AddPeer(node1.GetAddr())
+	node3.AddPeer(node2.GetAddr())
+
+	err := node2.JoinChord(node1.GetAddr())
+	require.NoError(t, err)
+
+	err = node3.JoinChord(node2.GetAddr())
+	require.NoError(t, err)
+
+	time.Sleep(time.Second * 5)
+
+	// After the join, 3 nodes should form a topology as follows
+	// Topology:
+	//	           Node3 (14865)  ---->  Node1 (24963)
+	//	             ↖--- Node2 (25694) ---↙
+	predecessor1 := node1.GetPredecessor()
+	require.Equal(t, node3.GetAddr(), predecessor1)
+
+	predecessor2 := node2.GetPredecessor()
+	require.Equal(t, node1.GetAddr(), predecessor2)
+
+	predecessor3 := node3.GetPredecessor()
+	require.Equal(t, node2.GetAddr(), predecessor3)
+
+	successor1 := node1.GetSuccessor()
+	require.Equal(t, node2.GetAddr(), successor1)
+
+	successor2 := node2.GetSuccessor()
+	require.Equal(t, node3.GetAddr(), successor2)
+
+	successor3 := node3.GetSuccessor()
+	require.Equal(t, node1.GetAddr(), successor3)
 }

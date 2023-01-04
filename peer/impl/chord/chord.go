@@ -39,36 +39,41 @@ type Chord struct {
 	message           *message.Message    // Messaging used to communicate among nodes
 	chordID           uint                // ID of this chord node
 	predecessor       string              // predecessor of this node
-	predecessorLock   sync.Mutex          // The mutex to protect concurrent read write to the predecessor
+	predecessorLock   sync.RWMutex        // The mutex to protect concurrent read write to the predecessor
 	successor         string              // successor of this chord node
-	successorLock     sync.Mutex          // The mutex to protect concurrent read write to the successor
+	successorLock     sync.RWMutex        // The mutex to protect concurrent read write to the successor
 	fingers           []string            // Finger tables
-	fingersLock       sync.Mutex          // Finger table lock
+	fingersLock       sync.RWMutex        // Finger table lock
 	queryChan         *sync.Map           // The sync map stores the channel that used for query results
 	stopStabilizeChan chan bool           // Communication channel about whether we should stop the node
 	stopFixFingerChan chan bool
 }
 
+// GetChordID gets the chordID of the current node
+func (c *Chord) GetChordID() uint {
+	return c.chordID
+}
+
 // GetPredecessor gets the predecessor of the current node
 func (c *Chord) GetPredecessor() string {
-	c.predecessorLock.Lock()
-	defer c.predecessorLock.Unlock()
+	c.predecessorLock.RLock()
+	defer c.predecessorLock.RUnlock()
 	predecessor := c.predecessor
 	return predecessor
 }
 
 // GetSuccessor gets the successor of the current node
 func (c *Chord) GetSuccessor() string {
-	c.successorLock.Lock()
-	defer c.successorLock.Unlock()
+	c.successorLock.RLock()
+	defer c.successorLock.RUnlock()
 	successor := c.successor
 	return successor
 }
 
 // GetFingerTable gets the finger table of the current node
 func (c *Chord) GetFingerTable() []string {
-	c.fingersLock.Lock()
-	defer c.fingersLock.Unlock()
+	c.fingersLock.RLock()
+	defer c.fingersLock.RUnlock()
 	fingers := make([]string, len(c.fingers))
 	copy(fingers, c.fingers)
 	return fingers

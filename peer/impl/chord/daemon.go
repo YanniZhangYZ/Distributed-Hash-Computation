@@ -44,7 +44,7 @@ func (c *Chord) stabilizeDaemon() {
 				panic(err)
 			}
 
-			c.successorLock.Lock()
+			c.successorLock.RLock()
 			// If we have a successor, send a query message to it
 			if c.successor != "" {
 				err = c.message.Unicast(c.successor, chordQueryMsgTrans)
@@ -52,7 +52,7 @@ func (c *Chord) stabilizeDaemon() {
 					panic(err)
 				}
 			}
-			c.successorLock.Unlock()
+			c.successorLock.RUnlock()
 		}
 	}
 }

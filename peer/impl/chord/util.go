@@ -36,8 +36,8 @@ func (c *Chord) name2ID(name string) uint {
 // isPredecessor checks whether we are the predecessor of the given key, if we are, return true,
 // otherwise, return false
 func (c *Chord) isPredecessor(key uint) bool {
-	c.successorLock.Lock()
-	defer c.successorLock.Unlock()
+	c.successorLock.RLock()
+	defer c.successorLock.RUnlock()
 
 	// This is the initial state of the Chord ring, when we create it. In this case, we will be both
 	// the predecessor and the successor of the given key

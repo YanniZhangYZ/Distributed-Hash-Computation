@@ -22,8 +22,8 @@ func (c *Chord) execChordQuerySuccMessage(msg types.Message, pkt transport.Packe
 	isPredecesor := c.isPredecessor(chordQueryMsg.Key)
 	if isPredecesor {
 		// If we are the predecessor, return our successor directly to the source of query using Unicast
-		c.successorLock.Lock()
-		defer c.successorLock.Unlock()
+		c.successorLock.RLock()
+		defer c.successorLock.RUnlock()
 
 		replySuccessor := c.successor
 		if replySuccessor == "" {
@@ -84,8 +84,8 @@ func (c *Chord) execChordQueryPredMessage(msg types.Message, pkt transport.Packe
 		return xerrors.Errorf("wrong type: %T", msg)
 	}
 
-	c.predecessorLock.Lock()
-	defer c.predecessorLock.Unlock()
+	c.predecessorLock.RLock()
+	defer c.predecessorLock.RUnlock()
 
 	predecessor := c.predecessor
 	chordReplyMsg := types.ChordReplyPredecessorMessage{
