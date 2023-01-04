@@ -22,6 +22,7 @@ func Test_Chord_Create(t *testing.T) {
 	successor := node.GetSuccessor()
 	require.Equal(t, "", successor)
 
+	// > The length of the finger tables should be the number of chord bits
 	fingers := node.GetFingerTable()
 	require.Equal(t, 4*8, len(fingers))
 }
@@ -45,6 +46,22 @@ func Test_Chord_Join_Simple(t *testing.T) {
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 2)
+
+	n1Ins := node1.GetIns()
+	n2Ins := node2.GetIns()
+
+	//n1Outs := node1.GetOuts()
+	//n2Outs := node2.GetOuts()
+
+	// > n2 should have received a Query from n1
+	require.Len(t, n2Ins, 1)
+	pkt := n2Ins[0]
+	require.Equal(t, "chordquery", pkt.Msg.Type)
+
+	// > n1 should have received a Reply from n2
+	require.Len(t, n1Ins, 1)
+	pkt = n1Ins[0]
+	require.Equal(t, "chordreply", pkt.Msg.Type)
 
 	// After the join, node1 must have node2 as its successor, the predecessor should remain
 	// empty for both nodes. It will be set by the stabilization daemon
