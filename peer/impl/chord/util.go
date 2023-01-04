@@ -52,10 +52,9 @@ func (c *Chord) isPredecessor(key uint) bool {
 		// we have checked the validity of the key before calling isPredecessor, therefore, we only need to
 		// check the key is either larger than our chordID, or smaller than or equal to the successor ID.
 		return c.chordID < key || key <= successorID
-	} else {
-		// This is the normal case, we only need to check the key is within the range (c.chordID, successorID]
-		return c.chordID < key && key <= successorID
 	}
+	// This is the normal case, we only need to check the key is within the range (c.chordID, successorID]
+	return c.chordID < key && key <= successorID
 }
 
 // closestPrecedingFinger returns the closest finger preceding ID
@@ -68,7 +67,7 @@ func (c *Chord) closestPrecedingFinger(key uint) string {
 // either when a new node joins the ring, or the node queries the object
 func (c *Chord) querySuccessor(remoteNode string, key uint) (string, error) {
 	// Prepare the new chord query message
-	chordQueryMsg := types.ChordQueryMessage{
+	chordQueryMsg := types.ChordQuerySuccessorMessage{
 		RequestID: xid.New().String(),
 		Source:    c.address,
 		Key:       key,

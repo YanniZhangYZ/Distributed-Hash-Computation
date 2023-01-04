@@ -6,9 +6,9 @@ import (
 	"golang.org/x/xerrors"
 )
 
-func (c *Chord) execChordQueryMessage(msg types.Message, pkt transport.Packet) error {
+func (c *Chord) execChordQuerySuccMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
-	chordQueryMsg, ok := msg.(*types.ChordQueryMessage)
+	chordQueryMsg, ok := msg.(*types.ChordQuerySuccessorMessage)
 	if !ok {
 		return xerrors.Errorf("wrong type: %T", msg)
 	}
@@ -33,7 +33,7 @@ func (c *Chord) execChordQueryMessage(msg types.Message, pkt transport.Packet) e
 		}
 
 		// Prepare the new chord reply message
-		chordReplyMsg := types.ChordReplyMessage{
+		chordReplyMsg := types.ChordReplySuccessorMessage{
 			ReplyPacketID: chordQueryMsg.RequestID,
 			Successor:     replySuccessor,
 		}
@@ -42,24 +42,25 @@ func (c *Chord) execChordQueryMessage(msg types.Message, pkt transport.Packet) e
 			return err
 		}
 		return c.message.Unicast(chordQueryMsg.Source, chordReplyMsgTrans)
-	} else {
-		// If we are not the predecessor, continue asking other nodes
-		// First, we have to find in our finger table, which node has the closest preceding ID
-		closestPrecedingFinger := c.closestPrecedingFinger(chordQueryMsg.Key)
-
-		// The chord query message should be kept the same as before, but we forward it to the
-		// closest preceding finger node
-		chordQueryMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordQueryMsg)
-		if err != nil {
-			return err
-		}
-		return c.message.Unicast(closestPrecedingFinger, chordQueryMsgTrans)
 	}
+
+	// If we are not the predecessor, continue asking other nodes
+	// First, we have to find in our finger table, which node has the closest preceding ID
+	closestPrecedingFinger := c.closestPrecedingFinger(chordQueryMsg.Key)
+
+	// The chord query message should be kept the same as before, but we forward it to the
+	// closest preceding finger node
+	chordQueryMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordQueryMsg)
+	if err != nil {
+		return err
+	}
+	return c.message.Unicast(closestPrecedingFinger, chordQueryMsgTrans)
+
 }
 
-func (c *Chord) execChordReplyMessage(msg types.Message, pkt transport.Packet) error {
+func (c *Chord) execChordReplySuccMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
-	chordReplyMsg, ok := msg.(*types.ChordReplyMessage)
+	chordReplyMsg, ok := msg.(*types.ChordReplySuccessorMessage)
 	if !ok {
 		return xerrors.Errorf("wrong type: %T", msg)
 	}
@@ -71,6 +72,113 @@ func (c *Chord) execChordReplyMessage(msg types.Message, pkt transport.Packet) e
 	queryChan, ok := c.queryChan.Load(chordReplyMsg.ReplyPacketID)
 	if ok {
 		queryChan.(chan string) <- chordReplyMsg.Successor
+	}
+
+	return nil
+}
+
+func (c *Chord) execChordQueryPredMessage(msg types.Message, pkt transport.Packet) error {
+	/* cast the message to its actual type. You assume it is the right type. */
+	_, ok := msg.(*types.ChordQueryPredecessorMessage)
+	if !ok {
+		return xerrors.Errorf("wrong type: %T", msg)
+	}
+
+	c.predecessorLock.Lock()
+	defer c.predecessorLock.Unlock()
+
+	predecessor := c.predecessor
+	chordReplyMsg := types.ChordReplyPredecessorMessage{
+		Predecessor: predecessor,
+	}
+	chordReplyMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordReplyMsg)
+	if err != nil {
+		return err
+	}
+	return c.message.Unicast(pkt.Header.Source, chordReplyMsgTrans)
+}
+
+func (c *Chord) execChordReplyPredMessage(msg types.Message, pkt transport.Packet) error {
+	/* cast the message to its actual type. You assume it is the right type. */
+	chordReplyMsg, ok := msg.(*types.ChordReplyPredecessorMessage)
+	if !ok {
+		return xerrors.Errorf("wrong type: %T", msg)
+	}
+
+	if chordReplyMsg.Predecessor == "" {
+		// If our successor has no predecessor set, we should directly notify our successor
+	} else {
+
+		// If our successor already has one predecessor, we should check whether our successor has
+		// a new predecessor, and the new predecessor is within the range between our chordID, and
+		// our successor's ID
+		c.successorLock.Lock()
+		defer c.successorLock.Unlock()
+		predecessorID := c.name2ID(chordReplyMsg.Predecessor)
+		successorID := c.name2ID(c.successor)
+		within := false
+
+		if successorID <= c.chordID {
+			within = c.chordID < predecessorID || predecessorID < successorID
+		} else {
+			within = c.chordID < predecessorID && predecessorID < successorID
+		}
+
+		// If the predecessor has a key that is between us and our previous successor, then we should update our
+		// successor to the new predecessor
+		if within {
+			c.successor = chordReplyMsg.Predecessor
+		}
+	}
+
+	// Notify our successor the existence of us
+	chordNotifyMsg := types.ChordNotifyMessage{}
+	chordNotifyMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordNotifyMsg)
+	if err != nil {
+		return err
+	}
+	return c.message.Unicast(c.successor, chordNotifyMsgTrans)
+}
+
+func (c *Chord) execChordNotifyMessage(msg types.Message, pkt transport.Packet) error {
+	/* cast the message to its actual type. You assume it is the right type. */
+	_, ok := msg.(*types.ChordNotifyMessage)
+	if !ok {
+		return xerrors.Errorf("wrong type: %T", msg)
+	}
+
+	c.predecessorLock.Lock()
+	defer c.predecessorLock.Unlock()
+
+	if c.predecessor == "" {
+		// If we don't have a predecessor yet
+		c.predecessor = pkt.Header.Source
+	} else {
+		// If we already have a predecessor, check that the new coming one has an ID that is within
+		// the range (oldPredecessorID, chordID)
+		oldPredecessorID := c.name2ID(c.predecessor)
+		newPredecessorID := c.name2ID(pkt.Header.Source)
+		within := false
+
+		if c.chordID < oldPredecessorID {
+			within = oldPredecessorID < newPredecessorID || newPredecessorID < c.chordID
+		} else {
+			within = oldPredecessorID < newPredecessorID && newPredecessorID < c.chordID
+		}
+
+		// If the new predecessor has a key that is between our previous predecessor and us, then we should
+		// update our predecessor to the new predecessor
+		if within {
+			c.predecessor = pkt.Header.Source
+		}
+	}
+
+	c.successorLock.Lock()
+	defer c.successorLock.Unlock()
+	// If we haven't had a successor set, we should set our successor to the source
+	// of the packet as well
+	if c.successor == "" {
+		c.successor = pkt.Header.Source
 	}
 
 	return nil

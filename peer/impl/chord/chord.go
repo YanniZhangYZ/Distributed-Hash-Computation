@@ -9,11 +9,14 @@ import (
 
 func NewChord(conf *peer.Configuration, message *message.Message) *Chord {
 	var queryChan sync.Map
+
 	chord := Chord{
-		address:   conf.Socket.GetAddress(),
-		conf:      conf,
-		message:   message,
-		queryChan: &queryChan,
+		address:           conf.Socket.GetAddress(),
+		conf:              conf,
+		message:           message,
+		queryChan:         &queryChan,
+		stopStabilizeChan: make(chan bool, 1),
+		stopFixFingerChan: make(chan bool, 1),
 	}
 	// Compute the ID of this node inside the Chord Ring
 	chord.chordID = chord.name2ID(chord.address)
@@ -21,23 +24,29 @@ func NewChord(conf *peer.Configuration, message *message.Message) *Chord {
 	chord.Create()
 
 	/* Chord callbacks */
-	conf.MessageRegistry.RegisterMessageCallback(types.ChordQueryMessage{}, chord.execChordQueryMessage)
-	conf.MessageRegistry.RegisterMessageCallback(types.ChordReplyMessage{}, chord.execChordReplyMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.ChordQuerySuccessorMessage{}, chord.execChordQuerySuccMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.ChordReplySuccessorMessage{}, chord.execChordReplySuccMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.ChordQueryPredecessorMessage{}, chord.execChordQueryPredMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.ChordReplyPredecessorMessage{}, chord.execChordReplyPredMessage)
+	conf.MessageRegistry.RegisterMessageCallback(types.ChordNotifyMessage{}, chord.execChordNotifyMessage)
+
 	return &chord
 }
 
 type Chord struct {
-	address         string
-	conf            *peer.Configuration // The configuration contains Socket and MessageRegistry
-	message         *message.Message    // Messaging used to communicate among nodes
-	chordID         uint                // ID of this chord node
-	predecessor     string              // predecessor of this node
-	predecessorLock sync.Mutex          // The mutex to protect concurrent read write to the predecessor
-	successor       string              // successor of this chord node
-	successorLock   sync.Mutex          // The mutex to protect concurrent read write to the successor
-	fingers         []string            // Finger tables
-	fingersLock     sync.Mutex          // Finger table lock
-	queryChan       *sync.Map           // The sync map stores the channel that used for query results
+	address           string
+	conf              *peer.Configuration // The configuration contains Socket and MessageRegistry
+	message           *message.Message    // Messaging used to communicate among nodes
+	chordID           uint                // ID of this chord node
+	predecessor       string              // predecessor of this node
+	predecessorLock   sync.Mutex          // The mutex to protect concurrent read write to the predecessor
+	successor         string              // successor of this chord node
+	successorLock     sync.Mutex          // The mutex to protect concurrent read write to the successor
+	fingers           []string            // Finger tables
+	fingersLock       sync.Mutex          // Finger table lock
+	queryChan         *sync.Map           // The sync map stores the channel that used for query results
+	stopStabilizeChan chan bool           // Communication channel about whether we should stop the node
+	stopFixFingerChan chan bool
 }
 
 // GetPredecessor gets the predecessor of the current node
