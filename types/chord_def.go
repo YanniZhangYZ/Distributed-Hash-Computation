@@ -14,3 +14,15 @@ type ChordQueryMessage struct {
 	// Key is the key to query
 	Key uint
 }
+
+// ChordReplyMessage describes a reply message to the ChordQueryMessage, it includes the
+// indicator ReplyPacketID (which query it replies to), and the answer to the query, Successor.
+//
+// - implements types.Message
+type ChordReplyMessage struct {
+	// ReplyPacketID is the PacketID this reply is for
+	ReplyPacketID string
+
+	// Successor is the answer to the query, i.e., which successor the query key belongs to
+	Successor string
+}
