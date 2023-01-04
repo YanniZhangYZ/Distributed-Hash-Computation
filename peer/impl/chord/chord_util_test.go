@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestValidRange(t *testing.T) {
+func Test_Valid_Range(t *testing.T) {
 	c := Chord{}
 	c.conf = &peer.Configuration{}
 
@@ -32,7 +32,7 @@ func TestValidRange(t *testing.T) {
 	}
 }
 
-func TestName2ID(t *testing.T) {
+func Test_Name2ID(t *testing.T) {
 	c := Chord{}
 	c.conf = &peer.Configuration{}
 
@@ -58,7 +58,7 @@ func TestName2ID(t *testing.T) {
 	}
 }
 
-func TestIsPredecessor(t *testing.T) {
+func Test_Is_Predecessor(t *testing.T) {
 	withoutSuccessor := func(t *testing.T) {
 		// withoutSuccessor tests the case that only one node inside the Chord ring
 		c := Chord{}

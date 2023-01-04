@@ -127,3 +127,23 @@ func (n *node) SearchAll(reg regexp.Regexp, budget uint, timeout time.Duration) 
 func (n *node) SearchFirst(pattern regexp.Regexp, conf peer.ExpandingRing) (string, error) {
 	return n.file.SearchFirst(pattern, conf)
 }
+
+// GetPredecessor implements peer.Chord
+func (n *node) GetPredecessor() string {
+	return n.chord.GetPredecessor()
+}
+
+// GetSuccessor implements peer.Chord
+func (n *node) GetSuccessor() string {
+	return n.chord.GetSuccessor()
+}
+
+// GetFingerTable implements peer.Chord
+func (n *node) GetFingerTable() []string {
+	return n.chord.GetFingerTable()
+}
+
+// JoinChord implements peer.Chord
+func (n *node) JoinChord(remoteNode string) error {
+	return n.chord.Join(remoteNode)
+}

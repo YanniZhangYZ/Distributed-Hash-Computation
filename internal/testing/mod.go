@@ -150,6 +150,11 @@ type configTemplate struct {
 	paxosThreshold     func(uint) int
 	paxosID            uint
 	paxosProposerRetry time.Duration
+
+	ChordBytes             int
+	ChordTimeout           time.Duration
+	ChordStabilizeInterval time.Duration
+	ChordFixFingerInterval time.Duration
 }
 
 func newConfigTemplate() configTemplate {
@@ -184,6 +189,11 @@ func newConfigTemplate() configTemplate {
 		},
 		paxosID:            0,
 		paxosProposerRetry: time.Second * 5,
+
+		ChordBytes:             2,
+		ChordTimeout:           time.Second * 2,
+		ChordStabilizeInterval: time.Second * 5,
+		ChordFixFingerInterval: time.Second * 5,
 	}
 }
 
@@ -293,6 +303,34 @@ func WithPaxosProposerRetry(d time.Duration) Option {
 	}
 }
 
+// WithChordBytes sets a specific ChordBytes value
+func WithChordBytes(chordBytes int) Option {
+	return func(ct *configTemplate) {
+		ct.ChordBytes = chordBytes
+	}
+}
+
+// WithChordTimeout sets a specific paxosID value.
+func WithChordTimeout(d time.Duration) Option {
+	return func(ct *configTemplate) {
+		ct.ChordTimeout = d
+	}
+}
+
+// WithChordStabilizeInterval sets a specific paxosID value.
+func WithChordStabilizeInterval(d time.Duration) Option {
+	return func(ct *configTemplate) {
+		ct.ChordStabilizeInterval = d
+	}
+}
+
+// WithChordFixFingerInterval sets a specific paxosID value.
+func WithChordFixFingerInterval(d time.Duration) Option {
+	return func(ct *configTemplate) {
+		ct.ChordFixFingerInterval = d
+	}
+}
+
 // NewTestNode returns a new test node.
 func NewTestNode(t require.TestingT, f peer.Factory, trans transport.Transport,
 	addr string, opts ...Option) TestNode {
@@ -320,6 +358,10 @@ func NewTestNode(t require.TestingT, f peer.Factory, trans transport.Transport,
 	config.PaxosThreshold = template.paxosThreshold
 	config.PaxosID = template.paxosID
 	config.PaxosProposerRetry = template.paxosProposerRetry
+	config.ChordBytes = template.ChordBytes
+	config.ChordTimeout = template.ChordTimeout
+	config.ChordStabilizeInterval = template.ChordStabilizeInterval
+	config.ChordFixFingerInterval = template.ChordFixFingerInterval
 
 	node := f(config)
 
