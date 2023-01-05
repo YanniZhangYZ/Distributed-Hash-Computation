@@ -130,3 +130,27 @@ func Test_Is_Predecessor(t *testing.T) {
 	t.Run("With successor", withSuccessor)
 	t.Run("With successor and range crossing boundary", withSuccessorCrossBoundary)
 }
+
+func Test_FingerStartEnd(t *testing.T) {
+	c := Chord{}
+	c.address = "127.0.0.1:1"
+	c.conf = &peer.Configuration{}
+	c.conf.ChordBytes = 1
+	c.chordID = c.name2ID(c.address) // chordID = 97 for ChordBytes = 1
+
+	fingerStart, fingerEnd := c.fingerStartEnd(0)
+	require.Equal(t, fingerStart, uint(98))
+	require.Equal(t, fingerEnd, uint(99))
+
+	fingerStart, fingerEnd = c.fingerStartEnd(1)
+	require.Equal(t, fingerStart, uint(99))
+	require.Equal(t, fingerEnd, uint(101))
+
+	fingerStart, fingerEnd = c.fingerStartEnd(3)
+	require.Equal(t, fingerStart, uint(105))
+	require.Equal(t, fingerEnd, uint(113))
+
+	fingerStart, fingerEnd = c.fingerStartEnd(7)
+	require.Equal(t, fingerStart, uint(225))
+	require.Equal(t, fingerEnd, uint(97))
+}

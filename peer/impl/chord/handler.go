@@ -128,6 +128,9 @@ func (c *Chord) execChordReplyPredMessage(msg types.Message, pkt transport.Packe
 		// successor to the new predecessor
 		if within {
 			c.successor = chordReplyMsg.Predecessor
+			c.fingersLock.Lock()
+			c.fingers[0] = chordReplyMsg.Predecessor
+			c.fingersLock.Unlock()
 		}
 	}
 
@@ -177,8 +180,11 @@ func (c *Chord) execChordNotifyMessage(msg types.Message, pkt transport.Packet) 
 	defer c.successorLock.Unlock()
 	// If we haven't had a successor set, we should set our successor to the source
 	// of the packet as well
-	if c.successor == "" {
+	if c.successor == "" || c.successor == c.address {
 		c.successor = pkt.Header.Source
+		c.fingersLock.Lock()
+		c.fingers[0] = pkt.Header.Source
+		c.fingersLock.Unlock()
 	}
 
 	return nil

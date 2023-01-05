@@ -42,6 +42,7 @@ type Chord struct {
 	predecessorLock   sync.RWMutex        // The mutex to protect concurrent read write to the predecessor
 	successor         string              // successor of this chord node
 	successorLock     sync.RWMutex        // The mutex to protect concurrent read write to the successor
+	fingerIdx         int                 // Update fingers in round-robin fashion
 	fingers           []string            // Finger tables
 	fingersLock       sync.RWMutex        // Finger table lock
 	queryChan         *sync.Map           // The sync map stores the channel that used for query results
@@ -81,14 +82,12 @@ func (c *Chord) GetFingerTable() []string {
 
 // Create creates a new chord ring topology
 func (c *Chord) Create() {
-	c.predecessorLock.Lock()
-	defer c.predecessorLock.Unlock()
-	c.successorLock.Lock()
-	defer c.successorLock.Unlock()
-
 	c.predecessor = ""
 	c.successor = ""
 	c.fingers = make([]string, c.conf.ChordBytes*8)
+	for i := 0; i < c.conf.ChordBytes*8; i++ {
+		c.fingers[i] = ""
+	}
 }
 
 // Join joins an existing chord ring topology, this is done by asking an existing remote
@@ -103,9 +102,23 @@ func (c *Chord) Join(remoteNode string) error {
 	defer c.predecessorLock.Unlock()
 	c.successorLock.Lock()
 	defer c.successorLock.Unlock()
+	c.fingersLock.Lock()
+	defer c.fingersLock.Unlock()
 
 	c.predecessor = ""
 	c.successor = successor
 	c.fingers[0] = successor
 	return nil
+}
+
+// Leave allows the chord node to leave an existing chord ring gracefully
+func (c *Chord) Leave() error {
+	// TODO
+	return nil
+}
+
+// RingLen returns the length of the ring
+func (c *Chord) RingLen() uint {
+	// TODO
+	return 0
 }

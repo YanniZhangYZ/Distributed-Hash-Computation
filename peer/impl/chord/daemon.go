@@ -1,6 +1,8 @@
 package chord
 
 import (
+	"fmt"
+	"github.com/rs/zerolog/log"
 	"go.dedis.ch/cs438/types"
 	"time"
 )
@@ -33,7 +35,7 @@ func (c *Chord) stabilizeDaemon() {
 	for {
 		select {
 		case <-c.stopStabilizeChan:
-			// The node receives the stop message from the Stop() function,
+			// The node receives the stop message from the StopDaemon() function,
 			// exit from the goroutine
 			ticker.Stop()
 			return
@@ -41,15 +43,15 @@ func (c *Chord) stabilizeDaemon() {
 			chordQueryMsg := types.ChordQueryPredecessorMessage{}
 			chordQueryMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordQueryMsg)
 			if err != nil {
-				panic(err)
+				log.Error().Err(err).Msg(fmt.Sprintf("[%s] stabilizeDaemon MarshalMessage failed!", c.address))
 			}
 
 			c.successorLock.RLock()
-			// If we have a successor, send a query message to it
-			if c.successor != "" {
+			// If we have a successor, send a query message to it.
+			if c.successor != "" && c.successor != c.address {
 				err = c.message.Unicast(c.successor, chordQueryMsgTrans)
 				if err != nil {
-					panic(err)
+					log.Error().Err(err).Msg(fmt.Sprintf("[%s] stabilizeDaemon Unicast with error!", c.address))
 				}
 			}
 			c.successorLock.RUnlock()
@@ -57,7 +59,9 @@ func (c *Chord) stabilizeDaemon() {
 	}
 }
 
-// TODO
+// fixFingerDaemon fix the finger table of a Chord node. After a fixed interval, it
+// will ask inside the network about the newest information of a finger table, and update
+// the entry accordingly.
 func (c *Chord) fixFingerDaemon() {
 	if c.conf.ChordFixFingerInterval == 0 {
 		// Fix finger mechanism is disabled
@@ -68,13 +72,29 @@ func (c *Chord) fixFingerDaemon() {
 	for {
 		select {
 		case <-c.stopFixFingerChan:
-			// The node receives the stop message from the Stop() function,
+			// The node receives the stop message from the StopDaemon() function,
 			// exit from the goroutine
 			ticker.Stop()
 			return
 		case <-ticker.C:
 			// Update our finger table
+			fingerStart, _ := c.fingerStartEnd(c.fingerIdx)
+			successor, err := c.querySuccessor(c.address, fingerStart)
+			if err != nil {
+				log.Error().Err(err).Msg(
+					fmt.Sprintf("[%s] fixFingerDaemon querySuccessor with error for index %d!",
+						c.address, c.fingerIdx))
+			}
 
+			c.fingersLock.Lock()
+			c.fingers[c.fingerIdx] = successor
+			c.fingersLock.Unlock()
+			if c.fingerIdx == 0 {
+				c.successorLock.Lock()
+				c.successor = successor
+				c.successorLock.Unlock()
+			}
+			c.fingerIdx = (c.fingerIdx + 1) % len(c.fingers)
 		}
 	}
 }
