@@ -29,15 +29,16 @@ import (
 // Lexer for the contract code. Rules are specified with regexp.
 // Need to tokenize to the minimum unit be
 // nil meaning that the lexer is simple/stateless.
+
 var SMTLexer = lexer.MustSimple([]lexer.Rule{
-	{`Keyword`, `(?i)\b(ASSUME|IF|THEN)\b`, nil}, // not case sensitive
-	{`Float`, `\d+(?:\.\d+)?`, nil},
-	{`String`, `"(.*?)"`, nil},           // quoted string tokens
-	{`Operator`, `==|!=|>=|<=|>|<`, nil}, // only comparison operator
-	{`Ident`, `[a-zA-Z][a-zA-Z0-9_]*`, nil},
-	{"comment", `[#;][^\n]*`, nil},
-	{"Punct", `[(),\.]`, nil},
-	{"whitespace", `\s+`, nil},
+	{Name: `Keyword`, Pattern: `(?i)\b(ASSUME|IF|THEN)\b`, Action: nil}, // not case sensitive
+	{Name: `Float`, Pattern: `\d+(?:\.\d+)?`, Action: nil},
+	{Name: `String`, Pattern: `"(.*?)"`, Action: nil},           // quoted string tokens
+	{Name: `Operator`, Pattern: `==|!=|>=|<=|>|<`, Action: nil}, // only comparison operator
+	{Name: `Ident`, Pattern: `[a-zA-Z][a-zA-Z0-9_]*`, Action: nil},
+	{Name: "comment", Pattern: `[#;][^\n]*`, Action: nil},
+	{Name: "Punct", Pattern: `[(),\.]`, Action: nil},
+	{Name: "whitespace", Pattern: `\s+`, Action: nil},
 })
 
 // Specify participle grammar for contract code
@@ -62,9 +63,9 @@ type Condition struct {
 }
 
 type ConditionObjObj struct {
-	Object_1 Object `@@`
+	Object1  Object `@@`
 	Operator string `@Operator`
-	Object_2 Object `@@`
+	Object2  Object `@@`
 }
 
 type Value struct {
@@ -83,7 +84,7 @@ type Field struct {
 
 type Action struct {
 	Role   string   ` ( @"publisher" | @"finisher" )`
-	Action string   ` ( "." (@"submit" | @"transfer") )` // TODO: Action to be all blockchain primitives supported
+	Action string   ` ( "." (@"submit" | @"transfer") )`
 	Params []*Value `( "(" ( @@ ( "," @@ )* )? ")" )`
 }
 
@@ -111,9 +112,9 @@ func (v Condition) ToString() string {
 
 func (v ConditionObjObj) ToString() string {
 	out := new(strings.Builder)
-	obj1 := v.Object_1.ToString()
+	obj1 := v.Object1.ToString()
 	operator := v.Operator
-	obj2 := v.Object_2.ToString()
+	obj2 := v.Object2.ToString()
 	out.WriteString("[Condition] " + obj1 + " " + operator + " " + obj2)
 
 	return out.String()
@@ -143,9 +144,8 @@ func (v Action) ToString() string {
 func (v Value) ToString() string {
 	if v.String != nil {
 		return *v.String
-	} else {
-		return fmt.Sprintf("%f", *v.Number)
 	}
+	return fmt.Sprintf("%f", *v.Number)
 }
 
 func (v Field) ToString() string {

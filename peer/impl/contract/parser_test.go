@@ -1,7 +1,6 @@
 package contract
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/alecthomas/participle/v2"
@@ -20,48 +19,48 @@ func GetParser(grammar interface{}) *participle.Parser {
 
 // Test parsing Value
 func Test_Parser_Value_String(t *testing.T) {
-	test_strings := []string{`"Qiyuan Liang"`, `"Yanni Zhang"`, `"Qiyuan Dong"`}
-	expected_strings := []string{`Qiyuan Liang`, `Yanni Zhang`, `Qiyuan Dong`}
-	var parsed_strings []string
+	testString := []string{`"Qiyuan Liang"`, `"Yanni Zhang"`, `"Qiyuan Dong"`}
+	expectedStrings := []string{`Qiyuan Liang`, `Yanni Zhang`, `Qiyuan Dong`}
+	var parsedStrings []string
 
 	var ValParser = GetParser(&parser.Value{})
-	for _, s := range test_strings {
-		val_ast := &parser.Value{}
-		err := ValParser.ParseString("", s, val_ast)
+	for _, s := range testString {
+		valAST := &parser.Value{}
+		err := ValParser.ParseString("", s, valAST)
 		require.NoError(t, err)
-		parsed_strings = append(parsed_strings, *val_ast.String)
+		parsedStrings = append(parsedStrings, *valAST.String)
 	}
-	require.Equal(t, expected_strings, parsed_strings)
+	require.Equal(t, expectedStrings, parsedStrings)
 
 }
 
 func Test_Parser_Value_Float(t *testing.T) {
-	test_floats := []string{"0", "666", "1234", "1.125"}
-	expected_floats := []float64{0, 666, 1234, 1.125}
-	var parsed_floats []float64
+	testFloats := []string{"0", "666", "1234", "1.125"}
+	expectedFloats := []float64{0, 666, 1234, 1.125}
+	var parsedFloats []float64
 
 	var ValParser = GetParser(&parser.Value{})
-	for _, s := range test_floats {
-		val_ast := &parser.Value{}
-		err := ValParser.ParseString("", s, val_ast)
+	for _, s := range testFloats {
+		valAST := &parser.Value{}
+		err := ValParser.ParseString("", s, valAST)
 		require.NoError(t, err)
-		parsed_floats = append(parsed_floats, *val_ast.Number)
+		parsedFloats = append(parsedFloats, *valAST.Number)
 	}
-	require.Equal(t, expected_floats, parsed_floats)
+	require.Equal(t, expectedFloats, parsedFloats)
 }
 
 // Test parsing Object
 func Test_Parser_Object(t *testing.T) {
-	fmt.Println("test obj")
+	// fmt.Println("test obj")
 
-	obj_plain := []string{
+	objPlain := []string{
 		`publisher.budget`,
 		`finisher.key35`,
 		`finisher.key0.hash`,
 	}
-	var parsed_objs []*parser.Object
+	var parsedObjs []*parser.Object
 
-	expected_objs := []*parser.Object{
+	expectedObjs := []*parser.Object{
 		{
 			Role: "publisher",
 			Fields: []*parser.Field{
@@ -85,32 +84,32 @@ func Test_Parser_Object(t *testing.T) {
 
 	var ObjectParser = GetParser(&parser.Object{})
 
-	for _, obj := range obj_plain {
-		obj_ast := &parser.Object{}
-		err := ObjectParser.ParseString("", obj, obj_ast)
+	for _, obj := range objPlain {
+		objAST := &parser.Object{}
+		err := ObjectParser.ParseString("", obj, objAST)
 		require.NoError(t, err)
-		parsed_objs = append(parsed_objs, obj_ast)
+		parsedObjs = append(parsedObjs, objAST)
 	}
-	require.Equal(t, expected_objs, parsed_objs)
+	require.Equal(t, expectedObjs, parsedObjs)
 
 }
 
 // Test parsing Condition
 func Test_Parser_Condition(t *testing.T) {
-	fmt.Println("test condition")
+	// fmt.Println("test condition")
 
-	condition_strings := []string{
+	conditionStrings := []string{
 		`publisher.budget > 3.246`,
 		`finisher.key24.verified > 0`,
 		`publisher.attribute.attribute == "yeah"`,
 	}
-	expected_value1 := float64(3.246)
-	expected_value2 := float64(0)
-	expected_value3 := "yeah"
+	expectedValue1 := float64(3.246)
+	expectedValue2 := float64(0)
+	expectedValue3 := "yeah"
 
-	var parsed_conditions []*parser.Condition
+	var parsedConditions []*parser.Condition
 
-	expected_conditions := []*parser.Condition{
+	expectedConditions := []*parser.Condition{
 		{
 			Object: parser.Object{
 				Role: "publisher",
@@ -121,7 +120,7 @@ func Test_Parser_Condition(t *testing.T) {
 			Operator: ">",
 			Value: parser.Value{
 				String: nil,
-				Number: &expected_value1,
+				Number: &expectedValue1,
 			},
 		},
 		{
@@ -135,7 +134,7 @@ func Test_Parser_Condition(t *testing.T) {
 			Operator: ">",
 			Value: parser.Value{
 				String: nil,
-				Number: &expected_value2,
+				Number: &expectedValue2,
 			},
 		},
 		{
@@ -148,7 +147,7 @@ func Test_Parser_Condition(t *testing.T) {
 			},
 			Operator: "==",
 			Value: parser.Value{
-				String: &expected_value3,
+				String: &expectedValue3,
 				Number: nil,
 			},
 		},
@@ -156,37 +155,37 @@ func Test_Parser_Condition(t *testing.T) {
 
 	var ConditionParser = GetParser(&parser.Condition{})
 
-	for _, c := range condition_strings {
-		cond_ast := &parser.Condition{}
-		err := ConditionParser.ParseString("", c, cond_ast)
+	for _, c := range conditionStrings {
+		condAST := &parser.Condition{}
+		err := ConditionParser.ParseString("", c, condAST)
 		require.NoError(t, err)
-		parsed_conditions = append(parsed_conditions, cond_ast)
+		parsedConditions = append(parsedConditions, condAST)
 	}
-	require.Equal(t, expected_conditions, parsed_conditions)
+	require.Equal(t, expectedConditions, parsedConditions)
 
 }
 
 func Test_Parser_ConditionObjObj(t *testing.T) {
-	fmt.Println("test condition obj obj")
+	// fmt.Println("test condition obj obj")
 
-	condition_strings := []string{
+	conditionStrings := []string{
 		`publisher.budget > publisher.account`,
 		`finisher.key24.hash ==  finisher.hash24`,
 		`publisher.attribute.attribute >= finisher.attribute.attribute`,
 	}
 
-	var parsed_conditions []*parser.ConditionObjObj
+	var parsedConditions []*parser.ConditionObjObj
 
-	expected_conditions := []*parser.ConditionObjObj{
+	expectedConditions := []*parser.ConditionObjObj{
 		{
-			Object_1: parser.Object{
+			Object1: parser.Object{
 				Role: "publisher",
 				Fields: []*parser.Field{
 					{Name: "budget"},
 				},
 			},
 			Operator: ">",
-			Object_2: parser.Object{
+			Object2: parser.Object{
 				Role: "publisher",
 				Fields: []*parser.Field{
 					{Name: "account"},
@@ -194,7 +193,7 @@ func Test_Parser_ConditionObjObj(t *testing.T) {
 			},
 		},
 		{
-			Object_1: parser.Object{
+			Object1: parser.Object{
 				Role: "finisher",
 				Fields: []*parser.Field{
 					{Name: "key24"},
@@ -202,7 +201,7 @@ func Test_Parser_ConditionObjObj(t *testing.T) {
 				},
 			},
 			Operator: "==",
-			Object_2: parser.Object{
+			Object2: parser.Object{
 				Role: "finisher",
 				Fields: []*parser.Field{
 					{Name: "hash24"},
@@ -210,7 +209,7 @@ func Test_Parser_ConditionObjObj(t *testing.T) {
 			},
 		},
 		{
-			Object_1: parser.Object{
+			Object1: parser.Object{
 				Role: "publisher",
 				Fields: []*parser.Field{
 					{Name: "attribute"},
@@ -218,7 +217,7 @@ func Test_Parser_ConditionObjObj(t *testing.T) {
 				},
 			},
 			Operator: ">=",
-			Object_2: parser.Object{
+			Object2: parser.Object{
 				Role: "finisher",
 				Fields: []*parser.Field{
 					{Name: "attribute"},
@@ -230,72 +229,72 @@ func Test_Parser_ConditionObjObj(t *testing.T) {
 
 	var ConditionParser = GetParser(&parser.ConditionObjObj{})
 
-	for _, c := range condition_strings {
-		cond_ast := &parser.ConditionObjObj{}
-		err := ConditionParser.ParseString("", c, cond_ast)
+	for _, c := range conditionStrings {
+		condAST := &parser.ConditionObjObj{}
+		err := ConditionParser.ParseString("", c, condAST)
 		require.NoError(t, err)
-		parsed_conditions = append(parsed_conditions, cond_ast)
+		parsedConditions = append(parsedConditions, condAST)
 	}
-	require.Equal(t, expected_conditions, parsed_conditions)
+	require.Equal(t, expectedConditions, parsedConditions)
 
 }
 
 // Test parsing Action
 func Test_Parser_Action(t *testing.T) {
-	action_strings := []string{
+	actionStrings := []string{
 		`publisher.transfer("finisher_ID", 46.967)`,
 		`finisher.submit("publisher_ID", "crackedKey")`,
 	}
-	expected_value1_1 := "finisher_ID"
-	expected_value1_2 := float64(46.967)
-	expected_value2_1 := "publisher_ID"
-	expected_value2_2 := "crackedKey"
+	expectedValue11 := "finisher_ID"
+	expectedValue12 := float64(46.967)
+	expectedValue21 := "publisher_ID"
+	expectedValue22 := "crackedKey"
 
-	var parsed_actions []*parser.Action
+	var parsedActions []*parser.Action
 
-	expected_actions := []*parser.Action{
+	expectedActions := []*parser.Action{
 		{
 			Role:   "publisher",
 			Action: "transfer",
 			Params: []*parser.Value{
-				{String: &expected_value1_1, Number: nil},
-				{String: nil, Number: &expected_value1_2},
+				{String: &expectedValue11, Number: nil},
+				{String: nil, Number: &expectedValue12},
 			},
 		},
 		{
 			Role:   "finisher",
 			Action: "submit",
 			Params: []*parser.Value{
-				{String: &expected_value2_1, Number: nil},
-				{String: &expected_value2_2, Number: nil},
+				{String: &expectedValue21, Number: nil},
+				{String: &expectedValue22, Number: nil},
 			},
 		},
 	}
 
 	var ActionParser = GetParser(&parser.Action{})
 
-	for _, s := range action_strings {
-		action_ast := &parser.Action{}
-		err := ActionParser.ParseString("", s, action_ast)
+	for _, s := range actionStrings {
+		actionAST := &parser.Action{}
+		err := ActionParser.ParseString("", s, actionAST)
 		require.NoError(t, err)
-		parsed_actions = append(parsed_actions, action_ast)
+		parsedActions = append(parsedActions, actionAST)
 	}
-	require.Equal(t, expected_actions, parsed_actions)
+	require.Equal(t, expectedActions, parsedActions)
 
 }
 
 // Parsing contract code only with one assumption
-func Test_Parser_Assume(t *testing.T) {
-	assume_strings := []string{
+func Test_ParserAssume(t *testing.T) {
+	assumeStrings := []string{
 		`ASSUME publisher.budget > 49.597`,
 		`ASSUME publisher.attribute.attribute == "yeah"`,
 	}
-	expected_value1 := float64(49.597)
-	expected_value2 := "yeah"
+	expectedValue1 := float64(49.597)
+	expectedValue2 := "yeah"
 
-	var parsed_assume []*parser.Assumption
+	var parsedAssume []*parser.Assumption
 
-	expected_assume := []*parser.Assumption{
+	expectedAssume := []*parser.Assumption{
 		{
 			Condition: parser.Condition{
 				Object: parser.Object{
@@ -307,7 +306,7 @@ func Test_Parser_Assume(t *testing.T) {
 				Operator: ">",
 				Value: parser.Value{
 					String: nil,
-					Number: &expected_value1,
+					Number: &expectedValue1,
 				},
 			},
 		},
@@ -322,7 +321,7 @@ func Test_Parser_Assume(t *testing.T) {
 				},
 				Operator: "==",
 				Value: parser.Value{
-					String: &expected_value2,
+					String: &expectedValue2,
 					Number: nil,
 				},
 			},
@@ -330,35 +329,35 @@ func Test_Parser_Assume(t *testing.T) {
 	}
 
 	var AssumeParser = GetParser(&parser.Assumption{})
-	for _, s := range assume_strings {
-		assume_ast := &parser.Assumption{}
-		err := AssumeParser.ParseString("", s, assume_ast)
+	for _, s := range assumeStrings {
+		assumeAST := &parser.Assumption{}
+		err := AssumeParser.ParseString("", s, assumeAST)
 		require.NoError(t, err)
-		parsed_assume = append(parsed_assume, assume_ast)
+		parsedAssume = append(parsedAssume, assumeAST)
 	}
-	require.Equal(t, expected_assume, parsed_assume)
+	require.Equal(t, expectedAssume, parsedAssume)
 
 }
 
 // Parsing contract code with one if clause
 func Test_Parser_Ifclause(t *testing.T) {
-	if_strings := []string{
+	ifStrings := []string{
 		`IF finisher.key67.hash == finisher.hash67 THEN
 			finisher.submit("publisher_ID", "crackedKey")
 			publisher.transfer("finisher_ID", 46.967)
 		`,
 	}
-	expected_value2 := "publisher_ID"
-	expected_value3 := "crackedKey"
-	expected_value4 := "finisher_ID"
-	expected_value5 := float64(46.967)
+	expectedValue2 := "publisher_ID"
+	expectedValue3 := "crackedKey"
+	expectedValue4 := "finisher_ID"
+	expectedValue5 := float64(46.967)
 
-	var parsed_if []*parser.IfClause
+	var parsedIf []*parser.IfClause
 
-	expected_if := []*parser.IfClause{
+	expectedIf := []*parser.IfClause{
 		{
 			ConditionObjObj: parser.ConditionObjObj{
-				Object_1: parser.Object{
+				Object1: parser.Object{
 					Role: "finisher",
 					Fields: []*parser.Field{
 						{Name: "key67"},
@@ -366,7 +365,7 @@ func Test_Parser_Ifclause(t *testing.T) {
 					},
 				},
 				Operator: "==",
-				Object_2: parser.Object{
+				Object2: parser.Object{
 					Role: "finisher",
 					Fields: []*parser.Field{
 						{Name: "hash67"},
@@ -378,16 +377,16 @@ func Test_Parser_Ifclause(t *testing.T) {
 					Role:   "finisher",
 					Action: "submit",
 					Params: []*parser.Value{
-						{String: &expected_value2, Number: nil},
-						{String: &expected_value3, Number: nil},
+						{String: &expectedValue2, Number: nil},
+						{String: &expectedValue3, Number: nil},
 					},
 				},
 				{
 					Role:   "publisher",
 					Action: "transfer",
 					Params: []*parser.Value{
-						{String: &expected_value4, Number: nil},
-						{String: nil, Number: &expected_value5},
+						{String: &expectedValue4, Number: nil},
+						{String: nil, Number: &expectedValue5},
 					},
 				},
 			},
@@ -396,19 +395,19 @@ func Test_Parser_Ifclause(t *testing.T) {
 
 	var IfParser = GetParser(&parser.IfClause{})
 
-	for _, s := range if_strings {
-		if_ast := &parser.IfClause{}
-		err := IfParser.ParseString("", s, if_ast)
+	for _, s := range ifStrings {
+		ifAST := &parser.IfClause{}
+		err := IfParser.ParseString("", s, ifAST)
 		require.NoError(t, err)
-		parsed_if = append(parsed_if, if_ast)
+		parsedIf = append(parsedIf, ifAST)
 	}
-	require.Equal(t, expected_if, parsed_if)
+	require.Equal(t, expectedIf, parsedIf)
 
 }
 
 // Parsing complete contract code case
 func Test_Parser_Complete(t *testing.T) {
-	code_strings := []string{
+	codeStrings := []string{
 		`
 		ASSUME publisher.budget > 0
 		IF finisher.key98.hash == finisher.hash98 THEN
@@ -416,15 +415,15 @@ func Test_Parser_Complete(t *testing.T) {
 			publisher.transfer("finisher_ID", 46.967)
 		`,
 	}
-	expected_value1 := float64(0)
-	// expected_value2 := float64(0)
-	expected_value3 := "publisher_ID"
-	expected_value4 := "crackedKey"
-	expected_value5 := "finisher_ID"
-	expected_value6 := float64(46.967)
-	var parsed_code []*parser.Code
+	expectedValue1 := float64(0)
+	// expectedValue2 := float64(0)
+	expectedValue3 := "publisher_ID"
+	expectedValue4 := "crackedKey"
+	expectedValue5 := "finisher_ID"
+	expectedValue6 := float64(46.967)
+	var parsedCode []*parser.Code
 
-	expected_code := []*parser.Code{
+	expectedCode := []*parser.Code{
 		{
 			Assumptions: []*parser.Assumption{
 				{
@@ -438,7 +437,7 @@ func Test_Parser_Complete(t *testing.T) {
 						Operator: ">",
 						Value: parser.Value{
 							String: nil,
-							Number: &expected_value1,
+							Number: &expectedValue1,
 						},
 					},
 				},
@@ -446,7 +445,7 @@ func Test_Parser_Complete(t *testing.T) {
 			IfClauses: []*parser.IfClause{
 				{
 					ConditionObjObj: parser.ConditionObjObj{
-						Object_1: parser.Object{
+						Object1: parser.Object{
 							Role: "finisher",
 							Fields: []*parser.Field{
 								{Name: "key98"},
@@ -454,7 +453,7 @@ func Test_Parser_Complete(t *testing.T) {
 							},
 						},
 						Operator: "==",
-						Object_2: parser.Object{
+						Object2: parser.Object{
 							Role: "finisher",
 							Fields: []*parser.Field{
 								{Name: "hash98"},
@@ -466,16 +465,16 @@ func Test_Parser_Complete(t *testing.T) {
 							Role:   "finisher",
 							Action: "submit",
 							Params: []*parser.Value{
-								{String: &expected_value3, Number: nil},
-								{String: &expected_value4, Number: nil},
+								{String: &expectedValue3, Number: nil},
+								{String: &expectedValue4, Number: nil},
 							},
 						},
 						{
 							Role:   "publisher",
 							Action: "transfer",
 							Params: []*parser.Value{
-								{String: &expected_value5, Number: nil},
-								{String: nil, Number: &expected_value6},
+								{String: &expectedValue5, Number: nil},
+								{String: nil, Number: &expectedValue6},
 							},
 						},
 					},
@@ -484,11 +483,11 @@ func Test_Parser_Complete(t *testing.T) {
 		},
 	}
 
-	for _, s := range code_strings {
-		code_ast, err := parser.Parse(s)
+	for _, s := range codeStrings {
+		codeAST, err := parser.Parse(s)
 		require.NoError(t, err)
-		parsed_code = append(parsed_code, &code_ast)
+		parsedCode = append(parsedCode, &codeAST)
 	}
-	require.Equal(t, expected_code, parsed_code)
+	require.Equal(t, expectedCode, parsedCode)
 
 }

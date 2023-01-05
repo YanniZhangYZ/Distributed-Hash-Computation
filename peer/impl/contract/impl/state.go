@@ -52,27 +52,27 @@ func constructStateTree(ast *parser.Code) *StateNode {
 
 	// Process assumptions state
 	for i := 0; i < len(ast.Assumptions); i++ {
-		assumption_node := StateNode{id, "assumption", false, false, []*StateNode{}}
+		assumptionNode := StateNode{id, "assumption", false, false, []*StateNode{}}
 		id++
-		condition_node := StateNode{id, "condition", false, false, []*StateNode{}}
+		conditionNode := StateNode{id, "condition", false, false, []*StateNode{}}
 		id++
-		assumption_node.addChild(&condition_node)
-		root.addChild(&assumption_node)
+		assumptionNode.addChild(&conditionNode)
+		root.addChild(&assumptionNode)
 	}
 
 	// Process if clauses state
 	for _, ifclause := range ast.IfClauses {
-		if_node := StateNode{id, "if", false, false, []*StateNode{}}
+		ifNode := StateNode{id, "if", false, false, []*StateNode{}}
 		id++
-		conditionObjObj_node := StateNode{id, "conditionObjObj", false, false, []*StateNode{}}
+		conditionObjObjNode := StateNode{id, "conditionObjObj", false, false, []*StateNode{}}
 		id++
-		if_node.addChild(&conditionObjObj_node)
+		ifNode.addChild(&conditionObjObjNode)
 		for i := 0; i < len(ifclause.Actions); i++ {
-			action_node := StateNode{id, "action", false, false, []*StateNode{}}
+			actionNode := StateNode{id, "action", false, false, []*StateNode{}}
 			id++
-			if_node.addChild(&action_node)
+			ifNode.addChild(&actionNode)
 		}
-		root.addChild(&if_node)
+		root.addChild(&ifNode)
 	}
 
 	return &root
