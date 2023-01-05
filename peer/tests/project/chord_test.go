@@ -331,3 +331,38 @@ func Test_Chord_Ring_Len(t *testing.T) {
 	require.Equal(t, uint(3), node2.RingLen())
 	require.Equal(t, uint(3), node3.RingLen())
 }
+
+// Test_Chord_Multiple_Node tests the case of multiple Chord nodes, it verifies the correctness by checking
+// the ring length of the Chord. The ring length should be equal to the number of nodes inside the ring.
+func Test_Chord_Multiple_Node(t *testing.T) {
+	numNodes := 32
+	transp := channel.NewTransport()
+	nodes := make([]z.TestNode, numNodes)
+	for i := range nodes {
+		node := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(2),
+			z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
+		defer node.Stop()
+		nodes[i] = node
+	}
+
+	for _, n1 := range nodes {
+		for _, n2 := range nodes {
+			n1.AddPeer(n2.GetAddr())
+		}
+	}
+
+	for i := 1; i < numNodes; i++ {
+		nodes[i].JoinChord(nodes[i-1].GetAddr())
+		time.Sleep(time.Second)
+
+		// Already joined Chord nodes should have ring length = i + 1
+		for j := 0; j <= i; j++ {
+			require.Equal(t, uint(i+1), nodes[j].RingLen())
+		}
+
+		// Haven't joined Chord nodes should have ring length = 1
+		for j := i + 1; j < numNodes; j++ {
+			require.Equal(t, uint(1), nodes[j].RingLen())
+		}
+	}
+}

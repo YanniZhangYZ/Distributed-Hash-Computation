@@ -2,12 +2,8 @@ package chord
 
 import (
 	"crypto"
-	"github.com/rs/xid"
-	"go.dedis.ch/cs438/types"
-	"golang.org/x/xerrors"
 	"math"
 	"math/big"
-	"time"
 )
 
 // validRange checks that a given key is within a valid range, the value of the key is valid if
@@ -73,8 +69,9 @@ func (c *Chord) closestPrecedingFinger(key uint) string {
 	defer c.fingersLock.RUnlock()
 
 	for i := c.conf.ChordBytes*8 - 1; i >= 0; i-- {
-		// If we already have this finger, check whether its start is in the range (c.chordID, key),
-		// c.chordID and key is guaranteed to be different for the control flow to reach here.
+		// If we already have this finger, check whether its start is in the range (c.chordID, key)
+		// If c.chordID == key, then we should return the first non-empty entry we encountered during
+		// the lookup.
 		if c.fingers[i] != "" {
 			fingerID := c.name2ID(c.fingers[i])
 			within := false
@@ -85,47 +82,10 @@ func (c *Chord) closestPrecedingFinger(key uint) string {
 				within = c.chordID < fingerID && fingerID < key
 			}
 
-			if within {
+			if within || c.chordID == key {
 				return c.fingers[i]
 			}
 		}
 	}
 	return ""
-}
-
-// querySuccessor queries a remote node or self about the successor of the given key, it can be used
-// either when a new node joins the ring, or the node queries the object
-func (c *Chord) querySuccessor(remoteNode string, key uint) (string, error) {
-	// Prepare the new chord query message
-	chordQueryMsg := types.ChordQuerySuccessorMessage{
-		RequestID: xid.New().String(),
-		Source:    c.address,
-		Key:       key,
-	}
-	chordQueryMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordQueryMsg)
-	if err != nil {
-		return "", err
-	}
-
-	// Prepare a reply channel that receives the reply from the remote peer, if any response is ready
-	replyChan := make(chan string, 1)
-	c.queryChan.Store(chordQueryMsg.RequestID, replyChan)
-
-	// Send the message to the remote peer
-	err = c.message.Unicast(remoteNode, chordQueryMsgTrans)
-	if err != nil {
-		return "", err
-	}
-
-	// Either we wait until the timeout, or we receive a response from the reply channel
-	select {
-	case successor := <-replyChan:
-		/* Delete the entry in the query reply channels, and return the result */
-		c.queryChan.Delete(chordQueryMsg.RequestID)
-		return successor, nil
-	case <-time.After(c.conf.ChordTimeout):
-		/* We are timeout here, return an error */
-		c.queryChan.Delete(chordQueryMsg.RequestID)
-		return "", xerrors.Errorf("querySuccessor timeout")
-	}
 }

@@ -2,10 +2,12 @@ package chord
 
 import (
 	"fmt"
+	"github.com/rs/xid"
 	"github.com/rs/zerolog/log"
 	"go.dedis.ch/cs438/peer"
 	"go.dedis.ch/cs438/peer/impl/message"
 	"go.dedis.ch/cs438/types"
+	"golang.org/x/xerrors"
 	"sync"
 	"time"
 )
@@ -160,4 +162,41 @@ func (c *Chord) RingLen() uint {
 func (c *Chord) Leave() error {
 	// TODO
 	return nil
+}
+
+// querySuccessor queries a remote node or self about the successor of the given key, it can be used
+// either when a new node joins the ring, or the node queries the object
+func (c *Chord) querySuccessor(remoteNode string, key uint) (string, error) {
+	// Prepare the new chord query message
+	chordQueryMsg := types.ChordQuerySuccessorMessage{
+		RequestID: xid.New().String(),
+		Source:    c.address,
+		Key:       key,
+	}
+	chordQueryMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordQueryMsg)
+	if err != nil {
+		return "", err
+	}
+
+	// Prepare a reply channel that receives the reply from the remote peer, if any response is ready
+	replyChan := make(chan string, 1)
+	c.queryChan.Store(chordQueryMsg.RequestID, replyChan)
+
+	// Send the message to the remote peer
+	err = c.message.Unicast(remoteNode, chordQueryMsgTrans)
+	if err != nil {
+		return "", err
+	}
+
+	// Either we wait until the timeout, or we receive a response from the reply channel
+	select {
+	case successor := <-replyChan:
+		/* Delete the entry in the query reply channels, and return the result */
+		c.queryChan.Delete(chordQueryMsg.RequestID)
+		return successor, nil
+	case <-time.After(c.conf.ChordTimeout):
+		/* We are timeout here, return an error */
+		c.queryChan.Delete(chordQueryMsg.RequestID)
+		return "", xerrors.Errorf("querySuccessor timeout")
+	}
 }
