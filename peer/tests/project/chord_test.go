@@ -74,7 +74,7 @@ func Test_Chord_Join_Simple(t *testing.T) {
 	err := node1.JoinChord(node2.GetAddr())
 	require.NoError(t, err)
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 2)
 
 	n1Ins := node1.GetIns()
 	n2Ins := node2.GetIns()
@@ -124,7 +124,7 @@ func Test_Chord_Join_With_Stabilization(t *testing.T) {
 	err := node1.JoinChord(node2.GetAddr())
 	require.NoError(t, err)
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 2)
 
 	// After the join and stabilization, each node should have the other node as
 	// its predecessor and successor
@@ -162,7 +162,7 @@ func Test_Chord_Join_With_Stabilization_Fix_Finger(t *testing.T) {
 	err := node1.JoinChord(node2.GetAddr())
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 5)
 
 	// After the join and stabilization, each node should have the other node as
 	// its predecessor and successor
@@ -203,15 +203,15 @@ func Test_Chord_Join_Three_Node(t *testing.T) {
 	transp := channel.NewTransport()
 
 	node1 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:1", z.WithChordBytes(2),
-		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(0))
+		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
 	defer node1.Stop()
 
 	node2 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:2", z.WithChordBytes(2),
-		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(0))
+		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
 	defer node2.Stop()
 
 	node3 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:3", z.WithChordBytes(2),
-		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(0))
+		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
 	defer node3.Stop()
 
 	node1.AddPeer(node2.GetAddr())
@@ -227,7 +227,7 @@ func Test_Chord_Join_Three_Node(t *testing.T) {
 	err = node3.JoinChord(node2.GetAddr())
 	require.NoError(t, err)
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 5)
 
 	// After the join, 3 nodes should form a topology as follows
 	// Topology:
@@ -250,4 +250,84 @@ func Test_Chord_Join_Three_Node(t *testing.T) {
 
 	successor3 := node3.GetSuccessor()
 	require.Equal(t, node1.GetAddr(), successor3)
+
+	// The finger table of each node should be as follows
+	// Node 1:
+	//     finger 0 - 9: Node 2
+	//     finger 10 - 15: Node 3
+	// Node 2:
+	//     finger 0 - 15: Node 3
+	// Node 3:
+	//     finger 0 - 13: Node 1
+	//     finger 14 - 15: Node 3
+	finger1 := node1.GetFingerTable()
+	for i := 0; i < 10; i++ {
+		require.Equal(t, node2.GetAddr(), finger1[i])
+	}
+	for i := 10; i < 16; i++ {
+		require.Equal(t, node3.GetAddr(), finger1[i])
+	}
+
+	finger2 := node2.GetFingerTable()
+	for i := 0; i < 16; i++ {
+		require.Equal(t, node3.GetAddr(), finger2[i])
+	}
+
+	finger3 := node3.GetFingerTable()
+	for i := 0; i < 14; i++ {
+		require.Equal(t, node1.GetAddr(), finger3[i])
+	}
+	for i := 14; i < 16; i++ {
+		require.Equal(t, node3.GetAddr(), finger3[15])
+	}
+}
+
+// Test_Chord_Ring_Len tests the RingLen function. It should return the correct number of nodes
+// inside a Chord ring
+func Test_Chord_Ring_Len(t *testing.T) {
+	transp := channel.NewTransport()
+
+	node1 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:1", z.WithChordBytes(1),
+		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
+	defer node1.Stop()
+
+	node2 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:2", z.WithChordBytes(1),
+		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
+	defer node2.Stop()
+
+	node3 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:3", z.WithChordBytes(1),
+		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
+	defer node3.Stop()
+
+	node1.AddPeer(node2.GetAddr())
+	node1.AddPeer(node3.GetAddr())
+	node2.AddPeer(node1.GetAddr())
+	node2.AddPeer(node3.GetAddr())
+	node3.AddPeer(node1.GetAddr())
+	node3.AddPeer(node2.GetAddr())
+
+	// Before node2 join node1, every node should have a ring length = 1
+	require.Equal(t, uint(1), node1.RingLen())
+	require.Equal(t, uint(1), node2.RingLen())
+	require.Equal(t, uint(1), node3.RingLen())
+
+	err := node2.JoinChord(node1.GetAddr())
+	require.NoError(t, err)
+
+	time.Sleep(time.Second * 2)
+
+	// After the topology is stabilized, the ring length should be 2 for node1 and node2
+	require.Equal(t, uint(2), node1.RingLen())
+	require.Equal(t, uint(2), node2.RingLen())
+	require.Equal(t, uint(1), node3.RingLen())
+
+	err = node3.JoinChord(node2.GetAddr())
+	require.NoError(t, err)
+
+	time.Sleep(time.Second * 2)
+
+	// After the topology is stabilized, the ring length should be 3 for all nodes
+	require.Equal(t, uint(3), node1.RingLen())
+	require.Equal(t, uint(3), node2.RingLen())
+	require.Equal(t, uint(3), node3.RingLen())
 }

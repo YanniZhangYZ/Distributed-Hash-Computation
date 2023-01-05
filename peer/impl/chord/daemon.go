@@ -86,14 +86,14 @@ func (c *Chord) fixFingerDaemon() {
 						c.address, c.fingerIdx))
 			}
 
+			c.successorLock.Lock()
 			c.fingersLock.Lock()
 			c.fingers[c.fingerIdx] = successor
-			c.fingersLock.Unlock()
 			if c.fingerIdx == 0 {
-				c.successorLock.Lock()
 				c.successor = successor
-				c.successorLock.Unlock()
 			}
+			c.fingersLock.Unlock()
+			c.successorLock.Unlock()
 			c.fingerIdx = (c.fingerIdx + 1) % len(c.fingers)
 		}
 	}

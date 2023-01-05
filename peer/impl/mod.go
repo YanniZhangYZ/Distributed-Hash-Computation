@@ -154,3 +154,8 @@ func (n *node) GetFingerTable() []string {
 func (n *node) JoinChord(remoteNode string) error {
 	return n.chord.Join(remoteNode)
 }
+
+// RingLen implements peer.Chord
+func (n *node) RingLen() uint {
+	return n.chord.RingLen()
+}

@@ -45,3 +45,12 @@ type ChordReplyPredecessorMessage struct {
 //
 // - implements types.Message
 type ChordNotifyMessage struct{}
+
+// ChordRingLenMessage describes a query message to find out the total number of nodes inside
+// a Chord ring. It is initiated by Source and Length is the cumulative length.
+//
+// - implements types.Message
+type ChordRingLenMessage struct {
+	Source string
+	Length uint
+}

@@ -191,7 +191,7 @@ func newConfigTemplate() configTemplate {
 		paxosProposerRetry: time.Second * 5,
 
 		ChordBytes:             2,
-		ChordTimeout:           time.Second * 2,
+		ChordTimeout:           time.Second * 5,
 		ChordStabilizeInterval: time.Second * 5,
 		ChordFixFingerInterval: time.Second * 5,
 	}

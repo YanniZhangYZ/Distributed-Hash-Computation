@@ -116,3 +116,26 @@ func (c ChordNotifyMessage) String() string {
 func (c ChordNotifyMessage) HTML() string {
 	return c.String()
 }
+
+// -----------------------------------------------------------------------------
+// ChordRingLenMessage
+
+// NewEmpty implements types.Message.
+func (c ChordRingLenMessage) NewEmpty() Message {
+	return &ChordRingLenMessage{}
+}
+
+// Name implements types.Message.
+func (c ChordRingLenMessage) Name() string {
+	return "chordringlen"
+}
+
+// String implements types.Message.
+func (c ChordRingLenMessage) String() string {
+	return fmt.Sprintf("{chordringlen from %s with length %d}", c.Source, c.Length)
+}
+
+// HTML implements types.Message.
+func (c ChordRingLenMessage) HTML() string {
+	return c.String()
+}

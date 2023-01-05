@@ -6,6 +6,7 @@ import (
 	"golang.org/x/xerrors"
 )
 
+// execChordQuerySuccMessage is the callback function to handle ChordQuerySuccessorMessage
 func (c *Chord) execChordQuerySuccMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	chordQueryMsg, ok := msg.(*types.ChordQuerySuccessorMessage)
@@ -58,6 +59,7 @@ func (c *Chord) execChordQuerySuccMessage(msg types.Message, pkt transport.Packe
 
 }
 
+// execChordReplySuccMessage is the callback function to handle ChordReplySuccessorMessage
 func (c *Chord) execChordReplySuccMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	chordReplyMsg, ok := msg.(*types.ChordReplySuccessorMessage)
@@ -77,6 +79,7 @@ func (c *Chord) execChordReplySuccMessage(msg types.Message, pkt transport.Packe
 	return nil
 }
 
+// execChordQueryPredMessage is the callback function to handle ChordQueryPredecessorMessage
 func (c *Chord) execChordQueryPredMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	_, ok := msg.(*types.ChordQueryPredecessorMessage)
@@ -98,12 +101,18 @@ func (c *Chord) execChordQueryPredMessage(msg types.Message, pkt transport.Packe
 	return c.message.Unicast(pkt.Header.Source, chordReplyMsgTrans)
 }
 
+// execChordReplyPredMessage is the callback function to handle ChordReplyPredecessorMessage
 func (c *Chord) execChordReplyPredMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	chordReplyMsg, ok := msg.(*types.ChordReplyPredecessorMessage)
 	if !ok {
 		return xerrors.Errorf("wrong type: %T", msg)
 	}
+
+	c.successorLock.Lock()
+	defer c.successorLock.Unlock()
+	c.fingersLock.Lock()
+	defer c.fingersLock.Unlock()
 
 	if chordReplyMsg.Predecessor == "" {
 		// If our successor has no predecessor set, we should directly notify our successor
@@ -112,8 +121,6 @@ func (c *Chord) execChordReplyPredMessage(msg types.Message, pkt transport.Packe
 		// If our successor already has one predecessor, we should check whether our successor has
 		// a new predecessor, and the new predecessor is within the range between our chordID, and
 		// our successor's ID
-		c.successorLock.Lock()
-		defer c.successorLock.Unlock()
 		predecessorID := c.name2ID(chordReplyMsg.Predecessor)
 		successorID := c.name2ID(c.successor)
 		within := false
@@ -128,9 +135,7 @@ func (c *Chord) execChordReplyPredMessage(msg types.Message, pkt transport.Packe
 		// successor to the new predecessor
 		if within {
 			c.successor = chordReplyMsg.Predecessor
-			c.fingersLock.Lock()
 			c.fingers[0] = chordReplyMsg.Predecessor
-			c.fingersLock.Unlock()
 		}
 	}
 
@@ -143,6 +148,7 @@ func (c *Chord) execChordReplyPredMessage(msg types.Message, pkt transport.Packe
 	return c.message.Unicast(c.successor, chordNotifyMsgTrans)
 }
 
+// execChordNotifyMessage is the callback function to handle ChordNotifyMessage
 func (c *Chord) execChordNotifyMessage(msg types.Message, pkt transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	_, ok := msg.(*types.ChordNotifyMessage)
@@ -178,14 +184,42 @@ func (c *Chord) execChordNotifyMessage(msg types.Message, pkt transport.Packet) 
 
 	c.successorLock.Lock()
 	defer c.successorLock.Unlock()
+	c.fingersLock.Lock()
+	defer c.fingersLock.Unlock()
+
 	// If we haven't had a successor set, we should set our successor to the source
 	// of the packet as well
 	if c.successor == "" || c.successor == c.address {
 		c.successor = pkt.Header.Source
-		c.fingersLock.Lock()
 		c.fingers[0] = pkt.Header.Source
-		c.fingersLock.Unlock()
 	}
 
+	return nil
+}
+
+// execChordRingLenMessage is the callback function to handle ChordRingLenMessage
+func (c *Chord) execChordRingLenMessage(msg types.Message, pkt transport.Packet) error {
+	/* cast the message to its actual type. You assume it is the right type. */
+	chordRingLenMsg, ok := msg.(*types.ChordRingLenMessage)
+	if !ok {
+		return xerrors.Errorf("wrong type: %T", msg)
+	}
+
+	if chordRingLenMsg.Source == c.address {
+		// If we are the one who initiates the ring length query, we should return the results
+		c.ringLenChan <- chordRingLenMsg.Length
+	} else {
+		// If we are not, we should increment the length by 1, and pass this message to our successor, if we have any
+		c.successorLock.RLock()
+		defer c.successorLock.RUnlock()
+		if c.successor != "" && c.successor != c.address {
+			chordRingLenMsg.Length++
+			chordRingLenMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordRingLenMsg)
+			if err != nil {
+				return err
+			}
+			return c.message.Unicast(c.successor, chordRingLenMsgTrans)
+		}
+	}
 	return nil
 }
