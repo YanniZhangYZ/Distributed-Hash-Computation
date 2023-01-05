@@ -4,6 +4,8 @@ import (
 	"github.com/stretchr/testify/require"
 	z "go.dedis.ch/cs438/internal/testing"
 	"go.dedis.ch/cs438/transport/channel"
+	"math"
+	"sort"
 	"testing"
 	"time"
 )
@@ -332,8 +334,10 @@ func Test_Chord_Ring_Len(t *testing.T) {
 	require.Equal(t, uint(3), node3.RingLen())
 }
 
-// Test_Chord_Multiple_Node tests the case of multiple Chord nodes, it verifies the correctness by checking
-// the ring length of the Chord. The ring length should be equal to the number of nodes inside the ring.
+// Test_Chord_Multiple_Node tests the case of multiple Chord nodes. The correctness verification is done
+// through sorting the nodes by its ChordID, and checks the predecessor and successor follows the sorted
+// order. The finger table could also be computed based on the sorted ChordID. Besides, the ring length of
+// all nodes should be equal to the total number of nodes
 func Test_Chord_Multiple_Node(t *testing.T) {
 	numNodes := 32
 	transp := channel.NewTransport()
@@ -363,6 +367,40 @@ func Test_Chord_Multiple_Node(t *testing.T) {
 		// Haven't joined Chord nodes should have ring length = 1
 		for j := i + 1; j < numNodes; j++ {
 			require.Equal(t, uint(1), nodes[j].RingLen())
+		}
+	}
+
+	time.Sleep(time.Second * 10)
+
+	// After every node gets stabilized, we check, for every node, its predecessor, successor, and finger table.
+	// First, we sort the nodes based on ChordID
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].GetChordID() < nodes[j].GetChordID()
+	})
+
+	for i := 0; i < numNodes; i++ {
+		require.Equal(t, nodes[i].GetPredecessor(), nodes[(i-1+numNodes)%numNodes].GetAddr())
+		require.Equal(t, nodes[i].GetSuccessor(), nodes[(i+1)%numNodes].GetAddr())
+		fingers := nodes[i].GetFingerTable()
+		for j := 0; j < 2*8; j++ {
+			fingerStart := nodes[i].GetChordID() + uint(math.Pow(2, float64(j)))
+
+			// Try to find the node that has a ChordID larger than the fingerStart, i.e., it should
+			// be the node that goes into the finger table
+			fingerIdx := -1
+			for k := i + 1; k < numNodes && fingerIdx == -1; k++ {
+				if nodes[k].GetChordID() >= fingerStart {
+					fingerIdx = k
+				}
+			}
+
+			for k := 0; k < i && fingerIdx == -1; k++ {
+				if nodes[k].GetChordID()+uint(math.Pow(2, 2*8)) >= fingerStart {
+					fingerIdx = k
+				}
+			}
+			
+			require.Equal(t, nodes[fingerIdx].GetAddr(), fingers[j])
 		}
 	}
 }

@@ -161,6 +161,8 @@ func (c *Chord) RingLen() uint {
 // Leave allows the chord node to leave an existing chord ring gracefully
 func (c *Chord) Leave() error {
 	// TODO
+	//  ClearPredecessor
+	//  SkipSuccessor
 	return nil
 }
 
