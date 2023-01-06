@@ -1,9 +1,9 @@
 package project
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/require"
 	z "go.dedis.ch/cs438/internal/testing"
-	"go.dedis.ch/cs438/transport/channel"
 	"math"
 	"sort"
 	"testing"
@@ -12,7 +12,7 @@ import (
 
 // Test_Chord_Create tests a chord node is correctly initiated
 func Test_Chord_Create(t *testing.T) {
-	transp := channel.NewTransport()
+	transp := channelFac()
 
 	node := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(4),
 		z.WithChordStabilizeInterval(0), z.WithChordFixFingerInterval(0))
@@ -31,9 +31,9 @@ func Test_Chord_Create(t *testing.T) {
 }
 
 // Test_Chord_Create_With_Fix_Finger tests a chord node is correctly initiated, and the fixFingerDaemon updates
-// entries inside the finger tables to itself.
-func Test_Chord_Create_With_Fix_Finger(t *testing.T) {
-	transp := channel.NewTransport()
+// entries inside the finger tables to itself, except for the successor
+func Test_Chord_Create_With_Daemon(t *testing.T) {
+	transp := channelFac()
 
 	node := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(1),
 		z.WithChordStabilizeInterval(0), z.WithChordFixFingerInterval(time.Millisecond*200))
@@ -47,12 +47,12 @@ func Test_Chord_Create_With_Fix_Finger(t *testing.T) {
 	require.Equal(t, "", predecessor)
 
 	successor := node.GetSuccessor()
-	require.Equal(t, node.GetAddr(), successor)
+	require.Equal(t, "", successor)
 
 	// > The length of the finger tables should be the number of chord bits
 	fingers := node.GetFingerTable()
 	require.Equal(t, 8, len(fingers))
-	for i := 0; i < 8; i++ {
+	for i := 1; i < 8; i++ {
 		require.Equal(t, node.GetAddr(), fingers[i])
 	}
 }
@@ -60,7 +60,7 @@ func Test_Chord_Create_With_Fix_Finger(t *testing.T) {
 // Test_Chord_Join_Simple tests a chord node joins the Chord ring of another node, with all daemons
 // disabled
 func Test_Chord_Join_Simple(t *testing.T) {
-	transp := channel.NewTransport()
+	transp := channelFac()
 
 	node1 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:1", z.WithChordBytes(4),
 		z.WithChordStabilizeInterval(0), z.WithChordFixFingerInterval(0))
@@ -110,7 +110,7 @@ func Test_Chord_Join_Simple(t *testing.T) {
 // stabilization daemon is turned on. Both nodes should have the correct successor and predecessor
 // set, after the stabilization interval.
 func Test_Chord_Join_With_Stabilization(t *testing.T) {
-	transp := channel.NewTransport()
+	transp := channelFac()
 
 	node1 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:1", z.WithChordBytes(4),
 		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(0))
@@ -141,6 +141,12 @@ func Test_Chord_Join_With_Stabilization(t *testing.T) {
 
 	successor2 := node2.GetSuccessor()
 	require.Equal(t, node1.GetAddr(), successor2)
+
+	ringLen1 := node1.RingLen()
+	require.Equal(t, uint(2), ringLen1)
+
+	ringLen2 := node2.RingLen()
+	require.Equal(t, uint(2), ringLen2)
 }
 
 // Test_Chord_Join_With_Stabilization_Fix_Finger tests a chord node joins the Chord ring of another
@@ -148,7 +154,7 @@ func Test_Chord_Join_With_Stabilization(t *testing.T) {
 // have the correct successor and predecessor set, after the stabilization interval. Also, it should
 // have all finger table entry set after (ChordBytes * 8 * FixFingerInterval)
 func Test_Chord_Join_With_Stabilization_Fix_Finger(t *testing.T) {
-	transp := channel.NewTransport()
+	transp := channelFac()
 
 	node1 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:1", z.WithChordBytes(1),
 		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
@@ -164,7 +170,7 @@ func Test_Chord_Join_With_Stabilization_Fix_Finger(t *testing.T) {
 	err := node1.JoinChord(node2.GetAddr())
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 2)
 
 	// After the join and stabilization, each node should have the other node as
 	// its predecessor and successor
@@ -192,6 +198,12 @@ func Test_Chord_Join_With_Stabilization_Fix_Finger(t *testing.T) {
 	for i := 0; i < 8; i++ {
 		require.Equal(t, node1.GetAddr(), finger2[i])
 	}
+
+	ringLen1 := node1.RingLen()
+	require.Equal(t, uint(2), ringLen1)
+
+	ringLen2 := node2.RingLen()
+	require.Equal(t, uint(2), ringLen2)
 }
 
 // Test_Chord_Join_Three_Node tests a chord ring consisting of 3 nodes
@@ -202,7 +214,7 @@ func Test_Chord_Join_With_Stabilization_Fix_Finger(t *testing.T) {
 //	Node3 (14865)  ---->  Node1 (24963)
 //	  ↖--- Node2 (25694) ---↙
 func Test_Chord_Join_Three_Node(t *testing.T) {
-	transp := channel.NewTransport()
+	transp := channelFac()
 
 	node1 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:1", z.WithChordBytes(2),
 		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
@@ -282,12 +294,95 @@ func Test_Chord_Join_Three_Node(t *testing.T) {
 	for i := 14; i < 16; i++ {
 		require.Equal(t, node3.GetAddr(), finger3[15])
 	}
+
+	ringLen1 := node1.RingLen()
+	require.Equal(t, uint(3), ringLen1)
+
+	ringLen2 := node2.RingLen()
+	require.Equal(t, uint(3), ringLen2)
+
+	ringLen3 := node3.RingLen()
+	require.Equal(t, uint(3), ringLen3)
+}
+
+// Test_Chord_Join_Multiple_Node tests the case of multiple nodes join a Chord ring. The correctness verification
+// is done through sorting the nodes by its ChordID, and checks the predecessor and successor follows the sorted
+// order. The finger table could also be computed based on the sorted ChordID. Besides, the ring length of all
+// nodes should be equal to the total number of nodes
+func Test_Chord_Join_Multiple_Node(t *testing.T) {
+	numNodes := 32
+	transp := udpFac()
+
+	nodes := make([]z.TestNode, numNodes)
+	for i := range nodes {
+		node := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(2),
+			z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
+		defer node.Stop()
+		nodes[i] = node
+	}
+
+	for _, n1 := range nodes {
+		for _, n2 := range nodes {
+			n1.AddPeer(n2.GetAddr())
+		}
+	}
+
+	for i := 1; i < numNodes; i++ {
+		err := nodes[i].JoinChord(nodes[i-1].GetAddr())
+		require.NoError(t, err)
+
+		time.Sleep(time.Second)
+
+		// Already joined Chord nodes should have ring length = i + 1
+		for j := 0; j <= i; j++ {
+			require.Equal(t, uint(i+1), nodes[j].RingLen())
+		}
+
+		// Haven't joined Chord nodes should have ring length = 1
+		for j := i + 1; j < numNodes; j++ {
+			require.Equal(t, uint(1), nodes[j].RingLen())
+		}
+	}
+
+	time.Sleep(time.Second * 10)
+
+	// After every node gets stabilized, we check, for every node, its predecessor, successor, and finger table.
+	// First, we sort the nodes based on ChordID
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].GetChordID() < nodes[j].GetChordID()
+	})
+
+	for i := 0; i < numNodes; i++ {
+		require.Equal(t, nodes[i].GetPredecessor(), nodes[(i-1+numNodes)%numNodes].GetAddr())
+		require.Equal(t, nodes[i].GetSuccessor(), nodes[(i+1)%numNodes].GetAddr())
+		fingers := nodes[i].GetFingerTable()
+		for j := 0; j < 2*8; j++ {
+			fingerStart := nodes[i].GetChordID() + uint(math.Pow(2, float64(j)))
+
+			// Try to find the node that has a ChordID larger than the fingerStart, i.e., it should
+			// be the node that goes into the finger table
+			fingerIdx := -1
+			for k := i + 1; k < numNodes && fingerIdx == -1; k++ {
+				if nodes[k].GetChordID() >= fingerStart {
+					fingerIdx = k
+				}
+			}
+
+			for k := 0; k <= i && fingerIdx == -1; k++ {
+				if nodes[k].GetChordID()+uint(math.Pow(2, 2*8)) >= fingerStart {
+					fingerIdx = k
+				}
+			}
+
+			require.Equal(t, nodes[fingerIdx].GetAddr(), fingers[j])
+		}
+	}
 }
 
 // Test_Chord_Ring_Len tests the RingLen function. It should return the correct number of nodes
 // inside a Chord ring
 func Test_Chord_Ring_Len(t *testing.T) {
-	transp := channel.NewTransport()
+	transp := channelFac()
 
 	node1 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:1", z.WithChordBytes(1),
 		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
@@ -334,17 +429,98 @@ func Test_Chord_Ring_Len(t *testing.T) {
 	require.Equal(t, uint(3), node3.RingLen())
 }
 
-// Test_Chord_Multiple_Node tests the case of multiple Chord nodes. The correctness verification is done
-// through sorting the nodes by its ChordID, and checks the predecessor and successor follows the sorted
-// order. The finger table could also be computed based on the sorted ChordID. Besides, the ring length of
-// all nodes should be equal to the total number of nodes
-func Test_Chord_Multiple_Node(t *testing.T) {
-	numNodes := 32
-	transp := channel.NewTransport()
+// Test_Chord_Leave_Simple tests a node volunteers to leave, the other node should have the
+// correct information after the leave is done.
+func Test_Chord_Leave_Simple(t *testing.T) {
+	transp := channelFac()
+
+	node1 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:1", z.WithChordBytes(1),
+		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
+	defer node1.Stop()
+
+	node2 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:2", z.WithChordBytes(1),
+		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
+	defer node2.Stop()
+
+	node3 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:3", z.WithChordBytes(1),
+		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
+	defer node3.Stop()
+
+	node1.AddPeer(node2.GetAddr())
+	node1.AddPeer(node3.GetAddr())
+	node2.AddPeer(node1.GetAddr())
+	node2.AddPeer(node3.GetAddr())
+	node3.AddPeer(node1.GetAddr())
+	node3.AddPeer(node2.GetAddr())
+
+	err := node2.JoinChord(node1.GetAddr())
+	require.NoError(t, err)
+
+	err = node3.JoinChord(node2.GetAddr())
+	require.NoError(t, err)
+
+	time.Sleep(time.Second * 5)
+
+	// After 3 nodes forms a Chord ring, we should have a Chord ring length = 3
+	ringLen1 := node1.RingLen()
+	require.Equal(t, uint(3), ringLen1)
+
+	ringLen2 := node2.RingLen()
+	require.Equal(t, uint(3), ringLen2)
+
+	ringLen3 := node3.RingLen()
+	require.Equal(t, uint(3), ringLen3)
+
+	err = node3.LeaveChord()
+	require.NoError(t, err)
+
+	time.Sleep(time.Second * 5)
+
+	// After node3 leaves, node1 and node2 should have each other as its successor and predecessor. The
+	// finger table entries should also be updated as well.
+	predecessor1 := node1.GetPredecessor()
+	require.Equal(t, node2.GetAddr(), predecessor1)
+
+	predecessor2 := node2.GetPredecessor()
+	require.Equal(t, node1.GetAddr(), predecessor2)
+
+	successor1 := node1.GetSuccessor()
+	require.Equal(t, node2.GetAddr(), successor1)
+
+	successor2 := node2.GetSuccessor()
+	require.Equal(t, node1.GetAddr(), successor2)
+
+	// Node 1 has chordID = 97 and Node 2 has chordID = 100
+	finger1 := node1.GetFingerTable()
+	require.Equal(t, node2.GetAddr(), finger1[0])
+	require.Equal(t, node2.GetAddr(), finger1[1])
+	for i := 2; i < 8; i++ {
+		require.Equal(t, node1.GetAddr(), finger1[i])
+	}
+
+	finger2 := node2.GetFingerTable()
+	for i := 0; i < 8; i++ {
+		require.Equal(t, node1.GetAddr(), finger2[i])
+	}
+
+	ringLen1 = node1.RingLen()
+	require.Equal(t, uint(2), ringLen1)
+
+	ringLen2 = node2.RingLen()
+	require.Equal(t, uint(2), ringLen2)
+}
+
+// Test_Chord_Leave_Multiple_Node tests a node volunteers to leave, the other node should have the
+// correct information after the leave is done. Now, there would be multiple nodes inside the system.
+func Test_Chord_Leave_Multiple_Node(t *testing.T) {
+	numNodes := 16
+	transp := udpFac()
+
 	nodes := make([]z.TestNode, numNodes)
 	for i := range nodes {
 		node := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(2),
-			z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
+			z.WithChordStabilizeInterval(time.Second), z.WithChordFixFingerInterval(time.Second),
+			z.WithChordPingInterval(time.Second*5))
 		defer node.Stop()
 		nodes[i] = node
 	}
@@ -356,51 +532,57 @@ func Test_Chord_Multiple_Node(t *testing.T) {
 	}
 
 	for i := 1; i < numNodes; i++ {
-		nodes[i].JoinChord(nodes[i-1].GetAddr())
+		err := nodes[i].JoinChord(nodes[i-1].GetAddr())
+		require.NoError(t, err)
 		time.Sleep(time.Second)
-
-		// Already joined Chord nodes should have ring length = i + 1
-		for j := 0; j <= i; j++ {
-			require.Equal(t, uint(i+1), nodes[j].RingLen())
-		}
-
-		// Haven't joined Chord nodes should have ring length = 1
-		for j := i + 1; j < numNodes; j++ {
-			require.Equal(t, uint(1), nodes[j].RingLen())
-		}
 	}
 
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 30)
 
-	// After every node gets stabilized, we check, for every node, its predecessor, successor, and finger table.
+	// After every node gets stabilized, every node should have a ring length = numNodes.
 	// First, we sort the nodes based on ChordID
 	sort.Slice(nodes, func(i, j int) bool {
 		return nodes[i].GetChordID() < nodes[j].GetChordID()
 	})
 
 	for i := 0; i < numNodes; i++ {
-		require.Equal(t, nodes[i].GetPredecessor(), nodes[(i-1+numNodes)%numNodes].GetAddr())
-		require.Equal(t, nodes[i].GetSuccessor(), nodes[(i+1)%numNodes].GetAddr())
-		fingers := nodes[i].GetFingerTable()
-		for j := 0; j < 2*8; j++ {
-			fingerStart := nodes[i].GetChordID() + uint(math.Pow(2, float64(j)))
+		require.Equal(t, uint(numNodes), nodes[i].RingLen())
+	}
 
-			// Try to find the node that has a ChordID larger than the fingerStart, i.e., it should
-			// be the node that goes into the finger table
-			fingerIdx := -1
-			for k := i + 1; k < numNodes && fingerIdx == -1; k++ {
-				if nodes[k].GetChordID() >= fingerStart {
-					fingerIdx = k
+	// Nodes leave in sequence, the remaining nodes should still have the correct information to continue
+	for leaveIdx, sumLeave := numNodes-1, 1; leaveIdx > 1; leaveIdx, sumLeave = leaveIdx-1, sumLeave+1 {
+
+		leaveTest := func(t *testing.T) {
+			nodes[leaveIdx].LeaveChord()
+			numNodes--
+			time.Sleep(time.Second * 30)
+
+			for i := 0; i < numNodes; i++ {
+				require.Equal(t, nodes[i].GetPredecessor(), nodes[(i-1+numNodes)%numNodes].GetAddr())
+				require.Equal(t, nodes[i].GetSuccessor(), nodes[(i+1)%numNodes].GetAddr())
+				fingers := nodes[i].GetFingerTable()
+				for j := 0; j < 2*8; j++ {
+					fingerStart := nodes[i].GetChordID() + uint(math.Pow(2, float64(j)))
+
+					// Try to find the node that has a ChordID larger than the fingerStart, i.e., it should
+					// be the node that goes into the finger table
+					fingerIdx := -1
+					for k := i + 1; k < numNodes && fingerIdx == -1; k++ {
+						if nodes[k].GetChordID() >= fingerStart {
+							fingerIdx = k
+						}
+					}
+
+					for k := 0; k <= i && fingerIdx == -1; k++ {
+						if nodes[k].GetChordID()+uint(math.Pow(2, 2*8)) >= fingerStart {
+							fingerIdx = k
+						}
+					}
+
+					require.Equal(t, nodes[fingerIdx].GetAddr(), fingers[j])
 				}
 			}
-
-			for k := 0; k < i && fingerIdx == -1; k++ {
-				if nodes[k].GetChordID()+uint(math.Pow(2, 2*8)) >= fingerStart {
-					fingerIdx = k
-				}
-			}
-			
-			require.Equal(t, nodes[fingerIdx].GetAddr(), fingers[j])
 		}
+		t.Run(fmt.Sprintf("%d node(s) leave", sumLeave), leaveTest)
 	}
 }

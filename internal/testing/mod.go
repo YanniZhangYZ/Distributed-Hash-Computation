@@ -155,6 +155,7 @@ type configTemplate struct {
 	ChordTimeout           time.Duration
 	ChordStabilizeInterval time.Duration
 	ChordFixFingerInterval time.Duration
+	ChordPingInterval      time.Duration
 }
 
 func newConfigTemplate() configTemplate {
@@ -194,6 +195,7 @@ func newConfigTemplate() configTemplate {
 		ChordTimeout:           time.Second * 5,
 		ChordStabilizeInterval: time.Second * 5,
 		ChordFixFingerInterval: time.Second * 5,
+		ChordPingInterval:      time.Second * 5,
 	}
 }
 
@@ -331,6 +333,13 @@ func WithChordFixFingerInterval(d time.Duration) Option {
 	}
 }
 
+// WithChordPingInterval sets a specific paxosID value.
+func WithChordPingInterval(d time.Duration) Option {
+	return func(ct *configTemplate) {
+		ct.ChordPingInterval = d
+	}
+}
+
 // NewTestNode returns a new test node.
 func NewTestNode(t require.TestingT, f peer.Factory, trans transport.Transport,
 	addr string, opts ...Option) TestNode {
@@ -362,6 +371,7 @@ func NewTestNode(t require.TestingT, f peer.Factory, trans transport.Transport,
 	config.ChordTimeout = template.ChordTimeout
 	config.ChordStabilizeInterval = template.ChordStabilizeInterval
 	config.ChordFixFingerInterval = template.ChordFixFingerInterval
+	config.ChordPingInterval = template.ChordPingInterval
 
 	node := f(config)
 

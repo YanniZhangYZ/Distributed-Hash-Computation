@@ -2,6 +2,7 @@ package chord
 
 import (
 	"fmt"
+	"github.com/rs/xid"
 	"github.com/rs/zerolog/log"
 	"go.dedis.ch/cs438/types"
 	"time"
@@ -13,12 +14,15 @@ func (c *Chord) StartDaemon() {
 	go c.stabilizeDaemon()
 	/* Start the fixFingerDaemon */
 	go c.fixFingerDaemon()
+	/* Start the pingDaemon */
+	go c.pingDaemon()
 }
 
 // StopDaemon stops daemon for Chord
 func (c *Chord) StopDaemon() {
 	c.stopStabilizeChan <- true
 	c.stopFixFingerChan <- true
+	c.stopPingChan <- true
 }
 
 // stabilizeDaemon ensures the correctness of the Chord, it sends a QueryPredecessor
@@ -78,6 +82,10 @@ func (c *Chord) fixFingerDaemon() {
 			return
 		case <-ticker.C:
 			// Update our finger table
+			if c.fingerIdx == 0 {
+				// We should only update finger entries that are not the successor
+				c.fingerIdx++
+			}
 			fingerStart, _ := c.fingerStartEnd(c.fingerIdx)
 			successor, err := c.querySuccessor(c.address, fingerStart)
 			if err != nil {
@@ -86,15 +94,76 @@ func (c *Chord) fixFingerDaemon() {
 						c.address, c.fingerIdx))
 			}
 
-			c.successorLock.Lock()
 			c.fingersLock.Lock()
 			c.fingers[c.fingerIdx] = successor
-			if c.fingerIdx == 0 {
-				c.successor = successor
-			}
 			c.fingersLock.Unlock()
-			c.successorLock.Unlock()
+
 			c.fingerIdx = (c.fingerIdx + 1) % len(c.fingers)
+		}
+	}
+}
+
+// pingDaemon
+func (c *Chord) pingDaemon() {
+	if c.conf.ChordPingInterval == 0 {
+		// Fix finger mechanism is disabled
+		return
+	}
+
+	ticker := time.NewTicker(c.conf.ChordPingInterval)
+	for {
+		select {
+		case <-c.stopPingChan:
+			// The node receives the stop message from the StopDaemon() function,
+			// exit from the goroutine
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			// Check for liveliness of the finger entry, except for the successor
+			checkLiveliness := func(fingerEntry string, fingerIdx int) {
+				// Prepare the new chord ping message
+				chordPingMsg := types.ChordPingMessage{
+					RequestID: xid.New().String(),
+				}
+				chordPingMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordPingMsg)
+				if err != nil {
+					log.Error().Err(err).Msg(
+						fmt.Sprintf("[%s] pingDaemon querySuccessor MarshalMessage failed!", c.address))
+				}
+
+				// Prepare a reply channel that receives the reply from the remote peer, if any response is ready
+				replyChan := make(chan bool, 1)
+				c.pingChan.Store(chordPingMsg.RequestID, replyChan)
+
+				// Send the message to the remote peer
+				err = c.message.Unicast(fingerEntry, chordPingMsgTrans)
+				if err != nil {
+					log.Error().Err(err).Msg(
+						fmt.Sprintf("[%s] pingDaemon Unicast failed!", c.address))
+				}
+
+				// Either we wait until the timeout, or we receive a response from the reply channel
+				select {
+				case <-replyChan:
+					// The entry is still alive, continue
+					return
+				case <-time.After(c.conf.ChordPingInterval):
+					// Timeout, we should set all entries contain expired value to empty
+					c.fingersLock.Lock()
+					if c.fingers[fingerIdx] == fingerEntry {
+						c.fingers[fingerIdx] = ""
+					}
+					c.fingersLock.Unlock()
+				}
+			}
+
+			c.fingersLock.RLock()
+			for i := 1; i < len(c.fingers); i++ {
+				if c.fingers[i] != "" {
+					go checkLiveliness(c.fingers[i], i)
+				}
+			}
+			c.fingersLock.RUnlock()
 		}
 	}
 }

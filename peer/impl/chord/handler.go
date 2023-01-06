@@ -14,18 +14,25 @@ func (c *Chord) execChordQuerySuccMessage(msg types.Message, pkt transport.Packe
 		return xerrors.Errorf("wrong type: %T", msg)
 	}
 
+	// If we are not alive, even we receive some packets, ignore them
+	if c.alive.Load() == 0 {
+		return nil
+	}
+
 	// The queried key should be within the range of chord bits, if it is, ignore the packet
 	if !c.validRange(chordQueryMsg.Key) {
 		return nil
 	}
 
+	c.successorLock.RLock()
+	defer c.successorLock.RUnlock()
+	c.fingersLock.RLock()
+	defer c.fingersLock.RUnlock()
+
 	// Check that whether we are the direct predecessor of the key, if we are, return our successor
 	isPredecesor := c.isPredecessor(chordQueryMsg.Key)
 	if isPredecesor {
 		// If we are the predecessor, return our successor directly to the source of query using Unicast
-		c.successorLock.RLock()
-		defer c.successorLock.RUnlock()
-
 		replySuccessor := c.successor
 		if replySuccessor == "" {
 			// The initial state of the chord ring, we are the only node inside the ring, therefore, we
@@ -67,6 +74,11 @@ func (c *Chord) execChordReplySuccMessage(msg types.Message, pkt transport.Packe
 		return xerrors.Errorf("wrong type: %T", msg)
 	}
 
+	// If we are not alive, even we receive some packets, ignore them
+	if c.alive.Load() == 0 {
+		return nil
+	}
+
 	// We receive a reply for our queries. Since the reply is sent directly via Unicast, we are sure that
 	// we are the correct receptor of the message. Upon receiving the packet, we should notify the thread
 	// that is waiting for our reply by loading the channel from the map and send the successor, if we are
@@ -85,6 +97,11 @@ func (c *Chord) execChordQueryPredMessage(msg types.Message, pkt transport.Packe
 	_, ok := msg.(*types.ChordQueryPredecessorMessage)
 	if !ok {
 		return xerrors.Errorf("wrong type: %T", msg)
+	}
+
+	// If we are not alive, even we receive some packets, ignore them
+	if c.alive.Load() == 0 {
+		return nil
 	}
 
 	c.predecessorLock.RLock()
@@ -107,6 +124,11 @@ func (c *Chord) execChordReplyPredMessage(msg types.Message, pkt transport.Packe
 	chordReplyMsg, ok := msg.(*types.ChordReplyPredecessorMessage)
 	if !ok {
 		return xerrors.Errorf("wrong type: %T", msg)
+	}
+
+	// If we are not alive, even we receive some packets, ignore them
+	if c.alive.Load() == 0 {
+		return nil
 	}
 
 	c.successorLock.Lock()
@@ -154,6 +176,11 @@ func (c *Chord) execChordNotifyMessage(msg types.Message, pkt transport.Packet) 
 	_, ok := msg.(*types.ChordNotifyMessage)
 	if !ok {
 		return xerrors.Errorf("wrong type: %T", msg)
+	}
+
+	// If we are not alive, even we receive some packets, ignore them
+	if c.alive.Load() == 0 {
+		return nil
 	}
 
 	c.predecessorLock.Lock()
@@ -205,6 +232,11 @@ func (c *Chord) execChordRingLenMessage(msg types.Message, pkt transport.Packet)
 		return xerrors.Errorf("wrong type: %T", msg)
 	}
 
+	// If we are not alive, even we receive some packets, ignore them
+	if c.alive.Load() == 0 {
+		return nil
+	}
+
 	if chordRingLenMsg.Source == c.address {
 		// If we are the one who initiates the ring length query, we should return the results
 		c.ringLenChan <- chordRingLenMsg.Length
@@ -221,5 +253,102 @@ func (c *Chord) execChordRingLenMessage(msg types.Message, pkt transport.Packet)
 			return c.message.Unicast(c.successor, chordRingLenMsgTrans)
 		}
 	}
+	return nil
+}
+
+// execChordClearPredMessage is the callback function to handle ChordClearPredecessorMessage
+func (c *Chord) execChordClearPredMessage(msg types.Message, pkt transport.Packet) error {
+	/* cast the message to its actual type. You assume it is the right type. */
+	_, ok := msg.(*types.ChordClearPredecessorMessage)
+	if !ok {
+		return xerrors.Errorf("wrong type: %T", msg)
+	}
+
+	// If we are not alive, even we receive some packets, ignore them
+	if c.alive.Load() == 0 {
+		return nil
+	}
+
+	// If our predecessor matches the pkt source, we are the correct receptor of the message, then
+	// we should set our predecessor field to Nil, and wait for the NotifyMessage for new update
+	c.predecessorLock.Lock()
+	defer c.predecessorLock.Unlock()
+	if c.predecessor == pkt.Header.Source {
+		c.predecessor = ""
+	}
+
+	return nil
+}
+
+// execChordSkipSuccMessage is the callback function to handle ChordSkipSuccessorMessage
+func (c *Chord) execChordSkipSuccMessage(msg types.Message, pkt transport.Packet) error {
+	/* cast the message to its actual type. You assume it is the right type. */
+	chordSkipSuccessorMsg, ok := msg.(*types.ChordSkipSuccessorMessage)
+	if !ok {
+		return xerrors.Errorf("wrong type: %T", msg)
+	}
+
+	// If we are not alive, even we receive some packets, ignore them
+	if c.alive.Load() == 0 {
+		return nil
+	}
+
+	// If our successor matches the pkt source, we are the correct receptor of the message, then
+	// we should update our successor to the new successor
+	c.successorLock.Lock()
+	defer c.successorLock.Unlock()
+	c.fingersLock.Lock()
+	defer c.fingersLock.Unlock()
+
+	if c.successor == pkt.Header.Source {
+		c.successor = chordSkipSuccessorMsg.Successor
+		c.fingers[0] = chordSkipSuccessorMsg.Successor
+	}
+
+	return nil
+}
+
+// execChordPingMessage is the callback function to handle ChordPingMessage
+func (c *Chord) execChordPingMessage(msg types.Message, pkt transport.Packet) error {
+	/* cast the message to its actual type. You assume it is the right type. */
+	chordPingMsg, ok := msg.(*types.ChordPingMessage)
+	if !ok {
+		return xerrors.Errorf("wrong type: %T", msg)
+	}
+
+	// If we are not alive, even we receive some packets, ignore them
+	if c.alive.Load() == 0 {
+		return nil
+	}
+
+	// Prepare the new chord ping reply message
+	chordPingReplyMsg := types.ChordPingReplyMessage{
+		ReplyPacketID: chordPingMsg.RequestID,
+	}
+	chordPingReplyMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordPingReplyMsg)
+	if err != nil {
+		return err
+	}
+	return c.message.Unicast(pkt.Header.Source, chordPingReplyMsgTrans)
+}
+
+// execChordPingMessage is the callback function to handle ChordPingReplyMessage
+func (c *Chord) execChordPingReplyMessage(msg types.Message, pkt transport.Packet) error {
+	/* cast the message to its actual type. You assume it is the right type. */
+	chordPingReplyMsg, ok := msg.(*types.ChordPingReplyMessage)
+	if !ok {
+		return xerrors.Errorf("wrong type: %T", msg)
+	}
+
+	// If we are not alive, even we receive some packets, ignore them
+	if c.alive.Load() == 0 {
+		return nil
+	}
+
+	pingChan, ok := c.pingChan.Load(chordPingReplyMsg.ReplyPacketID)
+	if ok {
+		pingChan.(chan bool) <- true
+	}
+
 	return nil
 }

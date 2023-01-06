@@ -139,3 +139,95 @@ func (c ChordRingLenMessage) String() string {
 func (c ChordRingLenMessage) HTML() string {
 	return c.String()
 }
+
+// -----------------------------------------------------------------------------
+// ChordClearPredecessorMessage
+
+// NewEmpty implements types.Message.
+func (c ChordClearPredecessorMessage) NewEmpty() Message {
+	return &ChordClearPredecessorMessage{}
+}
+
+// Name implements types.Message.
+func (c ChordClearPredecessorMessage) Name() string {
+	return "chordclearpred"
+}
+
+// String implements types.Message.
+func (c ChordClearPredecessorMessage) String() string {
+	return "{chordclearpred}"
+}
+
+// HTML implements types.Message.
+func (c ChordClearPredecessorMessage) HTML() string {
+	return c.String()
+}
+
+// -----------------------------------------------------------------------------
+// ChordSkipSuccessorMessage
+
+// NewEmpty implements types.Message.
+func (c ChordSkipSuccessorMessage) NewEmpty() Message {
+	return &ChordSkipSuccessorMessage{}
+}
+
+// Name implements types.Message.
+func (c ChordSkipSuccessorMessage) Name() string {
+	return "chordskipsucc"
+}
+
+// String implements types.Message.
+func (c ChordSkipSuccessorMessage) String() string {
+	return fmt.Sprintf("{chordskipsucc with new succ %s}", c.Successor)
+}
+
+// HTML implements types.Message.
+func (c ChordSkipSuccessorMessage) HTML() string {
+	return c.String()
+}
+
+// -----------------------------------------------------------------------------
+// ChordPingMessage
+
+// NewEmpty implements types.Message.
+func (c ChordPingMessage) NewEmpty() Message {
+	return &ChordPingMessage{}
+}
+
+// Name implements types.Message.
+func (c ChordPingMessage) Name() string {
+	return "chordping"
+}
+
+// String implements types.Message.
+func (c ChordPingMessage) String() string {
+	return fmt.Sprintf("{chordping %s}", c.RequestID)
+}
+
+// HTML implements types.Message.
+func (c ChordPingMessage) HTML() string {
+	return c.String()
+}
+
+// -----------------------------------------------------------------------------
+// ChordPingReplyMessage
+
+// NewEmpty implements types.Message.
+func (c ChordPingReplyMessage) NewEmpty() Message {
+	return &ChordPingReplyMessage{}
+}
+
+// Name implements types.Message.
+func (c ChordPingReplyMessage) Name() string {
+	return "chordpingreply"
+}
+
+// String implements types.Message.
+func (c ChordPingReplyMessage) String() string {
+	return fmt.Sprintf("{chordpingreply %s}", c.ReplyPacketID)
+}
+
+// HTML implements types.Message.
+func (c ChordPingReplyMessage) HTML() string {
+	return c.String()
+}

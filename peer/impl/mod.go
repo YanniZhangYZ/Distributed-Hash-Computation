@@ -155,6 +155,11 @@ func (n *node) JoinChord(remoteNode string) error {
 	return n.chord.Join(remoteNode)
 }
 
+// LeaveChord implements peer.Chord
+func (n *node) LeaveChord() error {
+	return n.chord.Leave()
+}
+
 // RingLen implements peer.Chord
 func (n *node) RingLen() uint {
 	return n.chord.RingLen()

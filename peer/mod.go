@@ -96,6 +96,10 @@ type Configuration struct {
 	// ChordFixFingerInterval is the interval the chord node wait until it checks its
 	// finger table entry is up-to-date
 	ChordFixFingerInterval time.Duration
+
+	// ChordPingInterval is the interval that a chord node wait until it checks the liveness
+	// of a finger table entry
+	ChordPingInterval time.Duration
 }
 
 // Backoff describes parameters for a backoff algorithm. The initial time must

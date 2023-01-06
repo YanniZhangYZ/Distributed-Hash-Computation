@@ -54,3 +54,33 @@ type ChordRingLenMessage struct {
 	Source string
 	Length uint
 }
+
+// ChordClearPredecessorMessage instructs our successor to remove us from its predecessor field,
+// this message is used when some nodes leave the system
+//
+// - implements types.Message
+type ChordClearPredecessorMessage struct{}
+
+// ChordSkipSuccessorMessage instructs our predecessor to remove us from its successor field, this
+// message is used when some nodes leave the system
+//
+// - implements types.Message
+type ChordSkipSuccessorMessage struct {
+	// The new successor that our predecessor should use
+	Successor string
+}
+
+// ChordPingMessage pings a chord peer, and check for its liveliness
+//
+// - implements types.Message
+type ChordPingMessage struct {
+	// RequestID must be a unique identifier. Use xid.New().String() to generate
+	// it.
+	RequestID string
+}
+
+// ChordPingReplyMessage replies a ping message
+type ChordPingReplyMessage struct {
+	// ReplyPacketID is the PacketID this reply is for
+	ReplyPacketID string
+}

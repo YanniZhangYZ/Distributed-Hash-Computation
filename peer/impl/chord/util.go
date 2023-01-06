@@ -32,12 +32,9 @@ func (c *Chord) name2ID(name string) uint {
 // isPredecessor checks whether we are the predecessor of the given key, if we are, return true,
 // otherwise, return false
 func (c *Chord) isPredecessor(key uint) bool {
-	c.successorLock.RLock()
-	defer c.successorLock.RUnlock()
-
 	// This is the initial state of the Chord ring, when we create it. We are the only node inside
 	// the ring. Our successor is either set to empty or our own address, depending on the execution
-	// of fix finger daemon. In this case, we will be both the predecessor and the successor of the given key
+	// of fix finger daemon. In this case, we will be both the predecessor and the successor of the given key.
 	if c.successor == "" || c.successor == c.address {
 		return true
 	}
@@ -65,9 +62,6 @@ func (c *Chord) fingerStartEnd(idx int) (uint, uint) {
 
 // closestPrecedingFinger returns the closest finger preceding ID
 func (c *Chord) closestPrecedingFinger(key uint) string {
-	c.fingersLock.RLock()
-	defer c.fingersLock.RUnlock()
-
 	for i := c.conf.ChordBytes*8 - 1; i >= 0; i-- {
 		// If we already have this finger, check whether its start is in the range (c.chordID, key)
 		// If c.chordID == key, then we should return the first non-empty entry we encountered during

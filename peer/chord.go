@@ -17,6 +17,9 @@ type Chord interface {
 	// JoinChord joins the peer to an existing Chord ring
 	JoinChord(remoteNode string) error
 
+	// LeaveChord allows the peer to leave a joined Chord ring
+	LeaveChord() error
+
 	// RingLen returns the number of nodes inside the Chord ring
 	RingLen() uint
 }
