@@ -16,7 +16,7 @@ type Peer interface {
 	Messaging
 	DataSharing
 	Chord
-	IDCracker
+	IBlockchain
 }
 
 // Factory is the type of function we are using to create new instances of

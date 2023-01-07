@@ -10,9 +10,10 @@ import (
 )
 
 func (m *Miner) txProcessingDaemon() {
+	defer m.wg.Done()
 	for {
 		select {
-		case <-m.CTX.Done():
+		case <-(*m.GetContext()).Done():
 			return
 		default:
 			// 1. reset miner's tmp world state before processing txs and forming a new block
@@ -35,7 +36,7 @@ func (m *Miner) txProcessingDaemon() {
 			}
 
 			// 4. proof of work
-			err = b.ProofOfWork(m.GetConf().BlockchainDifficulty, m)
+			err = b.ProofOfWork(m.GetConf().BlockchainDifficulty, m.GetContext())
 			if err != nil {
 				continue
 			}
@@ -72,7 +73,7 @@ func (m *Miner) processTxs() error {
 		time.Now().Sub(start) < m.message.GetConf().BlockchainBlockTimeout {
 
 		select {
-		case <-m.CTX.Done():
+		case <-(*m.GetContext()).Done():
 			return nil
 		default:
 			err := m.processOneTx()

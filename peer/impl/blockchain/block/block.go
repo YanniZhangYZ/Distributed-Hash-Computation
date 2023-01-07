@@ -1,12 +1,12 @@
 package block
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
-	"go.dedis.ch/cs438/peer/impl/blockchain/miner"
 	"go.dedis.ch/cs438/peer/impl/blockchain/transaction"
 	"strconv"
 	"strings"
@@ -28,7 +28,7 @@ type Block struct {
 	State common.WorldState
 }
 
-func NewGenesisBlock(m *miner.Miner) *Block {
+func NewGenesisBlock(initState map[string]common.State) *Block {
 	b := Block{}
 	b.Timestamp = 0
 	b.Nonce = 0
@@ -42,7 +42,7 @@ func NewGenesisBlock(m *miner.Miner) *Block {
 	b.TXs = make([]*transaction.SignedTransaction, 0)
 
 	b.State = common.NewKVStore[common.State]()
-	for addr, state := range m.GetConf().BlockchainInitialState {
+	for addr, state := range initState {
 		b.State.Set(addr, state)
 	}
 
@@ -87,11 +87,11 @@ func (b *Block) String() string {
 	panic("implement me")
 }
 
-func (b *Block) ProofOfWork(zeros uint, m *miner.Miner) error {
+func (b *Block) ProofOfWork(zeros uint, ctx *context.Context) error {
 	start := time.Now()
 	for {
 		select {
-		case <-m.CTX.Done():
+		case <-(*ctx).Done():
 			return fmt.Errorf("stopped")
 		default:
 			{

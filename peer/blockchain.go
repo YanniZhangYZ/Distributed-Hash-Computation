@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-// IDCracker is the interface that describes functions of a distributed password cracker
-type IDCracker interface {
+// IBlockchain is the interface that describes functions of a distributed password cracker
+type IBlockchain interface {
 
 	// TransferMoney transfers amount of money from your own account to another
 	TransferMoney(dst common.Address, amount int64, timeout time.Duration) error
