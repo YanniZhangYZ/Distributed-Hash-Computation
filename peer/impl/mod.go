@@ -26,7 +26,7 @@ type node struct {
 	daemon    *daemon.Daemon       // daemon module, runs all daemons
 	file      *fileshare.File      // file module, handles file upload download
 	consensus *consensus.Consensus // The node's consensus component
-	chord     *chord.Chord         // TODO
+	chord     *chord.Chord         // The node's chord component (DHT)
 	dcracker  *dcracker.DCracker   // Distributed Password Cracker module
 }
 
@@ -56,12 +56,14 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 
 // Start implements peer.Service
 func (n *node) Start() error {
+	n.chord.StartDaemon()
 	n.dcracker.Start()
 	return n.daemon.Start()
 }
 
 // Stop implements peer.Service
 func (n *node) Stop() error {
+	n.chord.StopDaemon()
 	n.dcracker.Stop()
 	return n.daemon.Stop()
 }
@@ -133,6 +135,41 @@ func (n *node) SearchAll(reg regexp.Regexp, budget uint, timeout time.Duration) 
 // SearchFirst implements peer.DataSharing
 func (n *node) SearchFirst(pattern regexp.Regexp, conf peer.ExpandingRing) (string, error) {
 	return n.file.SearchFirst(pattern, conf)
+}
+
+// GetChordID implements peer.Chord
+func (n *node) GetChordID() uint {
+	return n.chord.GetChordID()
+}
+
+// GetPredecessor implements peer.Chord
+func (n *node) GetPredecessor() string {
+	return n.chord.GetPredecessor()
+}
+
+// GetSuccessor implements peer.Chord
+func (n *node) GetSuccessor() string {
+	return n.chord.GetSuccessor()
+}
+
+// GetFingerTable implements peer.Chord
+func (n *node) GetFingerTable() []string {
+	return n.chord.GetFingerTable()
+}
+
+// JoinChord implements peer.Chord
+func (n *node) JoinChord(remoteNode string) error {
+	return n.chord.Join(remoteNode)
+}
+
+// LeaveChord implements peer.Chord
+func (n *node) LeaveChord() error {
+	return n.chord.Leave()
+}
+
+// RingLen implements peer.Chord
+func (n *node) RingLen() uint {
+	return n.chord.RingLen()
 }
 
 // TransferMoney implements peer.IDCracker

@@ -4,6 +4,8 @@ go 1.19
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.6
+	github.com/alecthomas/participle/v2 v2.0.0-alpha7
+	github.com/disiqueira/gotree v1.0.0
 	github.com/rs/xid v1.2.1
 	github.com/rs/zerolog v1.20.0
 	github.com/stretchr/testify v1.7.0
