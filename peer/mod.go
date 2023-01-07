@@ -1,6 +1,7 @@
 package peer
 
 import (
+	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"go.dedis.ch/cs438/registry"
 	"go.dedis.ch/cs438/storage"
 	"go.dedis.ch/cs438/transport"
@@ -13,6 +14,7 @@ type Peer interface {
 	Service
 	Messaging
 	DataSharing
+	IDCracker
 }
 
 // Factory is the type of function we are using to create new instances of
@@ -95,6 +97,33 @@ type Configuration struct {
 	// ChordFixFingerInterval is the interval the chord node wait until it checks its
 	// finger table entry is up-to-date
 	ChordFixFingerInterval time.Duration
+
+	// BlockchainAccountAddress is the account address used in the DCracker blockchain
+	BlockchainAccountAddress string
+
+	// BlockchainInitBalance is the initial balance this account possesses in the DCracker blockchain
+	BlockchainInitBalance float64
+
+	// BlockchainDifficulty is the proof-of-work difficulty for the DCracker blockchain
+	// Such difficulty MUST BE THE SAME for all participants
+	BlockchainDifficulty uint
+
+	// BlockchainTXCheckTimeout is the time to wait to check if a transaction has been verified and
+	// stored in the blockchain
+	BlockchainTXCheckTimeout time.Duration
+
+	// BlockchainBlockSize is maximum number of transactions one block contains
+	BlockchainBlockSize uint
+
+	// BlockchainBlockTimeout is time to create a new block
+	// when #processed_txs >= 1 but < BlockchainBlockSize
+	BlockchainBlockTimeout time.Duration
+
+	// BlockchainInitialState is the initial world state of the blockchain
+	BlockchainInitialState map[string]common.State
+
+	//// BlockchainAddressToSocket is the mapping from blockchain address to network socket address
+	//BlockchainAddressToSocket map[string]string
 }
 
 // Backoff describes parameters for a backoff algorithm. The initial time must

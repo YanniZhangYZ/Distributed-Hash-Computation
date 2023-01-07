@@ -153,3 +153,7 @@ func (m *Message) Broadcast(msg transport.Message) error {
 	}()
 	return nil
 }
+
+func (m *Message) GetConf() *peer.Configuration {
+	return m.conf
+}
