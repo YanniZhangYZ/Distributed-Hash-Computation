@@ -1,4 +1,4 @@
-package dcracker
+package blockchain
 
 import (
 	"context"
@@ -16,13 +16,13 @@ import (
 	"time"
 )
 
-type DCracker struct {
+type Blockchain struct {
 	logger   zerolog.Logger
 	message  *message.Message
 	miner    *miner.Miner
 	peerConf *peer.Configuration
 
-	// address is the account address of the DCracker EOA
+	// address is the account address of the Blockchain EOA
 	address common.Address
 
 	ctx    context.Context
@@ -34,8 +34,8 @@ type DCracker struct {
 	publicKey  *ecdsa.PublicKey
 }
 
-func NewDCracker(conf *peer.Configuration, message *message.Message) *DCracker {
-	d := DCracker{}
+func NewBlockchain(conf *peer.Configuration, message *message.Message) *Blockchain {
+	d := Blockchain{}
 	d.message = message
 	d.peerConf = message.GetConf()
 	d.address = common.Address{HexString: d.peerConf.BlockchainAccountAddress}
@@ -45,22 +45,24 @@ func NewDCracker(conf *peer.Configuration, message *message.Message) *DCracker {
 	return &d
 }
 
-func (a *DCracker) Start() {
-	a.logger.Info().Msg("Starting DCracker")
+func (a *Blockchain) Start() {
+	a.logger.Debug().Msg("Starting Blockchain")
 	a.ctx, a.cancel = context.WithCancel(context.Background())
 	a.miner.Start()
-	a.logger.Info().Msg("Started DCracker")
+	a.logger.Debug().Msg("Started Blockchain")
 }
 
-func (a *DCracker) Stop() {
+func (a *Blockchain) Stop() {
+	a.logger.Debug().Msg("Stopping Blockchain")
+
 	a.cancel()
 	a.wg.Wait()
 	a.miner.Stop()
 
-	a.logger.Info().Msg("Stopped DCracker")
+	a.logger.Debug().Msg("Stopped Blockchain")
 }
 
-func (a *DCracker) BroadcastTransaction(signedTx *transaction.SignedTransaction) error {
+func (a *Blockchain) BroadcastTransaction(signedTx *transaction.SignedTransaction) error {
 	txMsg := types.TransactionMessage{SignedTX: *signedTx}
 	txTransMsg, err := a.message.GetConf().MessageRegistry.MarshalMessage(txMsg)
 	if err != nil {
@@ -74,7 +76,7 @@ func (a *DCracker) BroadcastTransaction(signedTx *transaction.SignedTransaction)
 	return nil
 }
 
-func (a *DCracker) CheckTransaction(txHash string, timeout time.Duration) error {
+func (a *Blockchain) CheckTransaction(txHash string, timeout time.Duration) error {
 	// TODO : use channel instead of for loop
 	start := time.Now()
 	for {
@@ -90,7 +92,7 @@ func (a *DCracker) CheckTransaction(txHash string, timeout time.Duration) error 
 	}
 }
 
-func (a *DCracker) TransferMoney(dst common.Address, amount int64, timeout time.Duration) error {
+func (a *Blockchain) TransferMoney(dst common.Address, amount int64, timeout time.Duration) error {
 	// 0. Do you have enough money?
 	balance := a.GetBalance()
 	if balance < amount {
@@ -122,21 +124,21 @@ func (a *DCracker) TransferMoney(dst common.Address, amount int64, timeout time.
 	return nil
 }
 
-func (a *DCracker) ProposeContract(password string, reward int64, recipient string) error {
+func (a *Blockchain) ProposeContract(password string, reward int64, recipient string) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (a *DCracker) ExecuteContract(todo int, timeout time.Duration) bool {
+func (a *Blockchain) ExecuteContract(todo int, timeout time.Duration) bool {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (a *DCracker) GetAccountAddress() string {
+func (a *Blockchain) GetAccountAddress() string {
 	return a.address.String()
 }
 
-func (a *DCracker) GetBalance() int64 {
+func (a *Blockchain) GetBalance() int64 {
 	worldState := a.miner.GetWorldState()
 	state, _ := worldState.Get(a.GetAccountAddress())
 	return state.Balance

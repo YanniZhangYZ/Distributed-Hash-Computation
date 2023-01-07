@@ -41,17 +41,17 @@ type Miner struct {
 	blockBuffer sync.Map
 
 	// for starting and ending daemons
-	CTX    context.Context
+	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 }
 
 func NewMiner(message *message.Message) *Miner {
 	m := Miner{}
-	m.chain = block.NewChain(&m)
-	m.address = common.Address{HexString: message.GetConf().BlockchainAccountAddress}
-	m.logger = log.With().Str("address", m.address.String()).Logger()
 	m.message = message
+	m.address = common.Address{HexString: message.GetConf().BlockchainAccountAddress}
+	m.chain = block.NewChain(m.address, m.GetConf().BlockchainDifficulty, m.GetConf().BlockchainInitialState)
+	m.logger = log.With().Str("address", m.address.String()).Logger()
 
 	m.tmpWorldState = common.NewKVStore[common.State]()
 
@@ -68,22 +68,22 @@ func NewMiner(message *message.Message) *Miner {
 }
 
 func (m *Miner) Start() {
-	m.logger.Info().Msg("starting miner")
-	m.CTX, m.cancel = context.WithCancel(context.Background())
+	m.logger.Debug().Msg("starting miner")
+	m.ctx, m.cancel = context.WithCancel(context.Background())
 
 	m.wg.Add(1)
 	go m.txProcessingDaemon()
 
 	//m.wg.Add(1)
 	//go m.blockProcessingDaemon()
-	m.logger.Info().Msg("started miner")
+	m.logger.Debug().Msg("started miner")
 }
 
 func (m *Miner) Stop() {
-	m.logger.Info().Msg("stopping miner")
+	m.logger.Debug().Msg("stopping miner")
 	m.cancel()
 	m.wg.Wait()
-	m.logger.Info().Msg("stopped miner")
+	m.logger.Debug().Msg("stopped miner")
 }
 
 func (m *Miner) GetConf() *peer.Configuration {
@@ -110,4 +110,8 @@ func (m *Miner) GetWorldState() common.WorldState {
 	defer m.mu.Unlock()
 
 	return m.chain.Tail.State.Copy()
+}
+
+func (m *Miner) GetContext() *context.Context {
+	return &m.ctx
 }

@@ -2,8 +2,8 @@ package impl
 
 import (
 	"go.dedis.ch/cs438/peer"
+	"go.dedis.ch/cs438/peer/impl/blockchain/blockchain"
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
-	"go.dedis.ch/cs438/peer/impl/blockchain/dcracker"
 	"go.dedis.ch/cs438/peer/impl/chord"
 	"go.dedis.ch/cs438/peer/impl/consensus"
 	"go.dedis.ch/cs438/peer/impl/daemon"
@@ -19,15 +19,15 @@ import (
 //
 // - implements peer.Peer
 type node struct {
-	peer.Peer                      // The node implements peer.Peer
-	address   string               // The node's address
-	conf      *peer.Configuration  // The configuration contains Socket and MessageRegistry
-	message   *message.Message     // message module, handles packet sending
-	daemon    *daemon.Daemon       // daemon module, runs all daemons
-	file      *fileshare.File      // file module, handles file upload download
-	consensus *consensus.Consensus // The node's consensus component
-	chord     *chord.Chord         // The node's chord component (DHT)
-	dcracker  *dcracker.DCracker   // Distributed Password Cracker module
+	peer.Peer                         // The node implements peer.Peer
+	address    string                 // The node's address
+	conf       *peer.Configuration    // The configuration contains Socket and MessageRegistry
+	message    *message.Message       // message module, handles packet sending
+	daemon     *daemon.Daemon         // daemon module, runs all daemons
+	file       *fileshare.File        // file module, handles file upload download
+	consensus  *consensus.Consensus   // The node's consensus component
+	chord      *chord.Chord           // The node's chord component (DHT)
+	blockchain *blockchain.Blockchain // The node's blockchain component
 }
 
 // NewPeer creates a new peer. You can change the content and location of this
@@ -38,17 +38,17 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 	fileMod := fileshare.NewFile(&conf, messageMod)
 	consensusMod := consensus.NewConsensus(&conf, messageMod)
 	chordMod := chord.NewChord(&conf, messageMod)
-	dcrackerMod := dcracker.NewDCracker(&conf, messageMod)
+	blockchainMod := blockchain.NewBlockchain(&conf, messageMod)
 
 	n := node{
-		address:   conf.Socket.GetAddress(),
-		conf:      &conf,
-		message:   messageMod,
-		daemon:    daemonMod,
-		file:      fileMod,
-		consensus: consensusMod,
-		chord:     chordMod,
-		dcracker:  dcrackerMod,
+		address:    conf.Socket.GetAddress(),
+		conf:       &conf,
+		message:    messageMod,
+		daemon:     daemonMod,
+		file:       fileMod,
+		consensus:  consensusMod,
+		chord:      chordMod,
+		blockchain: blockchainMod,
 	}
 
 	return &n
@@ -57,14 +57,14 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 // Start implements peer.Service
 func (n *node) Start() error {
 	n.chord.StartDaemon()
-	n.dcracker.Start()
+	n.blockchain.Start()
 	return n.daemon.Start()
 }
 
 // Stop implements peer.Service
 func (n *node) Stop() error {
 	n.chord.StopDaemon()
-	n.dcracker.Stop()
+	n.blockchain.Stop()
 	return n.daemon.Stop()
 }
 
@@ -172,27 +172,27 @@ func (n *node) RingLen() uint {
 	return n.chord.RingLen()
 }
 
-// TransferMoney implements peer.IDCracker
+// TransferMoney implements peer.IBlockchain
 func (n *node) TransferMoney(dst common.Address, amount int64, timeout time.Duration) error {
-	return n.dcracker.TransferMoney(dst, amount, timeout)
+	return n.blockchain.TransferMoney(dst, amount, timeout)
 }
 
-// ProposeContract implements peer.IDCracker
+// ProposeContract implements peer.IBlockchain
 func (n *node) ProposeContract(password string, reward int64, recipient string) error {
-	return n.dcracker.ProposeContract(password, reward, recipient)
+	return n.blockchain.ProposeContract(password, reward, recipient)
 }
 
-// ExecuteContract implements peer.IDCracker
+// ExecuteContract implements peer.IBlockchain
 func (n *node) ExecuteContract(todo int, timeout time.Duration) bool {
-	return n.dcracker.ExecuteContract(todo, timeout)
+	return n.blockchain.ExecuteContract(todo, timeout)
 }
 
-// GetAccountAddress implements peer.IDCracker
+// GetAccountAddress implements peer.IBlockchain
 func (n *node) GetAccountAddress() string {
-	return n.dcracker.GetAccountAddress()
+	return n.blockchain.GetAccountAddress()
 }
 
-// GetBalance implements peer.IDCracker
+// GetBalance implements peer.IBlockchain
 func (n *node) GetBalance() int64 {
-	return n.dcracker.GetBalance()
+	return n.blockchain.GetBalance()
 }

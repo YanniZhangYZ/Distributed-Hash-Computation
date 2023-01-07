@@ -3,7 +3,6 @@ package block
 import (
 	"fmt"
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
-	"go.dedis.ch/cs438/peer/impl/blockchain/miner"
 	"go.dedis.ch/cs438/peer/impl/blockchain/transaction"
 	"math/rand"
 	"strings"
@@ -29,14 +28,14 @@ func (c *Chain) HasTransaction(hash string) bool {
 	return ok
 }
 
-func NewChain(m *miner.Miner) *Chain {
+func NewChain(addr common.Address, difficulty uint, initState map[string]common.State) *Chain {
 	c := Chain{
 		mu:              sync.Mutex{},
-		address:         m.GetAddress(),
+		address:         addr,
 		GenesisPrevHash: strings.Repeat("0", 64),
-		Difficulty:      m.GetConf().BlockchainDifficulty,
+		Difficulty:      difficulty,
 		Blocks:          make(map[string]*Block),
-		Tail:            NewGenesisBlock(m),
+		Tail:            NewGenesisBlock(initState),
 		AllTxs:          make(map[string]*transaction.SignedTransaction),
 	}
 	c.Blocks[c.Tail.BlockHash] = c.Tail
