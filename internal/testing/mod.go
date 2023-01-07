@@ -2,6 +2,7 @@ package testing
 
 import (
 	"bytes"
+	"crypto"
 
 	"crypto/sha256"
 	"encoding/hex"
@@ -156,6 +157,8 @@ type configTemplate struct {
 	ChordStabilizeInterval time.Duration
 	ChordFixFingerInterval time.Duration
 	ChordPingInterval      time.Duration
+
+	PasswordHashAlgorithm crypto.Hash
 }
 
 func newConfigTemplate() configTemplate {
@@ -196,6 +199,8 @@ func newConfigTemplate() configTemplate {
 		ChordStabilizeInterval: time.Second * 5,
 		ChordFixFingerInterval: time.Second * 5,
 		ChordPingInterval:      time.Second * 5,
+
+		PasswordHashAlgorithm: crypto.SHA256,
 	}
 }
 
@@ -340,6 +345,13 @@ func WithChordPingInterval(d time.Duration) Option {
 	}
 }
 
+// WithPasswordHashAlgorithm sets a specific hash algorithm used for password cracker
+func WithPasswordHashAlgorithm(h crypto.Hash) Option {
+	return func(ct *configTemplate) {
+		ct.PasswordHashAlgorithm = h
+	}
+}
+
 // NewTestNode returns a new test node.
 func NewTestNode(t require.TestingT, f peer.Factory, trans transport.Transport,
 	addr string, opts ...Option) TestNode {
@@ -372,6 +384,7 @@ func NewTestNode(t require.TestingT, f peer.Factory, trans transport.Transport,
 	config.ChordStabilizeInterval = template.ChordStabilizeInterval
 	config.ChordFixFingerInterval = template.ChordFixFingerInterval
 	config.ChordPingInterval = template.ChordPingInterval
+	config.PasswordHashAlgorithm = template.PasswordHashAlgorithm
 
 	node := f(config)
 

@@ -16,6 +16,9 @@ type Storage interface {
 
 	// GetBlockchainStore returns a storage to store the blockchain blocks.
 	GetBlockchainStore() Store
+
+	// GetDictionaryStore returns a storage to store the dictionary for password cracker
+	GetDictionaryStore() Store
 }
 
 // Store describes the primitives of a simple storage.

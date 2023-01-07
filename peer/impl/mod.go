@@ -9,6 +9,7 @@ import (
 	"go.dedis.ch/cs438/peer/impl/daemon"
 	"go.dedis.ch/cs438/peer/impl/fileshare"
 	"go.dedis.ch/cs438/peer/impl/message"
+	"go.dedis.ch/cs438/peer/impl/password_cracker"
 	"go.dedis.ch/cs438/transport"
 	"io"
 	"regexp"
@@ -19,15 +20,16 @@ import (
 //
 // - implements peer.Peer
 type node struct {
-	peer.Peer                      // The node implements peer.Peer
-	address   string               // The node's address
-	conf      *peer.Configuration  // The configuration contains Socket and MessageRegistry
-	message   *message.Message     // message module, handles packet sending
-	daemon    *daemon.Daemon       // daemon module, runs all daemons
-	file      *fileshare.File      // file module, handles file upload download
-	consensus *consensus.Consensus // The node's consensus component
-	chord     *chord.Chord         // The node's chord component (DHT)
-	dcracker  *dcracker.DCracker   // Distributed Password Cracker module
+	peer.Peer                                         // The node implements peer.Peer
+	address         string                            // The node's address
+	conf            *peer.Configuration               // The configuration contains Socket and MessageRegistry
+	message         *message.Message                  // message module, handles packet sending
+	daemon          *daemon.Daemon                    // daemon module, runs all daemons
+	file            *fileshare.File                   // file module, handles file upload download
+	consensus       *consensus.Consensus              // The node's consensus component
+	chord           *chord.Chord                      // The node's chord component (DHT)
+	dcracker        *dcracker.DCracker                // Distributed Password Cracker module
+	passwordCracker *password_cracker.PasswordCracker // The node's password cracker
 }
 
 // NewPeer creates a new peer. You can change the content and location of this
@@ -40,15 +42,18 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 	chordMod := chord.NewChord(&conf, messageMod)
 	dcrackerMod := dcracker.NewDCracker(&conf, messageMod)
 
+	passwordCracker := password_cracker.NewPasswordCracker(&conf, messageMod)
+
 	n := node{
-		address:   conf.Socket.GetAddress(),
-		conf:      &conf,
-		message:   messageMod,
-		daemon:    daemonMod,
-		file:      fileMod,
-		consensus: consensusMod,
-		chord:     chordMod,
-		dcracker:  dcrackerMod,
+		address:         conf.Socket.GetAddress(),
+		conf:            &conf,
+		message:         messageMod,
+		daemon:          daemonMod,
+		file:            fileMod,
+		consensus:       consensusMod,
+		chord:           chordMod,
+		dcracker:        dcrackerMod,
+		passwordCracker: passwordCracker,
 	}
 
 	return &n

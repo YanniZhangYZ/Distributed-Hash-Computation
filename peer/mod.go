@@ -1,6 +1,7 @@
 package peer
 
 import (
+	"crypto"
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"go.dedis.ch/cs438/registry"
 	"go.dedis.ch/cs438/storage"
@@ -99,7 +100,7 @@ type Configuration struct {
 	// finger table entry is up-to-date
 	ChordFixFingerInterval time.Duration
 
-	// ChordPingInterval is the interval that a chord node wait until it checks the liveness
+	// ChordPingInterval is the interval that a chord node wait until it checks the liveliness
 	// of a finger table entry
 	ChordPingInterval time.Duration
 
@@ -129,6 +130,9 @@ type Configuration struct {
 
 	//// BlockchainAddressToSocket is the mapping from blockchain address to network socket address
 	//BlockchainAddressToSocket map[string]string
+
+	// PasswordHashAlgorithm is the hash function that is used to compute from the password to hash
+	PasswordHashAlgorithm crypto.Hash
 }
 
 // Backoff describes parameters for a backoff algorithm. The initial time must
