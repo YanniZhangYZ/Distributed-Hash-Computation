@@ -9,12 +9,12 @@ import (
 )
 
 // mapKVStore implements KVStore
-type mapKVStore[TV any] struct {
+type mapKVStore[TV comparable] struct {
 	mu sync.Mutex
 	m  map[string]TV
 }
 
-func NewKVStore[TV any]() KVStore[TV] {
+func NewKVStore[TV comparable]() KVStore[TV] {
 	return &mapKVStore[TV]{
 		mu: sync.Mutex{},
 		m:  make(map[string]TV),
@@ -86,7 +86,52 @@ func (m *mapKVStore[TV]) HashCode() string {
 	return hex.EncodeToString(m.Hash())
 }
 
-func (*mapKVStore[TV]) ForEach(fn func(key string, value TV) bool) bool {
+func (m *mapKVStore[TV]) ForEach(fn func(key string, value TV) bool) bool {
 	//TODO implement me
 	panic("implement me")
+}
+
+func (m *mapKVStore[TV]) GetSimpleMap() map[string]TV {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m2 := make(map[string]TV)
+
+	for k, v := range m.m {
+		m2[k] = v
+	}
+	return m2
+}
+
+func (m *mapKVStore[TV]) Keys() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	keys := make([]string, 0, len(m.m))
+	for k := range m.m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (m *mapKVStore[TV]) Equal(other *KVStore[TV]) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(m.m) != (*other).Len() {
+		return false
+	}
+
+	keys := make([]string, 0, len(m.m))
+	for k := range m.m {
+		keys = append(keys, k)
+	}
+
+	for _, k := range keys {
+		v, ok := (*other).Get(k)
+		if !ok || v != m.m[k] {
+			return false
+		}
+	}
+
+	return true
 }

@@ -7,11 +7,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"go.dedis.ch/cs438/peer"
+	"go.dedis.ch/cs438/peer/impl/blockchain/block"
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"go.dedis.ch/cs438/peer/impl/blockchain/miner"
 	"go.dedis.ch/cs438/peer/impl/blockchain/transaction"
 	"go.dedis.ch/cs438/peer/impl/message"
 	"go.dedis.ch/cs438/types"
+	"os"
 	"sync"
 	"time"
 )
@@ -24,6 +26,12 @@ type Blockchain struct {
 
 	// address is the account address of the Blockchain EOA
 	address common.Address
+
+	// nonce is number of transactions this account has sent
+	nonce int
+
+	// submittedTxs keeps record of all submitted txs
+	submittedTxs map[string]*transaction.SignedTransaction
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -39,30 +47,43 @@ func NewBlockchain(conf *peer.Configuration, message *message.Message) *Blockcha
 	d.message = message
 	d.peerConf = message.GetConf()
 	d.address = common.Address{HexString: d.peerConf.BlockchainAccountAddress}
-	d.logger = log.With().Str("address", d.address.String()).Logger()
+	d.nonce = 0
+	d.submittedTxs = make(map[string]*transaction.SignedTransaction)
+	d.logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).With().Str("account", d.address.String()).Logger()
 	d.miner = miner.NewMiner(message)
 
 	return &d
 }
 
 func (a *Blockchain) Start() {
-	a.logger.Debug().Msg("Starting Blockchain")
+	a.logger.Debug().Msg("starting Blockchain")
 	a.ctx, a.cancel = context.WithCancel(context.Background())
 	a.miner.Start()
-	a.logger.Debug().Msg("Started Blockchain")
+	a.logger.Debug().Msg("started Blockchain")
 }
 
 func (a *Blockchain) Stop() {
-	a.logger.Debug().Msg("Stopping Blockchain")
+	a.logger.Debug().Msg("stopping Blockchain")
 
 	a.cancel()
 	a.wg.Wait()
 	a.miner.Stop()
 
-	a.logger.Debug().Msg("Stopped Blockchain")
+	a.logger.Debug().Msg("stopped Blockchain")
 }
 
 func (a *Blockchain) BroadcastTransaction(signedTx *transaction.SignedTransaction) error {
+	a.logger.Debug().
+		Int("type", signedTx.TX.Type).
+		Str("src", signedTx.TX.Src.String()).
+		Str("dst", signedTx.TX.Dst.String()).
+		Int("nonce", signedTx.TX.Nonce).
+		Int64("value", signedTx.TX.Value).
+		Uint64("timestamp", signedTx.TX.Timestamp).
+		Str("code", signedTx.TX.Code).
+		Str("data", signedTx.TX.Data).
+		Msg("submit a transaction")
+
 	txMsg := types.TransactionMessage{SignedTX: *signedTx}
 	txTransMsg, err := a.message.GetConf().MessageRegistry.MarshalMessage(txMsg)
 	if err != nil {
@@ -73,34 +94,63 @@ func (a *Blockchain) BroadcastTransaction(signedTx *transaction.SignedTransactio
 		return err
 	}
 
+	a.submittedTxs[signedTx.HashCode()] = signedTx
 	return nil
 }
 
 func (a *Blockchain) CheckTransaction(txHash string, timeout time.Duration) error {
-	// TODO : use channel instead of for loop
+	signedTx := a.submittedTxs[txHash]
+
 	start := time.Now()
 	for {
 		if time.Now().Sub(start) > timeout {
+			a.logger.Debug().
+				Int("type", signedTx.TX.Type).
+				Str("src", signedTx.TX.Src.String()).
+				Str("dst", signedTx.TX.Dst.String()).
+				Int("nonce", signedTx.TX.Nonce).
+				Int64("value", signedTx.TX.Value).
+				Uint64("timestamp", signedTx.TX.Timestamp).
+				Str("code", signedTx.TX.Code).
+				Str("data", signedTx.TX.Data).
+				Msg("submitted transaction verification timeout")
+
 			return fmt.Errorf("transaction verification timeout")
 		}
 
 		if a.miner.HasTransaction(txHash) {
-			return nil
+			break
 		} else {
 			time.Sleep(1 * time.Millisecond)
 		}
 	}
+
+	a.logger.Debug().
+		Int("type", signedTx.TX.Type).
+		Str("src", signedTx.TX.Src.String()).
+		Str("dst", signedTx.TX.Dst.String()).
+		Int("nonce", signedTx.TX.Nonce).
+		Int64("value", signedTx.TX.Value).
+		Uint64("timestamp", signedTx.TX.Timestamp).
+		Str("code", signedTx.TX.Code).
+		Str("data", signedTx.TX.Data).
+		Msg("submitted transaction verified")
+
+	return nil
 }
 
 func (a *Blockchain) TransferMoney(dst common.Address, amount int64, timeout time.Duration) error {
 	// 0. Do you have enough money?
 	balance := a.GetBalance()
 	if balance < amount {
+		a.logger.Debug().Int64("balance", balance).Int64("debit", amount).
+			Msg("no enough balance for TransferMoney")
 		return fmt.Errorf("TransferMoney failed : don't have enough balance")
 	}
 
 	// 1. Generate a transaction with type TRANSFER_TX
-	rawTx := transaction.NewTransferTX(a.address, dst, amount)
+	a.nonce++
+	rawTx := transaction.NewTransferTX(a.address, dst, amount, a.nonce)
 
 	// 2. Sign the transaction
 	signedTx, err := rawTx.Sign(a.privateKey)
@@ -142,4 +192,12 @@ func (a *Blockchain) GetBalance() int64 {
 	worldState := a.miner.GetWorldState()
 	state, _ := worldState.Get(a.GetAccountAddress())
 	return state.Balance
+}
+
+func (a *Blockchain) GetMiner() *miner.Miner {
+	return a.miner
+}
+
+func (a *Blockchain) GetChain() *block.Chain {
+	return a.miner.GetChain()
 }

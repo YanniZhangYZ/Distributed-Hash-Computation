@@ -16,6 +16,9 @@ type KVStore[TV any] interface {
 	Hash() []byte
 	HashCode() string
 	ForEach(fn func(key string, value TV) bool) bool
+	GetSimpleMap() map[string]TV
+	Keys() []string
+	Equal(other *KVStore[TV]) bool
 }
 
 // SafeQueue is a thread-safe version of queue

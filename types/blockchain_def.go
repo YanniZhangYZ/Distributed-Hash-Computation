@@ -14,5 +14,6 @@ type TransactionMessage struct {
 // BlockMessage describes a message that contains a block to be broadcast to the blockchain network
 // - implements types.Message
 type BlockMessage struct {
-	Block block.Block
+	//Block block.Block
+	TransBlock block.TransBlock
 }

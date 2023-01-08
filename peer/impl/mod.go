@@ -2,6 +2,7 @@ package impl
 
 import (
 	"go.dedis.ch/cs438/peer"
+	"go.dedis.ch/cs438/peer/impl/blockchain/block"
 	"go.dedis.ch/cs438/peer/impl/blockchain/blockchain"
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"go.dedis.ch/cs438/peer/impl/chord"
@@ -27,7 +28,7 @@ type node struct {
 	file       *fileshare.File        // file module, handles file upload download
 	consensus  *consensus.Consensus   // The node's consensus component
 	chord      *chord.Chord           // The node's chord component (DHT)
-	blockchain *blockchain.Blockchain // The node's blockchain component
+	Blockchain *blockchain.Blockchain // The node's blockchain component (currently exposed for testing)
 }
 
 // NewPeer creates a new peer. You can change the content and location of this
@@ -48,7 +49,7 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 		file:       fileMod,
 		consensus:  consensusMod,
 		chord:      chordMod,
-		blockchain: blockchainMod,
+		Blockchain: blockchainMod,
 	}
 
 	return &n
@@ -57,14 +58,14 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 // Start implements peer.Service
 func (n *node) Start() error {
 	n.chord.StartDaemon()
-	n.blockchain.Start()
+	n.Blockchain.Start()
 	return n.daemon.Start()
 }
 
 // Stop implements peer.Service
 func (n *node) Stop() error {
 	n.chord.StopDaemon()
-	n.blockchain.Stop()
+	n.Blockchain.Stop()
 	return n.daemon.Stop()
 }
 
@@ -174,25 +175,30 @@ func (n *node) RingLen() uint {
 
 // TransferMoney implements peer.IBlockchain
 func (n *node) TransferMoney(dst common.Address, amount int64, timeout time.Duration) error {
-	return n.blockchain.TransferMoney(dst, amount, timeout)
+	return n.Blockchain.TransferMoney(dst, amount, timeout)
 }
 
 // ProposeContract implements peer.IBlockchain
 func (n *node) ProposeContract(password string, reward int64, recipient string) error {
-	return n.blockchain.ProposeContract(password, reward, recipient)
+	return n.Blockchain.ProposeContract(password, reward, recipient)
 }
 
 // ExecuteContract implements peer.IBlockchain
 func (n *node) ExecuteContract(todo int, timeout time.Duration) bool {
-	return n.blockchain.ExecuteContract(todo, timeout)
+	return n.Blockchain.ExecuteContract(todo, timeout)
 }
 
 // GetAccountAddress implements peer.IBlockchain
 func (n *node) GetAccountAddress() string {
-	return n.blockchain.GetAccountAddress()
+	return n.Blockchain.GetAccountAddress()
 }
 
 // GetBalance implements peer.IBlockchain
 func (n *node) GetBalance() int64 {
-	return n.blockchain.GetBalance()
+	return n.Blockchain.GetBalance()
+}
+
+// GetBlockchain implements peer.IBlockchain
+func (n *node) GetChain() *block.Chain {
+	return n.Blockchain.GetChain()
 }

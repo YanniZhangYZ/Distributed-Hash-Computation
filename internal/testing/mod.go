@@ -2,6 +2,7 @@ package testing
 
 import (
 	"bytes"
+	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 
 	"crypto/sha256"
 	"encoding/hex"
@@ -156,6 +157,13 @@ type configTemplate struct {
 	ChordStabilizeInterval time.Duration
 	ChordFixFingerInterval time.Duration
 	ChordPingInterval      time.Duration
+
+	BlockchainAccountAddress string
+	BlockchainDifficulty     uint
+	BlockchainTXCheckTimeout time.Duration
+	BlockchainBlockSize      uint
+	BlockchainBlockTimeout   time.Duration
+	BlockchainInitialState   map[string]common.State
 }
 
 func newConfigTemplate() configTemplate {
@@ -196,6 +204,12 @@ func newConfigTemplate() configTemplate {
 		ChordStabilizeInterval: time.Second * 5,
 		ChordFixFingerInterval: time.Second * 5,
 		ChordPingInterval:      time.Second * 5,
+
+		BlockchainAccountAddress: "",
+		BlockchainDifficulty:     3,
+		BlockchainBlockSize:      5,
+		BlockchainBlockTimeout:   time.Second * 5,
+		BlockchainInitialState:   make(map[string]common.State),
 	}
 }
 
@@ -340,6 +354,36 @@ func WithChordPingInterval(d time.Duration) Option {
 	}
 }
 
+func WithBlockchainAccountAddress(addr string) Option {
+	return func(ct *configTemplate) {
+		ct.BlockchainAccountAddress = addr
+	}
+}
+
+func WithBlockchainDifficulty(d uint) Option {
+	return func(ct *configTemplate) {
+		ct.BlockchainDifficulty = d
+	}
+}
+
+func WithBlockchainBlockSize(s uint) Option {
+	return func(ct *configTemplate) {
+		ct.BlockchainBlockSize = s
+	}
+}
+
+func WithBlockchainBlockTimeout(d time.Duration) Option {
+	return func(ct *configTemplate) {
+		ct.BlockchainBlockTimeout = d
+	}
+}
+
+func WithBlockchainInitialState(s map[string]common.State) Option {
+	return func(ct *configTemplate) {
+		ct.BlockchainInitialState = s
+	}
+}
+
 // NewTestNode returns a new test node.
 func NewTestNode(t require.TestingT, f peer.Factory, trans transport.Transport,
 	addr string, opts ...Option) TestNode {
@@ -372,6 +416,11 @@ func NewTestNode(t require.TestingT, f peer.Factory, trans transport.Transport,
 	config.ChordStabilizeInterval = template.ChordStabilizeInterval
 	config.ChordFixFingerInterval = template.ChordFixFingerInterval
 	config.ChordPingInterval = template.ChordPingInterval
+	config.BlockchainAccountAddress = template.BlockchainAccountAddress
+	config.BlockchainDifficulty = template.BlockchainDifficulty
+	config.BlockchainBlockSize = template.BlockchainBlockSize
+	config.BlockchainBlockTimeout = template.BlockchainBlockTimeout
+	config.BlockchainInitialState = template.BlockchainInitialState
 
 	node := f(config)
 

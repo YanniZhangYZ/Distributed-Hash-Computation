@@ -106,16 +106,9 @@ type Configuration struct {
 	// BlockchainAccountAddress is the account address used in the DCracker blockchain
 	BlockchainAccountAddress string
 
-	// BlockchainInitBalance is the initial balance this account possesses in the DCracker blockchain
-	BlockchainInitBalance float64
-
 	// BlockchainDifficulty is the proof-of-work difficulty for the DCracker blockchain
 	// Such difficulty MUST BE THE SAME for all participants
 	BlockchainDifficulty uint
-
-	// BlockchainTXCheckTimeout is the time to wait to check if a transaction has been verified and
-	// stored in the blockchain
-	BlockchainTXCheckTimeout time.Duration
 
 	// BlockchainBlockSize is maximum number of transactions one block contains
 	BlockchainBlockSize uint
