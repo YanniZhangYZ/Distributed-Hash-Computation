@@ -10,6 +10,7 @@ import (
 	"go.dedis.ch/cs438/peer/impl/blockchain/transaction"
 	"go.dedis.ch/cs438/peer/impl/message"
 	"go.dedis.ch/cs438/types"
+	"os"
 	"sync"
 )
 
@@ -40,6 +41,10 @@ type Miner struct {
 	// blockBuffer is a buffer map for blocks that are still not appended : block.id -> BlockMsg
 	blockBuffer sync.Map
 
+	// blockNotificationCh is a map from blockID to its corresponding channel,
+	// used to notify and terminate unnecessary block forming and mining
+	blockNotificationCh map[int]chan struct{}
+
 	// for starting and ending daemons
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -51,7 +56,7 @@ func NewMiner(message *message.Message) *Miner {
 	m.message = message
 	m.address = common.Address{HexString: message.GetConf().BlockchainAccountAddress}
 	m.chain = block.NewChain(m.address, m.GetConf().BlockchainDifficulty, m.GetConf().BlockchainInitialState)
-	m.logger = log.With().Str("address", m.address.String()).Logger()
+	m.logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).With().Str("account", m.address.String()).Logger()
 
 	m.tmpWorldState = common.NewKVStore[common.State]()
 
@@ -60,8 +65,11 @@ func NewMiner(message *message.Message) *Miner {
 	m.txInvalid = common.NewSafeQueue[*transaction.SignedTransaction]()
 	m.blockInCh = make(chan *types.BlockMessage, 10)
 	m.blockBuffer = sync.Map{}
+	m.blockNotificationCh = make(map[int]chan struct{})
+	m.blockNotificationCh[1] = make(chan struct{})
 
 	m.message.GetConf().MessageRegistry.RegisterMessageCallback(types.TransactionMessage{}, m.execTransactionMessage)
+	m.message.GetConf().MessageRegistry.RegisterMessageCallback(types.BlockMessage{}, m.execBlockMessage)
 	m.wg = sync.WaitGroup{}
 
 	return &m
@@ -114,4 +122,11 @@ func (m *Miner) GetWorldState() common.WorldState {
 
 func (m *Miner) GetContext() *context.Context {
 	return &m.ctx
+}
+
+func (m *Miner) GetChain() *block.Chain {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.chain
 }

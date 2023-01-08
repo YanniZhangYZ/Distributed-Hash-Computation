@@ -32,7 +32,7 @@ func (c BlockMessage) Name() string {
 
 // String implements types.Message.
 func (c BlockMessage) String() string {
-	return c.Block.String()
+	return c.TransBlock.String()
 }
 
 // HTML implements types.Message.

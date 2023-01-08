@@ -2,7 +2,11 @@ package transaction
 
 import (
 	"crypto/ecdsa"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
+	"time"
 )
 
 // Design references : Ethereum Yellow Paper ETHEREUM: A SECURE DECENTRALISED GENERALISED TRANSACTION LEDGER
@@ -69,12 +73,14 @@ type SignedTransaction struct {
 	TXHash    []byte
 }
 
-func NewTransferTX(src common.Address, dst common.Address, amount int64) Transaction {
+func NewTransferTX(src common.Address, dst common.Address, amount int64, nonce int) Transaction {
 	return Transaction{
-		Type:  TRANSFER_TX,
-		Src:   src,
-		Dst:   dst,
-		Value: amount,
+		Type:      TRANSFER_TX,
+		Src:       src,
+		Dst:       dst,
+		Value:     amount,
+		Timestamp: uint64(time.Now().UnixMicro()),
+		Nonce:     nonce,
 	}
 }
 
@@ -89,8 +95,19 @@ func NewContractExecutionTX( /* TODO */ ) Transaction {
 }
 
 func (tx *SignedTransaction) String() string {
-	//TODO implement me
-	panic("implement me")
+	str := ""
+	str += fmt.Sprintf("type:%d, ", tx.TX.Type)
+	str += fmt.Sprintf("Src:%s, ", tx.TX.Src.String())
+	str += fmt.Sprintf("Dst:%s, ", tx.TX.Dst.String())
+	str += fmt.Sprintf("Nonce:%d, ", tx.TX.Nonce)
+	str += fmt.Sprintf("Value:%d, ", tx.TX.Value)
+	str += fmt.Sprintf("Data:%s, ", tx.TX.Data)
+	str += fmt.Sprintf("Code:%s, ", tx.TX.Code)
+	str += fmt.Sprintf("Signature:%s, ", tx.TX.Signature)
+	str += fmt.Sprintf("Timestamp:%d, ", tx.TX.Timestamp)
+	str += fmt.Sprintf("Comment:%s, ", tx.TX.Comment)
+
+	return str
 }
 
 func (tx *Transaction) Sign(privateKey *ecdsa.PrivateKey) (SignedTransaction, error) {
@@ -103,11 +120,11 @@ func (tx *Transaction) Sign(privateKey *ecdsa.PrivateKey) (SignedTransaction, er
 }
 
 func (tx *SignedTransaction) Hash() []byte {
-	//TODO implement me
-	panic("implement me")
+	hash := sha256.New()
+	hash.Write([]byte(tx.String()))
+	return hash.Sum(nil)
 }
 
 func (tx *SignedTransaction) HashCode() string {
-	//TODO implement me
-	panic("implement me")
+	return hex.EncodeToString(tx.Hash())
 }

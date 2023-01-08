@@ -1,6 +1,7 @@
 package peer
 
 import (
+	"go.dedis.ch/cs438/peer/impl/blockchain/block"
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"time"
 )
@@ -29,4 +30,7 @@ type IBlockchain interface {
 
 	// GetBalance returns the balance of the peer's DCracker account
 	GetBalance() int64
+
+	// GetChain returns the chain from its miner
+	GetChain() *block.Chain
 }
