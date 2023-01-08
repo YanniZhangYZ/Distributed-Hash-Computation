@@ -113,7 +113,7 @@ func (c *Chord) Create() {
 // node about the successor of the current node's chordID
 func (c *Chord) Join(remoteNode string) error {
 	c.alive.Store(1)
-	successor, err := c.querySuccessor(remoteNode, c.chordID)
+	successor, err := c.QuerySuccessor(remoteNode, c.chordID)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func (c *Chord) RingLen() uint {
 	case ringLen := <-c.ringLenChan:
 		// We receive an answer before the timeout, return the ring length
 		return ringLen
-	case <-time.After(c.conf.ChordTimeout):
+	case <-time.After(c.conf.ChordTimeout * time.Duration(c.conf.ChordBytes) * 8):
 		// Timeout, return 0, to indicate the failure
 		return 0
 	}
@@ -220,9 +220,9 @@ func (c *Chord) Leave() error {
 	return nil
 }
 
-// querySuccessor queries a remote node or self about the successor of the given key, it can be used
+// QuerySuccessor queries a remote node or self about the successor of the given key, it can be used
 // either when a new node joins the ring, or the node queries the object
-func (c *Chord) querySuccessor(remoteNode string, key uint) (string, error) {
+func (c *Chord) QuerySuccessor(remoteNode string, key uint) (string, error) {
 	// Prepare the new chord query message
 	chordQueryMsg := types.ChordQuerySuccessorMessage{
 		RequestID: xid.New().String(),

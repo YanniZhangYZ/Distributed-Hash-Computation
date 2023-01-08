@@ -28,7 +28,7 @@ type node struct {
 	file            *fileshare.File                   // file module, handles file upload download
 	consensus       *consensus.Consensus              // The node's consensus component
 	chord           *chord.Chord                      // The node's chord component (DHT)
-	blockchain 		*blockchain.Blockchain 			  // The node's blockchain component
+	blockchain      *blockchain.Blockchain            // The node's blockchain component
 	passwordCracker *password_cracker.PasswordCracker // The node's password cracker
 }
 
@@ -41,8 +41,7 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 	consensusMod := consensus.NewConsensus(&conf, messageMod)
 	chordMod := chord.NewChord(&conf, messageMod)
 	blockchainMod := blockchain.NewBlockchain(&conf, messageMod)
-
-	passwordCracker := password_cracker.NewPasswordCracker(&conf, messageMod)
+	passwordCracker := password_cracker.NewPasswordCracker(&conf, messageMod, chordMod)
 
 	n := node{
 		address:         conf.Socket.GetAddress(),
@@ -52,7 +51,7 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 		file:            fileMod,
 		consensus:       consensusMod,
 		chord:           chordMod,
-		blockchain: 	 blockchainMod,
+		blockchain:      blockchainMod,
 		passwordCracker: passwordCracker,
 	}
 
@@ -62,14 +61,14 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 // Start implements peer.Service
 func (n *node) Start() error {
 	n.chord.StartDaemon()
-	n.blockchain.Start()
+	// n.blockchain.Start()
 	return n.daemon.Start()
 }
 
 // Stop implements peer.Service
 func (n *node) Stop() error {
 	n.chord.StopDaemon()
-	n.blockchain.Stop()
+	// n.blockchain.Stop()
 	return n.daemon.Stop()
 }
 
@@ -200,4 +199,14 @@ func (n *node) GetAccountAddress() string {
 // GetBalance implements peer.IBlockchain
 func (n *node) GetBalance() int64 {
 	return n.blockchain.GetBalance()
+}
+
+// PasswordSubmitRequest implements peer.PasswordCracker
+func (n *node) PasswordSubmitRequest(hashStr string, saltStr string) error {
+	return n.passwordCracker.SubmitRequest(hashStr, saltStr)
+}
+
+// PasswordReceiveResult implements peer.PasswordCracker
+func (n *node) PasswordReceiveResult(hashStr string, saltStr string) string {
+	return n.passwordCracker.ReceiveResult(hashStr, saltStr)
 }

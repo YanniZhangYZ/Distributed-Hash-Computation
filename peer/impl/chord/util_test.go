@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// Test_Valid_Range tests the validRange function
 func Test_Valid_Range(t *testing.T) {
 	c := Chord{}
 	c.conf = &peer.Configuration{}
@@ -32,6 +33,7 @@ func Test_Valid_Range(t *testing.T) {
 	}
 }
 
+// Test_Name2ID tests the name2ID function
 func Test_Name2ID(t *testing.T) {
 	c := Chord{}
 	c.conf = &peer.Configuration{}
@@ -58,6 +60,7 @@ func Test_Name2ID(t *testing.T) {
 	}
 }
 
+// Test_Is_Predecessor tests the isPredecessor function
 func Test_Is_Predecessor(t *testing.T) {
 	withoutSuccessor := func(t *testing.T) {
 		// withoutSuccessor tests the case that only one node inside the Chord ring
@@ -131,6 +134,7 @@ func Test_Is_Predecessor(t *testing.T) {
 	t.Run("With successor and range crossing boundary", withSuccessorCrossBoundary)
 }
 
+// Test_Finger_Start_End tests the fingerStartEnd function
 func Test_Finger_Start_End(t *testing.T) {
 	c := Chord{}
 	c.conf = &peer.Configuration{}
@@ -155,6 +159,7 @@ func Test_Finger_Start_End(t *testing.T) {
 	require.Equal(t, fingerEnd, uint(97))
 }
 
+// Test_Closest_Preceding_Finger tests the closestPrecedingFinger function
 func Test_Closest_Preceding_Finger(t *testing.T) {
 	c := Chord{}
 	c.conf = &peer.Configuration{}

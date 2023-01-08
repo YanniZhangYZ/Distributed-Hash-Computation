@@ -1,6 +1,7 @@
 package chord
 
 import (
+	"github.com/rs/zerolog/log"
 	"go.dedis.ch/cs438/transport"
 	"go.dedis.ch/cs438/types"
 	"golang.org/x/xerrors"
@@ -185,10 +186,12 @@ func (c *Chord) execChordNotifyMessage(msg types.Message, pkt transport.Packet) 
 
 	c.predecessorLock.Lock()
 	defer c.predecessorLock.Unlock()
+	update := false
 
 	if c.predecessor == "" {
 		// If we don't have a predecessor yet
 		c.predecessor = pkt.Header.Source
+		update = true
 	} else {
 		// If we already have a predecessor, check that the new coming one has an ID that is within
 		// the range (oldPredecessorID, chordID)
@@ -206,16 +209,43 @@ func (c *Chord) execChordNotifyMessage(msg types.Message, pkt transport.Packet) 
 		// update our predecessor to the new predecessor
 		if within {
 			c.predecessor = pkt.Header.Source
+			update = true
 		}
 	}
 
+	// If we have updated our predecessor, it means the range we are responsible is changed, we should notify
+	// our password cracker about the change
+	if update {
+		newPredecessor := c.predecessor
+		start := c.name2ID(newPredecessor)
+		updatePasswordCracker := func() {
+			passwordCrackerUpdDictRangeMsg := types.PasswordCrackerUpdDictRangeMessage{
+				Start: start,
+				End:   c.chordID,
+			}
+			passwordCrackerUpdDictRangeMsgTrans, err :=
+				c.conf.MessageRegistry.MarshalMessage(passwordCrackerUpdDictRangeMsg)
+			if err != nil {
+				log.Error().Err(err).Msg("updatePasswordCracker Marshal")
+			}
+
+			// Process message locally, it will update the password_cracker module
+			header := transport.NewHeader(c.address, c.address, c.address, 0)
+			localPkt := transport.Packet{Header: &header, Msg: &passwordCrackerUpdDictRangeMsgTrans}
+			err = c.conf.MessageRegistry.ProcessPacket(localPkt)
+			if err != nil {
+				log.Error().Err(err).Msg("updatePasswordCracker ProcessPacket")
+			}
+		}
+		go updatePasswordCracker()
+	}
+
+	// If we haven't had a successor set, we should set our successor to the source
+	// of the packet as well
 	c.successorLock.Lock()
 	defer c.successorLock.Unlock()
 	c.fingersLock.Lock()
 	defer c.fingersLock.Unlock()
-
-	// If we haven't had a successor set, we should set our successor to the source
-	// of the packet as well
 	if c.successor == "" || c.successor == c.address {
 		c.successor = pkt.Header.Source
 		c.fingers[0] = pkt.Header.Source

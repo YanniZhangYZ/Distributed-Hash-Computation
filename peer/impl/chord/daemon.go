@@ -87,7 +87,7 @@ func (c *Chord) fixFingerDaemon() {
 				c.fingerIdx++
 			}
 			fingerStart, _ := c.fingerStartEnd(c.fingerIdx)
-			successor, err := c.querySuccessor(c.address, fingerStart)
+			successor, err := c.QuerySuccessor(c.address, fingerStart)
 			if err != nil {
 				log.Error().Err(err).Msg(
 					fmt.Sprintf("[%s] fixFingerDaemon querySuccessor with error for index %d!",

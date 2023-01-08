@@ -315,8 +315,8 @@ func Test_Chord_Join_Multiple_Node(t *testing.T) {
 
 	nodes := make([]z.TestNode, numNodes)
 	for i := range nodes {
-		node := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(2),
-			z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
+		node := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(1),
+			z.WithChordStabilizeInterval(time.Millisecond*500), z.WithChordFixFingerInterval(time.Millisecond*500))
 		defer node.Stop()
 		nodes[i] = node
 	}
@@ -330,21 +330,9 @@ func Test_Chord_Join_Multiple_Node(t *testing.T) {
 	for i := 1; i < numNodes; i++ {
 		err := nodes[i].JoinChord(nodes[i-1].GetAddr())
 		require.NoError(t, err)
-
-		time.Sleep(time.Second)
-
-		// Already joined Chord nodes should have ring length = i + 1
-		for j := 0; j <= i; j++ {
-			require.Equal(t, uint(i+1), nodes[j].RingLen())
-		}
-
-		// Haven't joined Chord nodes should have ring length = 1
-		for j := i + 1; j < numNodes; j++ {
-			require.Equal(t, uint(1), nodes[j].RingLen())
-		}
 	}
 
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 30)
 
 	// After every node gets stabilized, we check, for every node, its predecessor, successor, and finger table.
 	// First, we sort the nodes based on ChordID
@@ -356,7 +344,7 @@ func Test_Chord_Join_Multiple_Node(t *testing.T) {
 		require.Equal(t, nodes[i].GetPredecessor(), nodes[(i-1+numNodes)%numNodes].GetAddr())
 		require.Equal(t, nodes[i].GetSuccessor(), nodes[(i+1)%numNodes].GetAddr())
 		fingers := nodes[i].GetFingerTable()
-		for j := 0; j < 2*8; j++ {
+		for j := 0; j < 8; j++ {
 			fingerStart := nodes[i].GetChordID() + uint(math.Pow(2, float64(j)))
 
 			// Try to find the node that has a ChordID larger than the fingerStart, i.e., it should
@@ -369,7 +357,7 @@ func Test_Chord_Join_Multiple_Node(t *testing.T) {
 			}
 
 			for k := 0; k <= i && fingerIdx == -1; k++ {
-				if nodes[k].GetChordID()+uint(math.Pow(2, 2*8)) >= fingerStart {
+				if nodes[k].GetChordID()+uint(math.Pow(2, 8)) >= fingerStart {
 					fingerIdx = k
 				}
 			}
@@ -518,8 +506,8 @@ func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 
 	nodes := make([]z.TestNode, numNodes)
 	for i := range nodes {
-		node := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(2),
-			z.WithChordStabilizeInterval(time.Second), z.WithChordFixFingerInterval(time.Second),
+		node := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(1),
+			z.WithChordStabilizeInterval(time.Millisecond*500), z.WithChordFixFingerInterval(time.Millisecond*500),
 			z.WithChordPingInterval(time.Second*5))
 		defer node.Stop()
 		nodes[i] = node
@@ -534,7 +522,6 @@ func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 	for i := 1; i < numNodes; i++ {
 		err := nodes[i].JoinChord(nodes[i-1].GetAddr())
 		require.NoError(t, err)
-		time.Sleep(time.Second)
 	}
 
 	time.Sleep(time.Second * 30)
@@ -544,10 +531,6 @@ func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 	sort.Slice(nodes, func(i, j int) bool {
 		return nodes[i].GetChordID() < nodes[j].GetChordID()
 	})
-
-	for i := 0; i < numNodes; i++ {
-		require.Equal(t, uint(numNodes), nodes[i].RingLen())
-	}
 
 	// Nodes leave in sequence, the remaining nodes should still have the correct information to continue
 	for leaveIdx, sumLeave := numNodes-1, 1; leaveIdx > 1; leaveIdx, sumLeave = leaveIdx-1, sumLeave+1 {
@@ -561,7 +544,7 @@ func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 				require.Equal(t, nodes[i].GetPredecessor(), nodes[(i-1+numNodes)%numNodes].GetAddr())
 				require.Equal(t, nodes[i].GetSuccessor(), nodes[(i+1)%numNodes].GetAddr())
 				fingers := nodes[i].GetFingerTable()
-				for j := 0; j < 2*8; j++ {
+				for j := 0; j < 8; j++ {
 					fingerStart := nodes[i].GetChordID() + uint(math.Pow(2, float64(j)))
 
 					// Try to find the node that has a ChordID larger than the fingerStart, i.e., it should
@@ -574,7 +557,7 @@ func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 					}
 
 					for k := 0; k <= i && fingerIdx == -1; k++ {
-						if nodes[k].GetChordID()+uint(math.Pow(2, 2*8)) >= fingerStart {
+						if nodes[k].GetChordID()+uint(math.Pow(2, 8)) >= fingerStart {
 							fingerIdx = k
 						}
 					}

@@ -198,7 +198,7 @@ func newConfigTemplate() configTemplate {
 		ChordTimeout:           time.Second * 5,
 		ChordStabilizeInterval: time.Second * 5,
 		ChordFixFingerInterval: time.Second * 5,
-		ChordPingInterval:      time.Second * 5,
+		ChordPingInterval:      time.Second * 60,
 
 		PasswordHashAlgorithm: crypto.SHA256,
 	}
