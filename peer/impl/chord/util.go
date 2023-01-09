@@ -2,6 +2,9 @@ package chord
 
 import (
 	"crypto"
+	"github.com/rs/zerolog/log"
+	"go.dedis.ch/cs438/transport"
+	"go.dedis.ch/cs438/types"
 	"math"
 	"math/big"
 )
@@ -82,4 +85,31 @@ func (c *Chord) closestPrecedingFinger(key uint) string {
 		}
 	}
 	return ""
+}
+
+// notifyPasswordCracker notifies the password cracker the change of predecessor of the node, i.e., the password
+// cracker should change the pre-compute dictionary they are storing
+func (c *Chord) notifyPasswordCracker() {
+	newPredecessor := c.predecessor
+	start := c.name2ID(newPredecessor)
+	updatePasswordCracker := func() {
+		passwordCrackerUpdDictRangeMsg := types.PasswordCrackerUpdDictRangeMessage{
+			Start: start,
+			End:   c.chordID,
+		}
+		passwordCrackerUpdDictRangeMsgTrans, err :=
+			c.conf.MessageRegistry.MarshalMessage(passwordCrackerUpdDictRangeMsg)
+		if err != nil {
+			log.Error().Err(err).Msg("updatePasswordCracker Marshal")
+		}
+
+		// Process message locally, it will update the password_cracker module
+		header := transport.NewHeader(c.address, c.address, c.address, 0)
+		localPkt := transport.Packet{Header: &header, Msg: &passwordCrackerUpdDictRangeMsgTrans}
+		err = c.conf.MessageRegistry.ProcessPacket(localPkt)
+		if err != nil {
+			log.Error().Err(err).Msg("updatePasswordCracker ProcessPacket")
+		}
+	}
+	go updatePasswordCracker()
 }

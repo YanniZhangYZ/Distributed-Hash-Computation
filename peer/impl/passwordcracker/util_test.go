@@ -1,4 +1,4 @@
-package password_cracker
+package passwordcracker
 
 import (
 	"crypto"

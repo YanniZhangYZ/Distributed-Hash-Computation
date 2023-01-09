@@ -110,6 +110,44 @@ func (c *Chord) pingDaemon() {
 		return
 	}
 
+	// Check for liveliness of the finger entry, except for the successor
+	checkLiveliness := func(fingerEntry string, fingerIdx int) {
+		// Prepare the new chord ping message
+		chordPingMsg := types.ChordPingMessage{
+			RequestID: xid.New().String(),
+		}
+		chordPingMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordPingMsg)
+		if err != nil {
+			log.Error().Err(err).Msg(
+				fmt.Sprintf("[%s] pingDaemon querySuccessor MarshalMessage failed!", c.address))
+		}
+
+		// Prepare a reply channel that receives the reply from the remote peer, if any response is ready
+		replyChan := make(chan bool, 1)
+		c.pingChan.Store(chordPingMsg.RequestID, replyChan)
+
+		// Send the message to the remote peer
+		err = c.message.Unicast(fingerEntry, chordPingMsgTrans)
+		if err != nil {
+			log.Error().Err(err).Msg(
+				fmt.Sprintf("[%s] pingDaemon Unicast failed!", c.address))
+		}
+
+		// Either we wait until the timeout, or we receive a response from the reply channel
+		select {
+		case <-replyChan:
+			// The entry is still alive, continue
+			return
+		case <-time.After(c.conf.ChordPingInterval):
+			// Timeout, we should set all entries contain expired value to empty
+			c.fingersLock.Lock()
+			if c.fingers[fingerIdx] == fingerEntry {
+				c.fingers[fingerIdx] = ""
+			}
+			c.fingersLock.Unlock()
+		}
+	}
+
 	ticker := time.NewTicker(c.conf.ChordPingInterval)
 	for {
 		select {
@@ -119,44 +157,6 @@ func (c *Chord) pingDaemon() {
 			ticker.Stop()
 			return
 		case <-ticker.C:
-			// Check for liveliness of the finger entry, except for the successor
-			checkLiveliness := func(fingerEntry string, fingerIdx int) {
-				// Prepare the new chord ping message
-				chordPingMsg := types.ChordPingMessage{
-					RequestID: xid.New().String(),
-				}
-				chordPingMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordPingMsg)
-				if err != nil {
-					log.Error().Err(err).Msg(
-						fmt.Sprintf("[%s] pingDaemon querySuccessor MarshalMessage failed!", c.address))
-				}
-
-				// Prepare a reply channel that receives the reply from the remote peer, if any response is ready
-				replyChan := make(chan bool, 1)
-				c.pingChan.Store(chordPingMsg.RequestID, replyChan)
-
-				// Send the message to the remote peer
-				err = c.message.Unicast(fingerEntry, chordPingMsgTrans)
-				if err != nil {
-					log.Error().Err(err).Msg(
-						fmt.Sprintf("[%s] pingDaemon Unicast failed!", c.address))
-				}
-
-				// Either we wait until the timeout, or we receive a response from the reply channel
-				select {
-				case <-replyChan:
-					// The entry is still alive, continue
-					return
-				case <-time.After(c.conf.ChordPingInterval):
-					// Timeout, we should set all entries contain expired value to empty
-					c.fingersLock.Lock()
-					if c.fingers[fingerIdx] == fingerEntry {
-						c.fingers[fingerIdx] = ""
-					}
-					c.fingersLock.Unlock()
-				}
-			}
-
 			c.fingersLock.RLock()
 			for i := 1; i < len(c.fingers); i++ {
 				if c.fingers[i] != "" {

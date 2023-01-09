@@ -10,7 +10,7 @@ import (
 	"go.dedis.ch/cs438/peer/impl/daemon"
 	"go.dedis.ch/cs438/peer/impl/fileshare"
 	"go.dedis.ch/cs438/peer/impl/message"
-	"go.dedis.ch/cs438/peer/impl/password_cracker"
+	"go.dedis.ch/cs438/peer/impl/passwordcracker"
 	"go.dedis.ch/cs438/transport"
 	"io"
 	"regexp"
@@ -21,16 +21,16 @@ import (
 //
 // - implements peer.Peer
 type node struct {
-	peer.Peer                                         // The node implements peer.Peer
-	address         string                            // The node's address
-	conf            *peer.Configuration               // The configuration contains Socket and MessageRegistry
-	message         *message.Message                  // message module, handles packet sending
-	daemon          *daemon.Daemon                    // daemon module, runs all daemons
-	file            *fileshare.File                   // file module, handles file upload download
-	consensus       *consensus.Consensus              // The node's consensus component
-	chord           *chord.Chord                      // The node's chord component (DHT)
-	Blockchain      *blockchain.Blockchain            // The node's blockchain component (currently exposed for testing)
-	passwordCracker *password_cracker.PasswordCracker // The node's password cracker
+	peer.Peer                                        // The node implements peer.Peer
+	address         string                           // The node's address
+	conf            *peer.Configuration              // The configuration contains Socket and MessageRegistry
+	message         *message.Message                 // message module, handles packet sending
+	daemon          *daemon.Daemon                   // daemon module, runs all daemons
+	file            *fileshare.File                  // file module, handles file upload download
+	consensus       *consensus.Consensus             // The node's consensus component
+	chord           *chord.Chord                     // The node's chord component (DHT)
+	Blockchain      *blockchain.Blockchain           // The node's blockchain component (currently exposed for testing)
+	passwordCracker *passwordcracker.PasswordCracker // The node's password cracker
 }
 
 // NewPeer creates a new peer. You can change the content and location of this
@@ -42,7 +42,7 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 	consensusMod := consensus.NewConsensus(&conf, messageMod)
 	chordMod := chord.NewChord(&conf, messageMod)
 	blockchainMod := blockchain.NewBlockchain(&conf, messageMod)
-	passwordCracker := password_cracker.NewPasswordCracker(&conf, messageMod, chordMod)
+	passwordCracker := passwordcracker.NewPasswordCracker(&conf, messageMod, chordMod)
 
 	n := node{
 		address:         conf.Socket.GetAddress(),
@@ -62,14 +62,14 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 // Start implements peer.Service
 func (n *node) Start() error {
 	n.chord.StartDaemon()
-	n.Blockchain.Start()
+	// n.Blockchain.Start()
 	return n.daemon.Start()
 }
 
 // Stop implements peer.Service
 func (n *node) Stop() error {
 	n.chord.StopDaemon()
-	n.Blockchain.Stop()
+	// n.Blockchain.Stop()
 	return n.daemon.Stop()
 }
 

@@ -1,7 +1,6 @@
 package chord
 
 import (
-	"github.com/rs/zerolog/log"
 	"go.dedis.ch/cs438/transport"
 	"go.dedis.ch/cs438/types"
 	"golang.org/x/xerrors"
@@ -216,28 +215,7 @@ func (c *Chord) execChordNotifyMessage(msg types.Message, pkt transport.Packet) 
 	// If we have updated our predecessor, it means the range we are responsible is changed, we should notify
 	// our password cracker about the change
 	if update {
-		newPredecessor := c.predecessor
-		start := c.name2ID(newPredecessor)
-		updatePasswordCracker := func() {
-			passwordCrackerUpdDictRangeMsg := types.PasswordCrackerUpdDictRangeMessage{
-				Start: start,
-				End:   c.chordID,
-			}
-			passwordCrackerUpdDictRangeMsgTrans, err :=
-				c.conf.MessageRegistry.MarshalMessage(passwordCrackerUpdDictRangeMsg)
-			if err != nil {
-				log.Error().Err(err).Msg("updatePasswordCracker Marshal")
-			}
-
-			// Process message locally, it will update the password_cracker module
-			header := transport.NewHeader(c.address, c.address, c.address, 0)
-			localPkt := transport.Packet{Header: &header, Msg: &passwordCrackerUpdDictRangeMsgTrans}
-			err = c.conf.MessageRegistry.ProcessPacket(localPkt)
-			if err != nil {
-				log.Error().Err(err).Msg("updatePasswordCracker ProcessPacket")
-			}
-		}
-		go updatePasswordCracker()
+		c.notifyPasswordCracker()
 	}
 
 	// If we haven't had a successor set, we should set our successor to the source
@@ -274,18 +252,18 @@ func (c *Chord) execChordRingLenMessage(msg types.Message, pkt transport.Packet)
 		if ok {
 			ringLenChan.(chan uint) <- chordRingLenMsg.Length
 		}
-	} else {
-		// If we are not, we should increment the length by 1, and pass this message to our successor, if we have any
-		c.successorLock.RLock()
-		defer c.successorLock.RUnlock()
-		if c.successor != "" && c.successor != c.address {
-			chordRingLenMsg.Length++
-			chordRingLenMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordRingLenMsg)
-			if err != nil {
-				return err
-			}
-			return c.message.Unicast(c.successor, chordRingLenMsgTrans)
+		return nil
+	}
+	// If we are not, we should increment the length by 1, and pass this message to our successor, if we have any
+	c.successorLock.RLock()
+	defer c.successorLock.RUnlock()
+	if c.successor != "" && c.successor != c.address {
+		chordRingLenMsg.Length++
+		chordRingLenMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordRingLenMsg)
+		if err != nil {
+			return err
 		}
+		return c.message.Unicast(c.successor, chordRingLenMsgTrans)
 	}
 	return nil
 }
