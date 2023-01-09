@@ -17,7 +17,7 @@ import (
 // defaultDict is the default dictionary used for the dictionary attack, it can be replaced by reading a word
 // list from a file, for example
 var defaultDict = [...]string{
-	"apple", "ball", "cat", "doll", "egg", "frog", "glass"}
+	"apple", "ball", "cat", "doll", "egg"}
 
 func NewPasswordCracker(conf *peer.Configuration, message *message.Message, chord *chord.Chord) *PasswordCracker {
 	var tasks sync.Map

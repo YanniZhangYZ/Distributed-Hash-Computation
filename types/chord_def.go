@@ -51,7 +51,14 @@ type ChordNotifyMessage struct{}
 //
 // - implements types.Message
 type ChordRingLenMessage struct {
+	// RequestID must be a unique identifier. Use xid.New().String() to generate
+	// it.
+	RequestID string
+
+	// Source is the source who initiate the request
 	Source string
+
+	// Length is the current length of the ring
 	Length uint
 }
 

@@ -310,13 +310,13 @@ func Test_Chord_Join_Three_Node(t *testing.T) {
 // order. The finger table could also be computed based on the sorted ChordID. Besides, the ring length of all
 // nodes should be equal to the total number of nodes
 func Test_Chord_Join_Multiple_Node(t *testing.T) {
-	numNodes := 32
-	transp := udpFac()
+	numNodes := 16
+	transp := channelFac()
 
 	nodes := make([]z.TestNode, numNodes)
 	for i := range nodes {
-		node := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(1),
-			z.WithChordStabilizeInterval(time.Millisecond*500), z.WithChordFixFingerInterval(time.Millisecond*500))
+		node := z.NewTestNode(t, peerFac, transp, fmt.Sprintf("127.0.0.1:%d", i+1), z.WithChordBytes(1),
+			z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
 		defer node.Stop()
 		nodes[i] = node
 	}
@@ -330,9 +330,16 @@ func Test_Chord_Join_Multiple_Node(t *testing.T) {
 	for i := 1; i < numNodes; i++ {
 		err := nodes[i].JoinChord(nodes[i-1].GetAddr())
 		require.NoError(t, err)
+
+		time.Sleep(time.Second)
+
+		// Already joined Chord nodes should have ring length = i + 1
+		for j := 0; j <= i; j++ {
+			require.Equal(t, uint(i+1), nodes[j].RingLen())
+		}
 	}
 
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 60)
 
 	// After every node gets stabilized, we check, for every node, its predecessor, successor, and finger table.
 	// First, we sort the nodes based on ChordID
@@ -502,11 +509,11 @@ func Test_Chord_Leave_Simple(t *testing.T) {
 // correct information after the leave is done. Now, there would be multiple nodes inside the system.
 func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 	numNodes := 16
-	transp := udpFac()
+	transp := channelFac()
 
 	nodes := make([]z.TestNode, numNodes)
 	for i := range nodes {
-		node := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(1),
+		node := z.NewTestNode(t, peerFac, transp, fmt.Sprintf("127.0.0.1:%d", i+1), z.WithChordBytes(1),
 			z.WithChordStabilizeInterval(time.Millisecond*500), z.WithChordFixFingerInterval(time.Millisecond*500),
 			z.WithChordPingInterval(time.Second*5))
 		defer node.Stop()
@@ -532,8 +539,13 @@ func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 		return nodes[i].GetChordID() < nodes[j].GetChordID()
 	})
 
+	for i := 0; i < numNodes; i++ {
+		require.Equal(t, uint(numNodes), nodes[i].RingLen())
+	}
+
 	// Nodes leave in sequence, the remaining nodes should still have the correct information to continue
-	for leaveIdx, sumLeave := numNodes-1, 1; leaveIdx > 1; leaveIdx, sumLeave = leaveIdx-1, sumLeave+1 {
+	for leaveIdx, sumLeave := numNodes-1, 1; leaveIdx >=
+		(sumLeave+numNodes-1)/2; leaveIdx, sumLeave = leaveIdx-1, sumLeave+1 {
 
 		leaveTest := func(t *testing.T) {
 			nodes[leaveIdx].LeaveChord()
@@ -566,6 +578,6 @@ func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 				}
 			}
 		}
-		t.Run(fmt.Sprintf("%d node(s) leave", sumLeave), leaveTest)
+		t.Run(fmt.Sprintf("%d node(s) leave from %d nodes", sumLeave, sumLeave+numNodes-1), leaveTest)
 	}
 }

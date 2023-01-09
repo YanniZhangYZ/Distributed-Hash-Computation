@@ -13,16 +13,15 @@ import (
 )
 
 func NewChord(conf *peer.Configuration, message *message.Message) *Chord {
-	var queryChan sync.Map
-	var pingChan sync.Map
+	var queryChan, ringLenChan, pingChan sync.Map
 
 	chord := Chord{
 		address:           conf.Socket.GetAddress(),
 		conf:              conf,
 		message:           message,
 		queryChan:         &queryChan,
+		ringLenChan:       &ringLenChan,
 		pingChan:          &pingChan,
-		ringLenChan:       make(chan uint, 1),
 		stopStabilizeChan: make(chan bool, 1),
 		stopFixFingerChan: make(chan bool, 1),
 		stopPingChan:      make(chan bool, 1),
@@ -61,8 +60,8 @@ type Chord struct {
 	fingers           []string            // Finger tables
 	fingersLock       sync.RWMutex        // Finger table lock
 	queryChan         *sync.Map           // The sync map stores the channel that used for query results
+	ringLenChan       *sync.Map           // The sync map stores the channel that used for the query RingLen
 	pingChan          *sync.Map           // The sync map stores the channel that used for ping results
-	ringLenChan       chan uint           // The channel is used for the query RingLen
 	stopStabilizeChan chan bool           // Communication channel about whether we should stop the node
 	stopFixFingerChan chan bool
 	stopPingChan      chan bool
@@ -134,17 +133,17 @@ func (c *Chord) Join(remoteNode string) error {
 // RingLen returns the length of the ring, i.e., the number of nodes inside the ring
 func (c *Chord) RingLen() uint {
 	c.successorLock.RLock()
-	defer c.successorLock.RUnlock()
-
 	// If we are the only node inside the Chord ring, returns 1
 	if c.successor == "" || c.successor == c.address {
+		c.successorLock.RUnlock()
 		return 1
 	}
 
 	// If we are not, prepare a new chord ring length message
 	chordRingLenMsg := types.ChordRingLenMessage{
-		Source: c.address,
-		Length: 1,
+		RequestID: xid.New().String(),
+		Source:    c.address,
+		Length:    1,
 	}
 	chordRingLenMsgTrans, err := c.conf.MessageRegistry.MarshalMessage(chordRingLenMsg)
 	if err != nil {
@@ -152,20 +151,27 @@ func (c *Chord) RingLen() uint {
 			fmt.Sprintf("[%s] RingLen failed!", c.address))
 	}
 
+	// Prepare a reply channel that receives the reply from the remote peer, if any response is ready
+	ringLenChan := make(chan uint, 1)
+	c.ringLenChan.Store(chordRingLenMsg.RequestID, ringLenChan)
+
 	// Send the message to the remote peer
 	err = c.message.Unicast(c.successor, chordRingLenMsgTrans)
 	if err != nil {
 		log.Error().Err(err).Msg(
 			fmt.Sprintf("[%s] RingLen failed!", c.address))
 	}
+	c.successorLock.RUnlock()
 
 	// Either we wait until the timeout, or we receive a response from the reply channel
 	select {
-	case ringLen := <-c.ringLenChan:
+	case ringLen := <-ringLenChan:
 		// We receive an answer before the timeout, return the ring length
+		c.ringLenChan.Delete(chordRingLenMsg.RequestID)
 		return ringLen
 	case <-time.After(c.conf.ChordTimeout * time.Duration(c.conf.ChordBytes) * 8):
 		// Timeout, return 0, to indicate the failure
+		c.ringLenChan.Delete(chordRingLenMsg.RequestID)
 		return 0
 	}
 }

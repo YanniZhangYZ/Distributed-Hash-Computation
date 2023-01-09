@@ -268,8 +268,12 @@ func (c *Chord) execChordRingLenMessage(msg types.Message, pkt transport.Packet)
 	}
 
 	if chordRingLenMsg.Source == c.address {
-		// If we are the one who initiates the ring length query, we should return the results
-		c.ringLenChan <- chordRingLenMsg.Length
+		// If we are the one who initiates the ring length query, we should return the results, if we are still waiting
+		// for the result
+		ringLenChan, ok := c.ringLenChan.Load(chordRingLenMsg.RequestID)
+		if ok {
+			ringLenChan.(chan uint) <- chordRingLenMsg.Length
+		}
 	} else {
 		// If we are not, we should increment the length by 1, and pass this message to our successor, if we have any
 		c.successorLock.RLock()

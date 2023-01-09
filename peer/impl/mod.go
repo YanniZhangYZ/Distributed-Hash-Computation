@@ -29,7 +29,7 @@ type node struct {
 	file            *fileshare.File                   // file module, handles file upload download
 	consensus       *consensus.Consensus              // The node's consensus component
 	chord           *chord.Chord                      // The node's chord component (DHT)
-	Blockchain 		*blockchain.Blockchain // The node's blockchain component (currently exposed for testing)
+	Blockchain      *blockchain.Blockchain            // The node's blockchain component (currently exposed for testing)
 	passwordCracker *password_cracker.PasswordCracker // The node's password cracker
 }
 
