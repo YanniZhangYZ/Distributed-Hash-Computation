@@ -41,12 +41,13 @@ func NewPasswordCracker(conf *peer.Configuration, message *message.Message, chor
 }
 
 type PasswordCracker struct {
-	address  string
-	conf     *peer.Configuration // The configuration contains Socket and MessageRegistry
-	message  *message.Message    // Messaging used to communicate among nodes
-	chord    *chord.Chord        // chord used for find the correct receptor
-	hashAlgo crypto.Hash         // The algorithm that is used to compute from the password to hash
-	tasks    *sync.Map           // The tasks that this node have published
+	address     string
+	conf        *peer.Configuration // The configuration contains Socket and MessageRegistry
+	message     *message.Message    // Messaging used to communicate among nodes
+	chord       *chord.Chord        // chord used for find the correct receptor
+	hashAlgo    crypto.Hash         // The algorithm that is used to compute from the password to hash
+	tasks       *sync.Map           // The tasks that this node have published
+	dictUpdLock sync.Mutex          // The dictionary update lock
 }
 
 // SubmitRequest submits the password cracking request to another peer using DHT

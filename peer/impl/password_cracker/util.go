@@ -78,6 +78,9 @@ func (p *PasswordCracker) crackPassword(hash []byte, salt []byte) string {
 
 // updDictRange updates the range of salted dictionary that this node stores
 func (p *PasswordCracker) updDictRange(start uint, end uint) {
+	p.dictUpdLock.Lock()
+	defer p.dictUpdLock.Unlock()
+
 	upperBound := uint(math.Pow(2, float64(p.conf.ChordBytes)*8))
 	if start < end {
 		for i := uint(0); i <= start; i++ {

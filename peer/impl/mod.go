@@ -202,7 +202,7 @@ func (n *node) GetBalance() int64 {
 	return n.Blockchain.GetBalance()
 }
 
-// GetBlockchain implements peer.IBlockchain
+// GetChain implements peer.IBlockchain
 func (n *node) GetChain() *block.Chain {
 	return n.Blockchain.GetChain()
 }
