@@ -29,7 +29,7 @@ type node struct {
 	file            *fileshare.File                   // file module, handles file upload download
 	consensus       *consensus.Consensus              // The node's consensus component
 	chord           *chord.Chord                      // The node's chord component (DHT)
-	Blockchain 		*blockchain.Blockchain // The node's blockchain component (currently exposed for testing)
+	Blockchain      *blockchain.Blockchain            // The node's blockchain component (currently exposed for testing)
 	passwordCracker *password_cracker.PasswordCracker // The node's password cracker
 }
 
@@ -41,7 +41,7 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 	fileMod := fileshare.NewFile(&conf, messageMod)
 	consensusMod := consensus.NewConsensus(&conf, messageMod)
 	chordMod := chord.NewChord(&conf, messageMod)
-	blockchainMod := blockchain.NewBlockchain(&conf, messageMod)
+	blockchainMod := blockchain.NewBlockchain(&conf, messageMod, consensusMod, conf.Storage)
 	passwordCracker := password_cracker.NewPasswordCracker(&conf, messageMod, chordMod)
 
 	n := node{
@@ -202,7 +202,7 @@ func (n *node) GetBalance() int64 {
 	return n.Blockchain.GetBalance()
 }
 
-// GetBlockchain implements peer.IBlockchain
+// GetChain implements peer.IBlockchain
 func (n *node) GetChain() *block.Chain {
 	return n.Blockchain.GetChain()
 }
