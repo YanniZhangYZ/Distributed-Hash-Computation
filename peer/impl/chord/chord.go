@@ -7,6 +7,7 @@ import (
 	"go.dedis.ch/cs438/peer"
 	"go.dedis.ch/cs438/peer/impl/message"
 	"go.dedis.ch/cs438/types"
+	"golang.org/x/xerrors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -259,6 +260,6 @@ func (c *Chord) QuerySuccessor(remoteNode string, key uint) (string, error) {
 	case <-time.After(c.conf.ChordTimeout):
 		/* We are timeout here */
 		c.queryChan.Delete(chordQueryMsg.RequestID)
-		return "", nil
+		return "", xerrors.Errorf("Chord timeout when query successor!")
 	}
 }
