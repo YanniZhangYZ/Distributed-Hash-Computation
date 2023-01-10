@@ -213,7 +213,6 @@ func newConfigTemplate() configTemplate {
 		BlockchainBlockSize:      5,
 		BlockchainBlockTimeout:   time.Second * 5,
 		BlockchainInitialState:   make(map[string]common.State),
-		ChordPingInterval:      time.Second * 60,
 
 		PasswordHashAlgorithm: crypto.SHA256,
 	}

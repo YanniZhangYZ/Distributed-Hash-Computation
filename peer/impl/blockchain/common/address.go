@@ -13,3 +13,7 @@ func (a *Address) HashCode() string {
 	//TODO implement me
 	panic("implement me")
 }
+
+func StringToAddress(s string) Address {
+	return Address{HexString: s}
+}

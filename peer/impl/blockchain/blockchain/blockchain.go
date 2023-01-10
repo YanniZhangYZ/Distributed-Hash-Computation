@@ -99,6 +99,9 @@ func (a *Blockchain) BroadcastTransaction(signedTx *transaction.SignedTransactio
 }
 
 func (a *Blockchain) CheckTransaction(txHash string, timeout time.Duration) error {
+	// Now it check if the transaction is confirmed by only querying the blockchain of itself.
+	// TODO : Send TransactionVerifyMessage to the network to verify the transaction.
+
 	signedTx := a.submittedTxs[txHash]
 
 	start := time.Now()
@@ -140,9 +143,10 @@ func (a *Blockchain) CheckTransaction(txHash string, timeout time.Duration) erro
 }
 
 func (a *Blockchain) TransferMoney(dst common.Address, amount int64, timeout time.Duration) error {
-	// 0. Do you have enough money?
 	balance := a.GetBalance()
-	if balance < amount {
+
+	// 0. For non-declaration transaction, do you have enough money?
+	if dst.String() != a.address.String() && balance < amount {
 		a.logger.Debug().Int64("balance", balance).Int64("debit", amount).
 			Msg("no enough balance for TransferMoney")
 		return fmt.Errorf("TransferMoney failed : don't have enough balance")
@@ -190,8 +194,12 @@ func (a *Blockchain) GetAccountAddress() string {
 
 func (a *Blockchain) GetBalance() int64 {
 	worldState := a.miner.GetWorldState()
-	state, _ := worldState.Get(a.GetAccountAddress())
-	return state.Balance
+	state, ok := worldState.Get(a.GetAccountAddress())
+	if !ok {
+		return 0
+	} else {
+		return state.Balance
+	}
 }
 
 func (a *Blockchain) GetMiner() *miner.Miner {

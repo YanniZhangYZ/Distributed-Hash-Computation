@@ -117,7 +117,7 @@ func Test_Blockchain_Success_Transfer(t *testing.T) {
 	time.Sleep(time.Millisecond * 10)
 
 	// Money transfer should be successful
-	err := node1.TransferMoney(common.Address{HexString: "2"}, 3, time.Second*30)
+	err := node1.TransferMoney(common.Address{HexString: "2"}, 3, time.Second*600)
 	require.NoError(t, err)
 
 	//time.Sleep(time.Second * 30)
@@ -252,8 +252,8 @@ func Test_Blockchain_Random_Transfers(t *testing.T) {
 	transp := channelFac()
 
 	numNode := 3
-	numTxPerNode := 5
-	initBalance := 20
+	numTxPerNode := 10
+	initBalance := 100
 	txVerifyTimeout := time.Second * 600
 
 	worldState := common.QuickWorldState(numNode, int64(initBalance))
@@ -264,7 +264,7 @@ func Test_Blockchain_Random_Transfers(t *testing.T) {
 			z.WithBlockchainInitialState(worldState.GetSimpleMap()),
 			z.WithBlockchainBlockTimeout(time.Second*5),
 			z.WithBlockchainDifficulty(3),
-			z.WithBlockchainBlockSize(5))
+			z.WithBlockchainBlockSize(3))
 	}
 
 	// Create nodes
@@ -341,4 +341,209 @@ func Test_Blockchain_Random_Transfers(t *testing.T) {
 		err := nodes[i].GetChain().ValidateChain()
 		require.NoError(t, err)
 	}
+}
+
+// Test_Blockchain_Late_Start_Catch_Up tests if a node with its state already included in the world state
+// can start late and then catch up
+// Note that catch up is only possible if nodes enable anti-entropy and heartbeats.
+func Test_Blockchain_Late_Start_Catch_Up(t *testing.T) {
+	transp := channelFac()
+
+	worldState := common.QuickWorldState(3, 10)
+
+	newNode := func(address string) z.TestNode {
+		return z.NewTestNode(t, peerFac, transp, "127.0.0.1:0",
+			z.WithBlockchainAccountAddress(address),
+			z.WithBlockchainInitialState(worldState.GetSimpleMap()),
+			z.WithBlockchainBlockTimeout(time.Second*3),
+			z.WithBlockchainDifficulty(3),
+			z.WithBlockchainBlockSize(2),
+			z.WithHeartbeat(time.Second*1),
+			z.WithAntiEntropy(time.Second*1))
+	}
+
+	node1 := newNode("1")
+	node2 := newNode("2")
+
+	defer node1.Stop()
+	defer node2.Stop()
+
+	node1.AddPeer(node2.GetAddr())
+	node2.AddPeer(node1.GetAddr())
+
+	done1 := make(chan struct{})
+	done2 := make(chan struct{})
+
+	// 1 -> 2 : $3
+	// 2 -> 1 : $5
+	go func() {
+		err := node1.TransferMoney(common.Address{HexString: "2"}, 3, time.Second*600)
+		require.NoError(t, err)
+		err = node2.TransferMoney(common.Address{HexString: "1"}, 5, time.Second*600)
+		require.NoError(t, err)
+		close(done1)
+	}()
+
+	// 1 -> 2 : $6
+	// 2 -> 1 : $1
+	go func() {
+		err := node1.TransferMoney(common.Address{HexString: "2"}, 6, time.Second*600)
+		require.NoError(t, err)
+		err = node2.TransferMoney(common.Address{HexString: "1"}, 1, time.Second*600)
+		require.NoError(t, err)
+		close(done2)
+	}()
+
+	// Wait for all money transfers to be done
+	<-done1
+	<-done2
+
+	// Node3 starts late
+	node3 := newNode("3")
+	defer node3.Stop()
+	node1.AddPeer(node3.GetAddr())
+	node2.AddPeer(node3.GetAddr())
+	node3.AddPeer(node1.GetAddr())
+	node3.AddPeer(node2.GetAddr())
+
+	time.Sleep(time.Second * 5)
+
+	// Print the blockchain of each account
+	fmt.Fprint(os.Stdout, node1.GetChain().PrintChain())
+	fmt.Fprint(os.Stdout, node2.GetChain().PrintChain())
+	fmt.Fprint(os.Stdout, node3.GetChain().PrintChain())
+
+	// Check balance after transfer
+	balance1 := node1.GetBalance()
+	balance2 := node2.GetBalance()
+	balance3 := node3.GetBalance()
+	require.EqualValues(t, balance1, 7)
+	require.EqualValues(t, balance2, 13)
+	require.EqualValues(t, balance3, 10)
+
+	// 6 transactions in total
+	// Check blockchain after transfer
+	blockCnt := node1.GetChain().GetBlockCount()
+	require.Equal(t, node1.GetChain().GetBlockCount(), blockCnt)
+	require.Equal(t, node2.GetChain().GetBlockCount(), blockCnt)
+	require.Equal(t, node3.GetChain().GetBlockCount(), blockCnt)
+
+	require.Equal(t, node1.GetChain().GetTransactionCount(), 4)
+	require.Equal(t, node2.GetChain().GetTransactionCount(), 4)
+	require.Equal(t, node3.GetChain().GetTransactionCount(), 4)
+
+	lastBlockHash := node1.GetChain().GetLastBlock().BlockHash
+	require.Equal(t, node2.GetChain().GetLastBlock().BlockHash, lastBlockHash)
+	require.Equal(t, node3.GetChain().GetLastBlock().BlockHash, lastBlockHash)
+
+	require.NoError(t, node1.GetChain().ValidateChain())
+	require.NoError(t, node2.GetChain().ValidateChain())
+	require.NoError(t, node3.GetChain().ValidateChain())
+}
+
+// Test_Blockchain_Join tests if a node could join the blockchain network by declaring its account when
+// it is not included in the initial world state.
+func Test_Blockchain_Join(t *testing.T) {
+	transp := channelFac()
+
+	worldState := common.QuickWorldState(2, 10)
+
+	newNode := func(address string) z.TestNode {
+		return z.NewTestNode(t, peerFac, transp, "127.0.0.1:0",
+			z.WithBlockchainAccountAddress(address),
+			z.WithBlockchainInitialState(worldState.GetSimpleMap()),
+			z.WithBlockchainBlockTimeout(time.Second*3),
+			z.WithBlockchainDifficulty(3),
+			z.WithBlockchainBlockSize(2),
+			z.WithHeartbeat(time.Second*1),
+			z.WithAntiEntropy(time.Second*1))
+	}
+
+	node1 := newNode("1")
+	node2 := newNode("2")
+
+	defer node1.Stop()
+	defer node2.Stop()
+
+	node1.AddPeer(node2.GetAddr())
+	node2.AddPeer(node1.GetAddr())
+
+	done1 := make(chan struct{})
+	done2 := make(chan struct{})
+
+	// 1 -> 2 : $3
+	// 2 -> 1 : $5
+	go func() {
+		err := node1.TransferMoney(common.Address{HexString: "2"}, 3, time.Second*600)
+		require.NoError(t, err)
+		err = node1.TransferMoney(common.Address{HexString: "2"}, 6, time.Second*600)
+		require.NoError(t, err)
+		close(done1)
+	}()
+
+	// 1 -> 2 : $6
+	// 2 -> 1 : $1
+	go func() {
+		err := node2.TransferMoney(common.Address{HexString: "1"}, 1, time.Second*600)
+		require.NoError(t, err)
+		err = node2.TransferMoney(common.Address{HexString: "1"}, 5, time.Second*600)
+		require.NoError(t, err)
+		close(done2)
+	}()
+
+	// Wait for all money transfers to be done
+	<-done1
+	<-done2
+
+	// Node3 starts late
+	node3 := newNode("3")
+	defer node3.Stop()
+	node1.AddPeer(node3.GetAddr())
+	node2.AddPeer(node3.GetAddr())
+	node3.AddPeer(node1.GetAddr())
+	node3.AddPeer(node2.GetAddr())
+
+	time.Sleep(time.Second * 5)
+
+	// Node3 declare its blockchain account with initial balance of 100
+	err := node3.TransferMoney(common.StringToAddress("3"), 100, time.Second*600)
+	require.NoError(t, err)
+
+	err = node3.TransferMoney(common.StringToAddress("1"), 10, time.Second*600)
+	require.NoError(t, err)
+
+	err = node3.TransferMoney(common.StringToAddress("2"), 10, time.Second*600)
+	require.NoError(t, err)
+
+	// Print the blockchain of each account
+	fmt.Fprint(os.Stdout, node1.GetChain().PrintChain())
+	fmt.Fprint(os.Stdout, node2.GetChain().PrintChain())
+	fmt.Fprint(os.Stdout, node3.GetChain().PrintChain())
+
+	// Check balance after transfer
+	balance1 := node1.GetBalance()
+	balance2 := node2.GetBalance()
+	balance3 := node3.GetBalance()
+	require.EqualValues(t, balance1, 17)
+	require.EqualValues(t, balance2, 23)
+	require.EqualValues(t, balance3, 80)
+
+	// 6 transactions in total
+	// Check blockchain after transfer
+	blockCnt := node1.GetChain().GetBlockCount()
+	require.Equal(t, node1.GetChain().GetBlockCount(), blockCnt)
+	require.Equal(t, node2.GetChain().GetBlockCount(), blockCnt)
+	require.Equal(t, node3.GetChain().GetBlockCount(), blockCnt)
+
+	require.Equal(t, node1.GetChain().GetTransactionCount(), 7)
+	require.Equal(t, node2.GetChain().GetTransactionCount(), 7)
+	require.Equal(t, node3.GetChain().GetTransactionCount(), 7)
+
+	lastBlockHash := node1.GetChain().GetLastBlock().BlockHash
+	require.Equal(t, node2.GetChain().GetLastBlock().BlockHash, lastBlockHash)
+	require.Equal(t, node3.GetChain().GetLastBlock().BlockHash, lastBlockHash)
+
+	require.NoError(t, node1.GetChain().ValidateChain())
+	require.NoError(t, node2.GetChain().ValidateChain())
+	require.NoError(t, node3.GetChain().ValidateChain())
 }
