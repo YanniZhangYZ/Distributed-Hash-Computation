@@ -87,8 +87,8 @@ func (p *PasswordCracker) SubmitRequest(hashStr string, saltStr string) error {
 	taskKey := hex.EncodeToString(append(hash, salt...))
 	p.tasks.Store(taskKey, task)
 
-	// Unicast to the receptor and return
-	return p.message.Unicast(receptor, passwordCrackerReqMsgTrans)
+	// SendDirectMsg to the receptor and return
+	return p.message.SendDirectMsg(receptor, receptor, passwordCrackerReqMsgTrans)
 }
 
 // ReceiveResult receives the results for tasks that we have already submitted

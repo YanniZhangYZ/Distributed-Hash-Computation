@@ -32,7 +32,7 @@ func (c *Chord) execChordQuerySuccMessage(msg types.Message, pkt transport.Packe
 	// Check that whether we are the direct predecessor of the key, if we are, return our successor
 	isPredecesor := c.isPredecessor(chordQueryMsg.Key)
 	if isPredecesor {
-		// If we are the predecessor, return our successor directly to the source of query using Unicast
+		// If we are the predecessor, return our successor directly to the source of query
 		replySuccessor := c.successor
 		if replySuccessor == "" {
 			// The initial state of the chord ring, we are the only node inside the ring, therefore, we
@@ -49,7 +49,7 @@ func (c *Chord) execChordQuerySuccMessage(msg types.Message, pkt transport.Packe
 		if err != nil {
 			return err
 		}
-		return c.message.Unicast(chordQueryMsg.Source, chordReplyMsgTrans)
+		return c.message.SendDirectMsg(chordQueryMsg.Source, chordQueryMsg.Source, chordReplyMsgTrans)
 	}
 
 	// If we are not the predecessor, continue asking other nodes
@@ -62,7 +62,7 @@ func (c *Chord) execChordQuerySuccMessage(msg types.Message, pkt transport.Packe
 	if err != nil {
 		return err
 	}
-	return c.message.Unicast(closestPrecedingFinger, chordQueryMsgTrans)
+	return c.message.SendDirectMsg(closestPrecedingFinger, closestPrecedingFinger, chordQueryMsgTrans)
 
 }
 
@@ -79,7 +79,7 @@ func (c *Chord) execChordReplySuccMessage(msg types.Message, pkt transport.Packe
 		return nil
 	}
 
-	// We receive a reply for our queries. Since the reply is sent directly via Unicast, we are sure that
+	// We receive a reply for our queries. Since the reply is sent directly, we are sure that
 	// we are the correct receptor of the message. Upon receiving the packet, we should notify the thread
 	// that is waiting for our reply by loading the channel from the map and send the successor, if we are
 	// still waiting for it.
@@ -115,7 +115,7 @@ func (c *Chord) execChordQueryPredMessage(msg types.Message, pkt transport.Packe
 	if err != nil {
 		return err
 	}
-	return c.message.Unicast(pkt.Header.Source, chordReplyMsgTrans)
+	return c.message.SendDirectMsg(pkt.Header.Source, pkt.Header.Source, chordReplyMsgTrans)
 }
 
 // execChordReplyPredMessage is the callback function to handle ChordReplyPredecessorMessage
@@ -167,7 +167,7 @@ func (c *Chord) execChordReplyPredMessage(msg types.Message, pkt transport.Packe
 	if err != nil {
 		return err
 	}
-	return c.message.Unicast(c.successor, chordNotifyMsgTrans)
+	return c.message.SendDirectMsg(c.successor, c.successor, chordNotifyMsgTrans)
 }
 
 // execChordNotifyMessage is the callback function to handle ChordNotifyMessage
@@ -263,7 +263,7 @@ func (c *Chord) execChordRingLenMessage(msg types.Message, pkt transport.Packet)
 		if err != nil {
 			return err
 		}
-		return c.message.Unicast(c.successor, chordRingLenMsgTrans)
+		return c.message.SendDirectMsg(c.successor, c.successor, chordRingLenMsgTrans)
 	}
 	return nil
 }
@@ -341,7 +341,7 @@ func (c *Chord) execChordPingMessage(msg types.Message, pkt transport.Packet) er
 	if err != nil {
 		return err
 	}
-	return c.message.Unicast(pkt.Header.Source, chordPingReplyMsgTrans)
+	return c.message.SendDirectMsg(pkt.Header.Source, pkt.Header.Source, chordPingReplyMsgTrans)
 }
 
 // execChordPingMessage is the callback function to handle ChordPingReplyMessage

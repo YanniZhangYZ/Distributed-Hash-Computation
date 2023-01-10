@@ -53,9 +53,10 @@ func (c *Chord) stabilizeDaemon() {
 			c.successorLock.RLock()
 			// If we have a successor, send a query message to it.
 			if c.successor != "" && c.successor != c.address {
-				err = c.message.Unicast(c.successor, chordQueryMsgTrans)
+				err = c.message.SendDirectMsg(c.successor, c.successor, chordQueryMsgTrans)
 				if err != nil {
-					log.Error().Err(err).Msg(fmt.Sprintf("[%s] stabilizeDaemon Unicast with error!", c.address))
+					log.Error().Err(err).Msg(
+						fmt.Sprintf("[%s] stabilizeDaemon SendDirectMsg with error!", c.address))
 				}
 			}
 			c.successorLock.RUnlock()
@@ -127,10 +128,10 @@ func (c *Chord) pingDaemon() {
 		c.pingChan.Store(chordPingMsg.RequestID, replyChan)
 
 		// Send the message to the remote peer
-		err = c.message.Unicast(fingerEntry, chordPingMsgTrans)
+		err = c.message.SendDirectMsg(fingerEntry, fingerEntry, chordPingMsgTrans)
 		if err != nil {
 			log.Error().Err(err).Msg(
-				fmt.Sprintf("[%s] pingDaemon Unicast failed!", c.address))
+				fmt.Sprintf("[%s] pingDaemon SendDirectMsg failed!", c.address))
 		}
 
 		// Either we wait until the timeout, or we receive a response from the reply channel

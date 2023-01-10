@@ -156,7 +156,7 @@ func (c *Chord) RingLen() uint {
 	c.ringLenChan.Store(chordRingLenMsg.RequestID, ringLenChan)
 
 	// Send the message to the remote peer
-	err = c.message.Unicast(c.successor, chordRingLenMsgTrans)
+	err = c.message.SendDirectMsg(c.successor, c.successor, chordRingLenMsgTrans)
 	if err != nil {
 		log.Error().Err(err).Msg(
 			fmt.Sprintf("[%s] RingLen failed!", c.address))
@@ -193,7 +193,7 @@ func (c *Chord) Leave() error {
 		if err != nil {
 			return err
 		}
-		err = c.message.Unicast(c.successor, chordClearPredecessorMsgTrans)
+		err = c.message.SendDirectMsg(c.successor, c.successor, chordClearPredecessorMsgTrans)
 		if err != nil {
 			return err
 		}
@@ -209,7 +209,7 @@ func (c *Chord) Leave() error {
 		if err != nil {
 			return err
 		}
-		err = c.message.Unicast(c.predecessor, chordSkipSuccessorMsgTrans)
+		err = c.message.SendDirectMsg(c.successor, c.predecessor, chordSkipSuccessorMsgTrans)
 		if err != nil {
 			return err
 		}
@@ -245,7 +245,7 @@ func (c *Chord) QuerySuccessor(remoteNode string, key uint) (string, error) {
 	c.queryChan.Store(chordQueryMsg.RequestID, replyChan)
 
 	// Send the message to the remote peer
-	err = c.message.Unicast(remoteNode, chordQueryMsgTrans)
+	err = c.message.SendDirectMsg(remoteNode, remoteNode, chordQueryMsgTrans)
 	if err != nil {
 		return "", err
 	}

@@ -27,9 +27,9 @@ func (p *PasswordCracker) execPasswordCrackerRequestMessage(msg types.Message, p
 		if err != nil {
 			log.Error().Err(err).Msg("execPasswordCrackerRequestMessage MarshalMessage")
 		}
-		err = p.message.Unicast(pkt.Header.Source, passwordCrackerReplyMsgTrans)
+		err = p.message.SendDirectMsg(pkt.Header.Source, pkt.Header.Source, passwordCrackerReplyMsgTrans)
 		if err != nil {
-			log.Error().Err(err).Msg("execPasswordCrackerRequestMessage Unicast")
+			log.Error().Err(err).Msg("execPasswordCrackerRequestMessage SendDirectMsg")
 		}
 	}
 	go crackPasswordAndReply()
