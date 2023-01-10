@@ -41,7 +41,7 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 	fileMod := fileshare.NewFile(&conf, messageMod)
 	consensusMod := consensus.NewConsensus(&conf, messageMod)
 	chordMod := chord.NewChord(&conf, messageMod)
-	blockchainMod := blockchain.NewBlockchain(&conf, messageMod)
+	blockchainMod := blockchain.NewBlockchain(&conf, messageMod, consensusMod, conf.Storage)
 	passwordCracker := passwordcracker.NewPasswordCracker(&conf, messageMod, chordMod)
 
 	n := node{
@@ -62,14 +62,14 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 // Start implements peer.Service
 func (n *node) Start() error {
 	n.chord.StartDaemon()
-	// n.Blockchain.Start()
+	n.Blockchain.Start()
 	return n.daemon.Start()
 }
 
 // Stop implements peer.Service
 func (n *node) Stop() error {
 	n.chord.StopDaemon()
-	// n.Blockchain.Stop()
+	n.Blockchain.Stop()
 	return n.daemon.Stop()
 }
 

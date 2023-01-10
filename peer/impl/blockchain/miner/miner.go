@@ -8,7 +8,9 @@ import (
 	"go.dedis.ch/cs438/peer/impl/blockchain/block"
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"go.dedis.ch/cs438/peer/impl/blockchain/transaction"
+	"go.dedis.ch/cs438/peer/impl/consensus"
 	"go.dedis.ch/cs438/peer/impl/message"
+	"go.dedis.ch/cs438/storage"
 	"go.dedis.ch/cs438/types"
 	"os"
 	"sync"
@@ -25,6 +27,10 @@ type Miner struct {
 
 	message *message.Message
 
+	consensus *consensus.Consensus
+
+	blockNameStorage storage.Storage
+
 	tmpWorldState common.WorldState
 
 	// Txs that are not verified and executed
@@ -36,8 +42,8 @@ type Miner struct {
 	// Txs that are currently invalid. These txs will be processed again later.
 	txInvalid common.SafeQueue[*transaction.SignedTransaction]
 
-	// blockBuffer is a buffer map for blocks that are still not appended : block.id -> BlockMsg
-	blockBuffer sync.Map
+	// blockBuffer is a buffer map for blocks that are still not appended : block.id -> (blockHash -> block)
+	blockBuffer map[uint32]map[string]*block.Block
 
 	// blockNotificationCh is a map from blockID to its corresponding channel,
 	// used to notify and terminate unnecessary block forming and mining
@@ -49,9 +55,12 @@ type Miner struct {
 	wg     sync.WaitGroup
 }
 
-func NewMiner(message *message.Message) *Miner {
+func NewMiner(message *message.Message, consensus *consensus.Consensus, storage storage.Storage) *Miner {
 	m := Miner{}
 	m.message = message
+	m.consensus = consensus
+	m.blockNameStorage = storage
+
 	m.address = common.Address{HexString: message.GetConf().BlockchainAccountAddress}
 	m.chain = block.NewChain(m.address, m.GetConf().BlockchainDifficulty, m.GetConf().BlockchainInitialState)
 	m.logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).With().Str("account", m.address.String()).Logger()
@@ -61,7 +70,7 @@ func NewMiner(message *message.Message) *Miner {
 	m.txPending = common.NewSafeQueue[*transaction.SignedTransaction]()
 	m.txProcessed = common.NewSafeQueue[*transaction.SignedTransaction]()
 	m.txInvalid = common.NewSafeQueue[*transaction.SignedTransaction]()
-	m.blockBuffer = sync.Map{}
+	m.blockBuffer = make(map[uint32]map[string]*block.Block)
 	m.blockNotificationCh = make(map[int]chan struct{})
 	m.blockNotificationCh[1] = make(chan struct{})
 
@@ -103,11 +112,18 @@ func (m *Miner) resetTmpWorldState() {
 	m.tmpWorldState = m.chain.Tail.State.Copy()
 }
 
-func (m *Miner) HasTransaction(txHash string) bool {
+func (m *Miner) HasTransactionHash(txHash string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return m.chain.HasTransaction(txHash)
+	return m.chain.HasTransactionHash(txHash)
+}
+
+func (m *Miner) HasTransaction(tx *transaction.SignedTransaction) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.chain.HasTransaction(tx)
 }
 
 func (m *Miner) GetWorldState() common.WorldState {
