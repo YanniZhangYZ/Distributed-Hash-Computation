@@ -12,7 +12,7 @@ func (m *Miner) txProcessingDaemon() {
 	defer m.wg.Done()
 	for {
 		select {
-		case <-(*m.GetContext()).Done():
+		case <-m.ctx.Done():
 			return
 		default:
 			// 1. Reset miner's tmp world state before processing txs and forming a new block
@@ -33,14 +33,14 @@ func (m *Miner) txProcessingDaemon() {
 
 			// 4. Proof of work
 			start := time.Now()
-			m.logger.Debug().Msg("block formed, begin Proof of Work...")
+			m.logger.Debug().Uint32("blockID", preparingBlockID).Msg("block formed, begin Proof of Work...")
 
 			err := b.ProofOfWork(m.GetConf().BlockchainDifficulty, m.GetContext(), notifyCh)
 			if err != nil {
-				m.logger.Debug().Str("reason", err.Error()).Msg("Proof of Work failed")
+				m.logger.Debug().Uint32("blockID", preparingBlockID).Str("reason", err.Error()).Msg("Proof of Work failed")
 				continue
 			}
-			m.logger.Debug().Msgf("Proof of Work finished in %f seconds", time.Now().Sub(start).Seconds())
+			m.logger.Debug().Uint32("blockID", preparingBlockID).Msgf("Proof of Work finished in %f seconds", time.Now().Sub(start).Seconds())
 
 			// 5. check the new block and broadcast it if valid
 			err = m.chain.CheckNewBlock(b)
@@ -61,7 +61,13 @@ func (m *Miner) txProcessingDaemon() {
 					m.logger.Error().Err(err).Msg("fail to broadcast block message")
 					continue
 				}
-				m.logger.Debug().Uint32("blockID", b.ID).Msg("mined block is valid and broadcast")
+				m.logger.Debug().
+					Uint32("blockID", b.ID).
+					Str("creator", b.Creator.String()).
+					Str("blockHash", b.BlockHash[:10]).
+					Str("prevHash", b.PrevHash[:10]).
+					Uint64("timestamp", b.Timestamp).
+					Msg("mined block is valid and broadcast")
 			}
 		}
 	}
@@ -75,7 +81,7 @@ func (m *Miner) processTxs(notifyCh chan struct{}) {
 	for m.txProcessed.Len() < m.message.GetConf().BlockchainBlockSize &&
 		time.Now().Sub(start) < m.message.GetConf().BlockchainBlockTimeout {
 		select {
-		case <-(*m.GetContext()).Done():
+		case <-m.ctx.Done():
 			return
 		case <-notifyCh:
 			return
@@ -209,7 +215,7 @@ func (m *Miner) revertBlock(b *block.Block) {
 	m.cleanTxPool()
 }
 
-func (m *Miner) processBlock(blockMsg *types.BlockMessage) error {
+func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 	// m.mu.Lock() must be done by the caller
 
 	// Recover the real block from TransBlock
@@ -217,7 +223,13 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) error {
 
 	// Add the new block to the buffer
 	m.blockBuffer.Store(b.ID, b)
-	m.logger.Debug().Uint32("blockID", b.ID).Msgf("buffered a received block")
+	m.logger.Debug().
+		Uint32("blockID", b.ID).
+		Str("creator", b.Creator.String()).
+		Str("blockHash", b.BlockHash[:10]).
+		Str("prevHash", b.PrevHash[:10]).
+		Uint64("timestamp", b.Timestamp).
+		Msgf("buffered a received block")
 
 	// Append blocks as much as possible
 	for {
@@ -225,7 +237,7 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) error {
 		nextID := m.chain.Tail.ID + 1
 		nextBlockAny, ok := m.blockBuffer.Load(nextID)
 		if !ok {
-			return nil
+			return
 		}
 		m.blockBuffer.Delete(nextID)
 
@@ -233,17 +245,28 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) error {
 		nextBlock := nextBlockAny.(*block.Block)
 		err := m.chain.CheckNewBlock(nextBlock)
 		if err != nil {
-			m.logger.Debug().Err(err).Uint32("blockID", nextBlock.ID).
+			m.logger.Debug().Err(err).
+				Uint32("blockID", nextBlock.ID).
+				Str("creator", nextBlock.Creator.String()).
+				Str("blockHash", nextBlock.BlockHash[:10]).
+				Str("prevHash", nextBlock.PrevHash[:10]).
+				Uint64("timestamp", nextBlock.Timestamp).
 				Msg("appending a buffered block failed")
-			return err
+			return
 		}
 
 		// Append the new block
 		err = m.chain.AppendBlock(nextBlock)
 		if err != nil {
-			return err
+			return
 		}
-		m.logger.Debug().Uint32("blockID", nextBlock.ID).Msg("new block appended")
+		m.logger.Debug().
+			Uint32("blockID", nextBlock.ID).
+			Str("creator", nextBlock.Creator.String()).
+			Str("blockHash", nextBlock.BlockHash[:10]).
+			Str("prevHash", nextBlock.PrevHash[:10]).
+			Uint64("timestamp", nextBlock.Timestamp).
+			Msg("new block appended")
 
 		// Notify the completion of this block
 		close(m.blockNotificationCh[int(nextBlock.ID)])

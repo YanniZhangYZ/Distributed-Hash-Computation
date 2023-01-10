@@ -36,8 +36,6 @@ type Miner struct {
 	// Txs that are currently invalid. These txs will be processed again later.
 	txInvalid common.SafeQueue[*transaction.SignedTransaction]
 
-	blockInCh chan *types.BlockMessage
-
 	// blockBuffer is a buffer map for blocks that are still not appended : block.id -> BlockMsg
 	blockBuffer sync.Map
 
@@ -63,7 +61,6 @@ func NewMiner(message *message.Message) *Miner {
 	m.txPending = common.NewSafeQueue[*transaction.SignedTransaction]()
 	m.txProcessed = common.NewSafeQueue[*transaction.SignedTransaction]()
 	m.txInvalid = common.NewSafeQueue[*transaction.SignedTransaction]()
-	m.blockInCh = make(chan *types.BlockMessage, 10)
 	m.blockBuffer = sync.Map{}
 	m.blockNotificationCh = make(map[int]chan struct{})
 	m.blockNotificationCh[1] = make(chan struct{})

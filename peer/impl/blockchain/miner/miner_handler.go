@@ -35,10 +35,7 @@ func (m *Miner) execBlockMessage(msg types.Message, pkt transport.Packet) error 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	err := m.processBlock(blockMsg)
-	if err != nil {
-
-	}
+	m.processBlock(blockMsg)
 
 	return nil
 }

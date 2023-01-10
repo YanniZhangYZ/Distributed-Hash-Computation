@@ -49,7 +49,7 @@ func (c *Chain) NextBlock() *Block {
 
 	b := c.Tail
 	return &Block{
-		Timestamp: uint64(time.Now().Unix()),
+		Timestamp: uint64(time.Now().UnixMicro()),
 		Nonce:     rand.Uint32(),
 		ID:        b.ID + 1,
 		Creator:   c.address,

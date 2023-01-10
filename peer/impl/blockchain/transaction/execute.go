@@ -30,6 +30,24 @@ func VerifyAndExecuteTransaction(tx *SignedTransaction, worldState *common.World
 }
 
 func executeTransferTx(tx *SignedTransaction, worldState *common.WorldState) error {
+	// Check if the transaction is a new account declaration transaction
+	if tx.TX.Src.String() == tx.TX.Dst.String() {
+
+		_, ok := (*worldState).Get(tx.TX.Src.String())
+		if ok {
+			return fmt.Errorf("invalid account declaration transaction, account already exists")
+		}
+
+		(*worldState).Set(tx.TX.Src.String(), common.State{
+			Nonce:       0,
+			Balance:     tx.TX.Value,
+			CodeHash:    "",
+			StorageRoot: "",
+		})
+
+		return nil
+	}
+
 	// Prepare states
 	srcState, ok1 := (*worldState).Get(tx.TX.Src.String())
 	dstState, ok2 := (*worldState).Get(tx.TX.Dst.String())
