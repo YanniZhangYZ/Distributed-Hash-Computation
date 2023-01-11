@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"fmt"
@@ -114,7 +114,8 @@ func postJoin(node peer.Peer) bool {
 	}
 }
 
-func main() {
+// UserInterface provides a command line interface of the program
+func UserInterface() {
 	nodeDefaultConf(udpFac(), "127.0.0.1:0")
 	node := nodeCreateWithConf(peerFac)
 	node.Start()
