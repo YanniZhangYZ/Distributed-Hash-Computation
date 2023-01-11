@@ -7,8 +7,9 @@ import (
 	"go.dedis.ch/cs438/peer/impl/contract/parser"
 )
 
-// Maintain the state tree of AST to keep track of the execution state of contract
-// In this project we only focus on Assumption, Condition, Ifclause, Action
+// This file is used for recording the state tree of AST
+// by doing this we can keep track of the execution state of contract
+// Note that this project only consider Assumption, Condition, Ifclause, Action
 
 type StateNode struct {
 	nodeID           int
@@ -42,19 +43,21 @@ func (s *StateNode) getNodeID() int {
 	return s.nodeID
 }
 
-// Construct corresponding state tree, given the code AST
-// The structure of AST is rather predictable, so we don't need to recursively traverse
-// We assign a id to each node, so it will be easier to retrieve & manipulate with node id
+// Construct corresponding state tree from the given code AST
+// Due to the grammar we specified in this project,
+// The code AST is very structed( and to some extent known in advance).
+// Therefore We don't need to traverse the AST recursively.
+// Each state node is assigned with an ID
 func BuildStateTree(ast *parser.Code) *StateNode {
 	id := 0
-	root := StateNode{id, "code", false, false, []*StateNode{}}
+	root := StateNode{id, "Code", false, false, []*StateNode{}}
 	id++
 
 	// Process assumptions state
 	for i := 0; i < len(ast.Assumptions); i++ {
-		assumptionNode := StateNode{id, "assumption", false, false, []*StateNode{}}
+		assumptionNode := StateNode{id, "Assumption", false, false, []*StateNode{}}
 		id++
-		conditionNode := StateNode{id, "condition", false, false, []*StateNode{}}
+		conditionNode := StateNode{id, "Condition", false, false, []*StateNode{}}
 		id++
 		assumptionNode.addChild(&conditionNode)
 		root.addChild(&assumptionNode)
@@ -62,13 +65,15 @@ func BuildStateTree(ast *parser.Code) *StateNode {
 
 	// Process if clauses state
 	for _, ifclause := range ast.IfClauses {
-		ifNode := StateNode{id, "if", false, false, []*StateNode{}}
+		ifNode := StateNode{id, "If", false, false, []*StateNode{}}
 		id++
-		conditionObjObjNode := StateNode{id, "conditionObjObj", false, false, []*StateNode{}}
+		conditionObjObjNode := StateNode{id, "ConditionObjObj", false, false, []*StateNode{}}
 		id++
 		ifNode.addChild(&conditionObjObjNode)
+
+		// Process the actions
 		for i := 0; i < len(ifclause.Actions); i++ {
-			actionNode := StateNode{id, "action", false, false, []*StateNode{}}
+			actionNode := StateNode{id, "Action", false, false, []*StateNode{}}
 			id++
 			ifNode.addChild(&actionNode)
 		}

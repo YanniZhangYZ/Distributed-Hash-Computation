@@ -6,6 +6,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.6
 	github.com/alecthomas/participle/v2 v2.0.0-alpha7
 	github.com/disiqueira/gotree v1.0.0
+	github.com/fatih/color v1.13.0
 	github.com/rs/xid v1.2.1
 	github.com/rs/zerolog v1.20.0
 	github.com/stretchr/testify v1.7.0
@@ -19,7 +20,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/fatih/color v1.13.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect

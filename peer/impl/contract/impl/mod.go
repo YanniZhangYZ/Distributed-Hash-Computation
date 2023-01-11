@@ -3,12 +3,19 @@ package impl
 import (
 	// "fmt"
 	"encoding/json"
+
+	"fmt"
+	"reflect"
 	"strings"
 
+	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"go.dedis.ch/cs438/peer/impl/contract"
 	"go.dedis.ch/cs438/peer/impl/contract/parser"
 	"golang.org/x/xerrors"
 )
+
+const finisherText = "finisher"
+const publisherText = "publisher"
 
 // implements contract.ContractCode, maintained in contract account
 type Contract struct {
@@ -29,7 +36,7 @@ func NewContract(contractID string,
 	publisher string,
 	finisher string) contract.SmartContract {
 
-	codeAST, err := parser.Parse(plainCode)
+	codeAST, err := parser.BuildCodeAST(plainCode)
 	if err != nil {
 		panic(err)
 	}
@@ -52,153 +59,292 @@ func (c *Contract) Marshal() ([]byte, error) {
 	return json.Marshal(c)
 }
 
-// Unmarshal unmarshals the data into the current Contract instance.
+// Unmarshal unmarshals the data into the Contract instance.
 func Unmarshal(data []byte, contract *Contract) error {
 	return json.Unmarshal(data, contract)
 }
 
+// get the publisher of this contract
 func (c *Contract) GetPublisherAccount() string {
 	return c.publisher
 }
 
+// get the finisher of this contract
 func (c *Contract) GetFinisherAccount() string {
 	return c.finisher
 }
 
+// get the code AST
 func (c *Contract) GetCodeAST() parser.Code {
 	return c.codeAST
 }
 
+// get the state tree
 func (c *Contract) GetStateAST() *StateNode {
 	return c.stateTree
 }
 
-// // Check the condition from the world state of the underlying blockchain
-// // func (c *Contract) CheckConditionObjObj(condition parser.Condition, worldState storage.KV) (bool, error) {
-// func (c *Contract) CheckConditionObjObj(condition parser.ConditionObjObj) (bool, error) {
-// 	role1 := condition.Object1.Role
-// 	fields1 := condition.Object1.Fields
-// 	operator := condition.Operator
-// 	role2 := condition.Object2.Role
-// 	fields2 := condition.Object2.Fields
+// Here we check the condition of comparing an obj and another obj
+// finisher.key0.hash == finisher.hash0
+func (c *Contract) CheckConditionObjObj(condition parser.ConditionObjObj, worldState *common.WorldState) (bool, error) {
+	role1 := condition.Object1.Role
+	fields1 := condition.Object1.Fields
+	operator := condition.Operator
+	role2 := condition.Object2.Role
+	fields2 := condition.Object2.Fields
 
-// 	// check role and account condition
-// 	account1State, err := c.checkRoleAccount(role1)
-// 	if err != nil {
-// 		return false, err
-// 	}
-// 	account2State, err := c.checkRoleAccount(role2)
-// 	if err != nil {
-// 		return false, err
-// 	}
+	//------------ check the first account and fields--------------------
+	var account1 string
+	if role1 == publisherText {
+		account1 = c.publisher
+	} else if role1 == finisherText {
+		account1 = c.finisher
+	}
+	state1, ok := (*worldState).Get(account1)
+	if !ok {
+		return false, fmt.Errorf("account doesn't exists or account state is corrupted")
+	}
 
-// 	temp := fmt.Sprint(account2State) + " " + fmt.Sprint(account1State)
-// 	fmt.Println("use variable to pass golint " + temp)
+	//for the obj on left, we allow at most two attribute
+	// e.g. finisher.key0.hash
+	if len(fields1) > 2 {
+		return false, xerrors.Errorf("Condition field unknown. Can have at most two attributes")
+	}
+	attribute11 := fields1[0].Name
+	attribute12 := ""
+	if len(fields1) == 2 {
+		attribute12 = fields1[1].Name
+	}
 
-// 	left_val, err := c.checkObj(fields1, 2)
-// 	if err != nil {
-// 		return false, err
-// 	}
-// 	right_val, err := c.checkObj(fields2, 1)
-// 	if err != nil {
-// 		return false, err
-// 	}
+	//------------ check the second account--------------------
 
-// 	// type assertion
-// 	if reflect.TypeOf(left_val).String() == "string" {
-// 		var left_string = left_val.(string)
-// 		var right_string = right_val.(string)
-// 		return CompareString(left_string, right_string, operator)
-// 	} else {
-// 		return false, xerrors.Errorf("type not supported: %v", reflect.TypeOf(left_val))
-// 	}
-// }
+	var account2 string
+	if role2 == publisherText {
+		account2 = c.publisher
+	} else if role2 == finisherText {
+		account2 = c.finisher
+	}
+	state2, ok := (*worldState).Get(account2)
+	if !ok {
+		return false, fmt.Errorf("account doesn't exists or account state is corrupted")
+	}
 
-// // func (c *Contract) checkRoleAccount(role string, worldState storage.KV) (*account.State, error) {
-// func (c *Contract) checkRoleAccount(role string) (int, error) {
-// 	var account string
-// 	if role == "publisher" {
-// 		account = c.publisher
-// 	} else if role == "finisher" {
-// 		account = c.finisher
-// 	}
+	//for the obj on right we allow at most one attribute
+	// e.g. finisher.hash0
+	if len(fields2) > 1 {
+		return false, xerrors.Errorf("Condition field unknown. Can have at most one attribute")
+	}
+	attribute21 := fields2[0].Name
 
-// 	// retrieve value corresponding to role.fields from the world state
-// 	// value, err := worldState.Get(account)
-// 	// if err != nil {
-// 	// 	panic(err)
-// 	// }
-// 	// account_state, ok := value.(*account.State)
-// 	// if !ok {
-// 	// 	return false, xerrors.Errorf("account state is corrupted: %v", account_state)
-// 	// }
-// 	fmt.Println("just to use account to pass golint " + account)
-// 	account_state := 0
-// 	return account_state, nil
+	var leftVal interface{}
+	var rightVal interface{}
+	// get left value
+	if len(fields1) == 2 && attribute12 == "hash" {
+		leftValPlain := "leftVal, err := state1.StorageRoot.Get(attribute11)" + attribute11 + state1.CodeHash
+		leftVal = leftValPlain + "hash"
+	} else if len(fields1) == 1 {
+		leftVal = "leftVal, err := state1.StorageRoot.Get(attribute11)" + attribute11 + state1.CodeHash
+	} else {
+		return false, xerrors.Errorf("invalid condition obj obj grammar.")
+	}
 
-// }
+	//get right value
+	if len(fields2) == 1 {
+		rightVal = "rightVal, err := state2.StorageRoot.Get(attribute21)" + attribute21 + state2.CodeHash
+	} else {
+		return false, xerrors.Errorf("invalid condition obj obj grammar.")
+	}
 
-// // func (c *Contract) checkObj(fields []*parser.Field, accountState *account.State, fieldLength int) (bool, error) {
-// func (c *Contract) checkObj(fields []*parser.Field, fieldLength int) (interface{}, error) {
+	// Here we check whether the left and righ data have the same type
+	if !c.CheckLeftRightType(leftVal, rightVal) {
+		return false, xerrors.Errorf("left and right value type are not consistent.")
 
-// 	var value interface{}
-// 	if len(fields) != fieldLength {
-// 		return false, xerrors.Errorf("Condition field unknown, only support specific number of attribute.")
-// 	}
-// 	attribute1 := fields[0].Name
-// 	attribute2 := ""
+	}
+	// from now on, we can know that the left and right value have the same data type
+	return c.CompareLeftRightVal(leftVal, rightVal, operator)
 
-// 	fmt.Println("just to use account to pass golint " + attribute1 + " " + attribute2)
+}
 
-// 	if fieldLength == 2 {
-// 		attribute2 = fields[1].Name
-// 	}
+func (c *Contract) CheckRoleAccount(role string, worldState *common.WorldState) (common.State, error) {
+	var account string
+	if role == publisherText {
+		account = c.publisher
+	} else if role == finisherText {
+		account = c.finisher
+	}
 
-// 	if fieldLength == 1 { // finisher.hash0
-// 		value = string("account_state.hash0")
-// 	} else { //finisher.key0.hash
-// 		valueTemp := string("account_state.StorageRoot.Get(attribute1)") // get key0
-// 		// valueTemp, err = account_state.StorageRoot.Get(attribute)
-// 		// if reflect.TypeOf(value).String() == "string" {
-// 		// 	value = float64(value.(int))
-// 		// }
-// 		// if err != nil {
-// 		// 	return false, xerrors.Errorf("key not exist in storage: %v", attribute)
-// 		// }
+	// retrieve value corresponding to role.fields from the world state
+	state, ok := (*worldState).Get(account)
+	if !ok {
+		return state, fmt.Errorf("account doesn't exists")
+	}
 
-// 		// compute the hash of valueTemp
-// 		fmt.Println("just to use account to pass golint " + valueTemp)
+	return state, nil
 
-// 	}
+}
 
-// 	return value, nil
+// This check is used in Assumption
+// for comparison between left is a variable and right is a value
+// e.g. publisher.budget > 0
+func (c *Contract) CheckCondition(condition parser.Condition, worldState *common.WorldState) (bool, error) {
+	role := condition.Object.Role
+	fields := condition.Object.Fields
+	operator := condition.Operator
+	value := condition.Value
 
-// }
+	// evaluate and retrieve the compared value
+	var account string
+	if role == publisherText {
+		account = c.publisher
+	} else if role == finisherText {
+		account = c.finisher
+	}
 
-func CompareString(left_val string, right_val string, operator string) (bool, error) {
+	// we assume the fields restricted to balance / storage key
+	var leftVal interface{}
+	if len(fields) > 1 {
+		return false, xerrors.Errorf("Condition field unknown. Can only have one attribute")
+	}
+	attribute := fields[0].Name
+
+	// retrieve value corresponding to role.fields from the world state
+	state, ok := (*worldState).Get(account)
+	if !ok {
+		return false, fmt.Errorf("account doesn't exists or account state is corrupted")
+	}
+
+	if attribute == "Balance" {
+		leftVal = float64(state.Balance)
+	} else {
+		return false, xerrors.Errorf("invalid grammar. Expecting [Balance], get: %v", attribute)
+		// !!!! NEED TO CHECK with Qiyuan!!!!! how to get attribute
+
+		// leftVal, err := state.StorageRoot.Get(attribute)
+		// if reflect.TypeOf(leftVal).String() == "int" {
+		// 	leftVal = float64(leftVal.(int))
+		// }
+		// if err != nil {
+		// 	return false, xerrors.Errorf("no such key exist in storage: %v", attribute)
+		// }
+	}
+
+	var rightVal interface{}
+	if value.String == nil {
+		rightVal = *value.Number
+	} else {
+		rightVal = *value.String
+	}
+
+	// Here we check whether the left and righ data have the same type
+	if !c.CheckLeftRightType(leftVal, rightVal) {
+		return false, xerrors.Errorf("left and right value type are not consistent.")
+
+	}
+	// from now on, we can know that the left and right value have the same data type
+	return c.CompareLeftRightVal(leftVal, rightVal, operator)
+}
+
+func (c *Contract) CheckLeftRightType(left interface{}, right interface{}) bool {
+	return reflect.TypeOf(left) == reflect.TypeOf(right)
+}
+
+func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, operator string) (bool, error) {
+	if reflect.TypeOf(left).String() == "float64" {
+		var leftNum = left.(float64)
+		var rightNum = right.(float64)
+		return CompareNumber(leftNum, rightNum, operator)
+
+	} else if reflect.TypeOf(left).String() == "string" {
+		var leftStr = left.(string)
+		var rightStr = right.(string)
+		return CompareString(leftStr, rightStr, operator)
+
+	}
+	return false, xerrors.Errorf("unsupported type: %v", reflect.TypeOf(left))
+}
+
+func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error) {
+	isValid := true
+	for i, assumption := range c.codeAST.Assumptions {
+		condition := assumption.Condition
+		conditionValid, err := c.CheckCondition(condition, worldState)
+		if err != nil {
+			return false, err
+		}
+		if !conditionValid {
+			isValid = false
+		} else { // synchronize the validity to the state tree
+			c.stateTree.children[i].setValid()
+			c.stateTree.children[i].children[0].setValid()
+		}
+
+		c.stateTree.children[i].setExecuted()
+		c.stateTree.children[i].children[0].setExecuted()
+	}
+
+	return isValid, nil
+}
+
+func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action, error) {
+	var actions []parser.Action
+
+	// Here we loop all the if clause in the code AST tree
+	for i, ifclause := range c.codeAST.IfClauses {
+		// we assume the contion in the if clause
+		// is the comparison between object and object, note object and value
+		conditionObjObj := ifclause.ConditionObjObj
+		conditionValid, err := c.CheckConditionObjObj(conditionObjObj, worldState)
+		if err != nil {
+			return []parser.Action{}, err
+		}
+		ifclauseState := c.stateTree.children[i+len(c.codeAST.Assumptions)]
+		conditionState := ifclauseState.children[0]
+
+		if !conditionValid {
+			ifclauseState.setExecuted()
+			conditionState.setExecuted()
+		} else {
+			ifclauseState.setExecuted()
+			ifclauseState.setValid()
+			conditionState.setExecuted()
+			conditionState.setValid()
+
+			for j := 1; j < len(ifclauseState.children); j++ {
+				ifclauseState.children[j].setExecuted()
+			}
+			for _, action := range ifclause.Actions {
+				actions = append(actions, *action)
+			}
+		}
+	}
+
+	return actions, nil
+}
+
+func CompareString(leftVal string, rightVal string, operator string) (bool, error) {
 	switch operator {
 	case "==":
-		return (left_val == right_val), nil
+		return (leftVal == rightVal), nil
 	case "!=":
-		return (left_val != right_val), nil
+		return (leftVal != rightVal), nil
 	}
 	return false, xerrors.Errorf("comparator not supported on string: %v", operator)
 }
 
-func CompareNumber(left_val float64, right_val float64, operator string) (bool, error) {
+func CompareNumber(leftVal float64, rightVal float64, operator string) (bool, error) {
 	switch operator {
 	case ">":
-		return (left_val > right_val), nil
+		return (leftVal > rightVal), nil
 	case "<":
-		return (left_val < right_val), nil
+		return (leftVal < rightVal), nil
 	case ">=":
-		return (left_val >= right_val), nil
+		return (leftVal >= rightVal), nil
 	case "<=":
-		return (left_val <= right_val), nil
+		return (leftVal <= rightVal), nil
 	case "==":
-		return (left_val == right_val), nil
+		return (leftVal == rightVal), nil
 	case "!=":
-		return (left_val != right_val), nil
+		return (leftVal != rightVal), nil
 	}
 	return false, xerrors.Errorf("comparator not supported on number: %v", operator)
 }

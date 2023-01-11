@@ -1,6 +1,9 @@
 package contract
 
-// "go.dedis.ch/cs438/blockchain/storage"
+import (
+	"go.dedis.ch/cs438/peer/impl/blockchain/common"
+	"go.dedis.ch/cs438/peer/impl/contract/parser"
+)
 
 // SmartContract describes functions to manipulate the code section in smart contract
 type SmartContract interface {
@@ -13,9 +16,9 @@ type SmartContract interface {
 
 	Marshal() ([]byte, error)
 
-	// ValidateAssumptions(storage.KV) (bool, error)
+	CheckAssumptions(*common.WorldState) (bool, error)
 
-	// CollectActions(storage.KV) ([]parser.Action, error)
+	GatherActions(*common.WorldState) ([]parser.Action, error)
 
 	GetPublisherAccount() string
 

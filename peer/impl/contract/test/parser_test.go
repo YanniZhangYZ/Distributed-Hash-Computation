@@ -8,16 +8,14 @@ import (
 	"go.dedis.ch/cs438/peer/impl/contract/parser"
 )
 
-// Unit tests of the Smart contract functionalities
-
 func GetParser(grammar interface{}) *participle.Parser {
 	return participle.MustBuild(grammar,
-		participle.Lexer(parser.SMTLexer),
+		participle.Lexer(parser.ContractLexer),
 		participle.Unquote("String"),
 	)
 }
 
-// Test parsing Value
+// Test parsing Value of String type
 func Test_Parser_Value_String(t *testing.T) {
 	testString := []string{`"Qiyuan Liang"`, `"Yanni Zhang"`, `"Qiyuan Dong"`}
 	expectedStrings := []string{`Qiyuan Liang`, `Yanni Zhang`, `Qiyuan Dong`}
@@ -34,6 +32,7 @@ func Test_Parser_Value_String(t *testing.T) {
 
 }
 
+// Test parsing Value of Float type
 func Test_Parser_Value_Float(t *testing.T) {
 	testFloats := []string{"0", "666", "1234", "1.125"}
 	expectedFloats := []float64{0, 666, 1234, 1.125}
@@ -51,12 +50,11 @@ func Test_Parser_Value_Float(t *testing.T) {
 
 // Test parsing Object
 func Test_Parser_Object(t *testing.T) {
-	// fmt.Println("test obj")
 
 	objPlain := []string{
 		`publisher.budget`,
 		`finisher.key35`,
-		`finisher.key0.hash`,
+		`finisher.attribute`,
 	}
 	var parsedObjs []*parser.Object
 
@@ -76,8 +74,53 @@ func Test_Parser_Object(t *testing.T) {
 		{
 			Role: "finisher",
 			Fields: []*parser.Field{
+				{Name: "attribute"},
+			},
+		},
+	}
+
+	var ObjectParser = GetParser(&parser.Object{})
+
+	for _, obj := range objPlain {
+		objAST := &parser.Object{}
+		err := ObjectParser.ParseString("", obj, objAST)
+		require.NoError(t, err)
+		parsedObjs = append(parsedObjs, objAST)
+	}
+	require.Equal(t, expectedObjs, parsedObjs)
+
+}
+
+func Test_Parser_Object_Multi_Attribute(t *testing.T) {
+
+	objPlain := []string{
+		`publisher.budget.blah`,
+		`finisher.key0.hash`,
+		`finisher.attribute.attribute.attribute`,
+	}
+	var parsedObjs []*parser.Object
+
+	expectedObjs := []*parser.Object{
+		{
+			Role: "publisher",
+			Fields: []*parser.Field{
+				{Name: "budget"},
+				{Name: "blah"},
+			},
+		},
+		{
+			Role: "finisher",
+			Fields: []*parser.Field{
 				{Name: "key0"},
 				{Name: "hash"},
+			},
+		},
+		{
+			Role: "finisher",
+			Fields: []*parser.Field{
+				{Name: "attribute"},
+				{Name: "attribute"},
+				{Name: "attribute"},
 			},
 		},
 	}
@@ -96,8 +139,6 @@ func Test_Parser_Object(t *testing.T) {
 
 // Test parsing Condition
 func Test_Parser_Condition(t *testing.T) {
-	// fmt.Println("test condition")
-
 	conditionStrings := []string{
 		`publisher.budget > 3.246`,
 		`finisher.key24.verified > 0`,
@@ -165,8 +206,9 @@ func Test_Parser_Condition(t *testing.T) {
 
 }
 
+// Test parsing ConditionObjObj
+// this is the comparison between obj and obj
 func Test_Parser_ConditionObjObj(t *testing.T) {
-	// fmt.Println("test condition obj obj")
 
 	conditionStrings := []string{
 		`publisher.budget > publisher.account`,
@@ -239,7 +281,7 @@ func Test_Parser_ConditionObjObj(t *testing.T) {
 
 }
 
-// Test parsing Action
+// Test parsing Action with multiple attribute
 func Test_Parser_Action(t *testing.T) {
 	actionStrings := []string{
 		`publisher.transfer("finisher_ID", 46.967)`,
@@ -283,14 +325,16 @@ func Test_Parser_Action(t *testing.T) {
 
 }
 
-// Parsing contract code only with one assumption
-func Test_ParserAssume(t *testing.T) {
+// test contract code that has one assumption
+func Test_Parser_Assumption(t *testing.T) {
 	assumeStrings := []string{
 		`ASSUME publisher.budget > 49.597`,
 		`ASSUME publisher.attribute.attribute == "yeah"`,
+		`ASSUME finisher.attribute.attribute != "hahaha"`,
 	}
 	expectedValue1 := float64(49.597)
 	expectedValue2 := "yeah"
+	expectedValue3 := "hahaha"
 
 	var parsedAssume []*parser.Assumption
 
@@ -326,6 +370,22 @@ func Test_ParserAssume(t *testing.T) {
 				},
 			},
 		},
+		{
+			Condition: parser.Condition{
+				Object: parser.Object{
+					Role: "finisher",
+					Fields: []*parser.Field{
+						{Name: "attribute"},
+						{Name: "attribute"},
+					},
+				},
+				Operator: "!=",
+				Value: parser.Value{
+					String: &expectedValue3,
+					Number: nil,
+				},
+			},
+		},
 	}
 
 	var AssumeParser = GetParser(&parser.Assumption{})
@@ -339,7 +399,7 @@ func Test_ParserAssume(t *testing.T) {
 
 }
 
-// Parsing contract code with one if clause
+// test id clause
 func Test_Parser_Ifclause(t *testing.T) {
 	ifStrings := []string{
 		`IF finisher.key67.hash == finisher.hash67 THEN
@@ -405,8 +465,8 @@ func Test_Parser_Ifclause(t *testing.T) {
 
 }
 
-// Parsing complete contract code case
-func Test_Parser_Complete(t *testing.T) {
+// test the functionality of parsing entire contract
+func Test_Parser_Contract(t *testing.T) {
 	codeStrings := []string{
 		`
 		ASSUME publisher.budget > 0
@@ -484,7 +544,7 @@ func Test_Parser_Complete(t *testing.T) {
 	}
 
 	for _, s := range codeStrings {
-		codeAST, err := parser.Parse(s)
+		codeAST, err := parser.BuildCodeAST(s)
 		require.NoError(t, err)
 		parsedCode = append(parsedCode, &codeAST)
 	}

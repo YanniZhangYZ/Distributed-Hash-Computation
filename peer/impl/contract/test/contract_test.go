@@ -9,7 +9,7 @@ import (
 	"go.dedis.ch/cs438/peer/impl/contract/parser"
 )
 
-// Marshal and Unmarshal the contract instance
+// test the functionality of Marshaling and Unmarshaling the contract
 func Test_Contract_Marshal(t *testing.T) {
 
 	plainContract :=
@@ -38,7 +38,8 @@ func Test_Contract_Marshal(t *testing.T) {
 
 }
 
-// Test state tree by printing out AST and State AST
+// Test state tree
+// Here we print the AST and State AST
 func Test_Contract_State_Tree(t *testing.T) {
 
 	plainContract :=
@@ -58,11 +59,10 @@ func Test_Contract_State_Tree(t *testing.T) {
 		"f1",                 // finisher
 	)
 
-	code_ast, err := parser.Parse(plainContract)
-	state_ast := impl.BuildStateTree(&code_ast)
+	codeAST, err := parser.BuildCodeAST(plainContract)
+	stateAST := impl.BuildStateTree(&codeAST)
 	require.NoError(t, err)
 
 	fmt.Println(contract.ToString())
-	// fmt.Println(impl.DisplayAST(code_ast))
-	fmt.Println(impl.GetStateAST(code_ast, state_ast))
+	fmt.Println(impl.GetStateAST(codeAST, stateAST))
 }
