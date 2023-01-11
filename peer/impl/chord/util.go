@@ -20,8 +20,8 @@ func (c *Chord) validRange(key uint) bool {
 	return key < upperBound
 }
 
-// name2ID computes from the address to the chordID, with the given ChordBits limit
-func (c *Chord) name2ID(name string) uint {
+// Name2ID computes from the address to the chordID, with the given ChordBits limit
+func (c *Chord) Name2ID(name string) uint {
 	h := crypto.SHA256.New()
 	h.Write([]byte(name))
 	hashSlice := h.Sum(nil)
@@ -42,7 +42,7 @@ func (c *Chord) isPredecessor(key uint) bool {
 		return true
 	}
 
-	successorID := c.name2ID(c.successor)
+	successorID := c.Name2ID(c.successor)
 	if successorID <= c.chordID {
 		// If the successorID is smaller than our chordID, it means we are crossing the boundary of the
 		// ring. For example, the successorID = 2, and c.chordID = 15, and the ring has length = 16. Since
@@ -70,7 +70,7 @@ func (c *Chord) closestPrecedingFinger(key uint) string {
 		// If c.chordID == key, then we should return the first non-empty entry we encountered during
 		// the lookup.
 		if c.fingers[i] != "" {
-			fingerID := c.name2ID(c.fingers[i])
+			fingerID := c.Name2ID(c.fingers[i])
 			within := false
 
 			if key < c.chordID {
@@ -91,7 +91,7 @@ func (c *Chord) closestPrecedingFinger(key uint) string {
 // cracker should change the pre-compute dictionary they are storing
 func (c *Chord) notifyPasswordCracker() {
 	newPredecessor := c.predecessor
-	start := c.name2ID(newPredecessor)
+	start := c.Name2ID(newPredecessor)
 	updatePasswordCracker := func() {
 		passwordCrackerUpdDictRangeMsg := types.PasswordCrackerUpdDictRangeMessage{
 			Start: start,

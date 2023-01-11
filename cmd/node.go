@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto"
+	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/fatih/color"
 	"go.dedis.ch/cs438/peer"
@@ -85,6 +86,41 @@ func joinChord(node peer.Peer) error {
 	return node.JoinChord(peerAddr)
 }
 
+func leaveChord(node peer.Peer) error {
+	return node.LeaveChord()
+}
+
+func showChordInfo(node peer.Peer) error {
+	pred := node.GetPredecessor()
+	succ := node.GetSuccessor()
+	finger := node.GetFingerTable()
+
+	color.HiYellow("\n"+
+		"=======  My address      := %s with Chord ID %d\n"+
+		"=======  Predecessor     := %s with Chord ID %d\n"+
+		"=======  Successor       := %s with Chord ID %d\n"+
+		"=======  Finger Table\n",
+		config.Socket.GetAddress(), node.GetChordID(),
+		pred, node.QueryChordID(pred),
+		succ, node.QueryChordID(succ))
+
+	fingerStr := ""
+	for i := 0; i < config.ChordBytes*8; i++ {
+		if finger[i] != "" {
+			fingerStr +=
+				fmt.Sprintf("           Entry %d: %s with Chord ID %d\n",
+					i+1, finger[i], node.QueryChordID(finger[i]))
+		} else {
+			fingerStr +=
+				fmt.Sprintf("           Entry %d: %s\n",
+					i+1, finger[i])
+		}
+	}
+	color.Yellow("%s\n", fingerStr)
+
+	return nil
+}
+
 func askHashSalt() (string, string) {
 	answers := struct {
 		Hash string
@@ -122,7 +158,8 @@ func receivePassword(node peer.Peer) error {
 	if result == "" {
 		color.Yellow("\nNo result has been received! Try another one!\n\n\n")
 	} else {
-		color.Yellow("\n=======  Hash     := %s\n"+
+		color.Yellow("\n"+
+			"=======  Hash     := %s\n"+
 			"=======  Salt     := %s\n", hash, salt)
 		color.Red("=======  Password := %s\n\n\n", result)
 	}

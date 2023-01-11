@@ -143,8 +143,8 @@ func (c *Chord) execChordReplyPredMessage(msg types.Message, pkt transport.Packe
 		// If our successor already has one predecessor, we should check whether our successor has
 		// a new predecessor, and the new predecessor is within the range between our chordID, and
 		// our successor's ID
-		predecessorID := c.name2ID(chordReplyMsg.Predecessor)
-		successorID := c.name2ID(c.successor)
+		predecessorID := c.Name2ID(chordReplyMsg.Predecessor)
+		successorID := c.Name2ID(c.successor)
 		within := false
 
 		if successorID <= c.chordID {
@@ -194,8 +194,8 @@ func (c *Chord) execChordNotifyMessage(msg types.Message, pkt transport.Packet) 
 	} else {
 		// If we already have a predecessor, check that the new coming one has an ID that is within
 		// the range (oldPredecessorID, chordID)
-		oldPredecessorID := c.name2ID(c.predecessor)
-		newPredecessorID := c.name2ID(pkt.Header.Source)
+		oldPredecessorID := c.Name2ID(c.predecessor)
+		newPredecessorID := c.Name2ID(pkt.Header.Source)
 		within := false
 
 		if c.chordID < oldPredecessorID {

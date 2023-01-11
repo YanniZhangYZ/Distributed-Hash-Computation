@@ -28,7 +28,7 @@ func NewChord(conf *peer.Configuration, message *message.Message) *Chord {
 		stopPingChan:      make(chan bool, 1),
 	}
 	// Compute the ID of this node inside the Chord Ring
-	chord.chordID = chord.name2ID(chord.address)
+	chord.chordID = chord.Name2ID(chord.address)
 	// Create the initial topology of the chord ring
 	chord.Create()
 

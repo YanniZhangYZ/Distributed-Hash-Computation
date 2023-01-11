@@ -147,6 +147,11 @@ func (n *node) GetChordID() uint {
 	return n.chord.GetChordID()
 }
 
+// QueryChordID implements peer.Chord
+func (n *node) QueryChordID(addr string) uint {
+	return n.chord.Name2ID(addr)
+}
+
 // GetPredecessor implements peer.Chord
 func (n *node) GetPredecessor() string {
 	return n.chord.GetPredecessor()

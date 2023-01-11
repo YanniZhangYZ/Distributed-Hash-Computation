@@ -33,7 +33,7 @@ func Test_Valid_Range(t *testing.T) {
 	}
 }
 
-// Test_Name2ID tests the name2ID function
+// Test_Name2ID tests the Name2ID function
 func Test_Name2ID(t *testing.T) {
 	c := Chord{}
 	c.conf = &peer.Configuration{}
@@ -52,7 +52,7 @@ func Test_Name2ID(t *testing.T) {
 			// the collision resistance of the crypto-hash function
 
 			c.address = fmt.Sprintf("127.0.0.1:{%d}", i)
-			chordID := c.name2ID(c.address)
+			chordID := c.Name2ID(c.address)
 
 			// All hash values should be within the valid range: 0 <= hash value < upperBound
 			require.Equal(t, true, c.validRange(chordID))
@@ -84,11 +84,11 @@ func Test_Is_Predecessor(t *testing.T) {
 		c.conf.ChordBytes = 2
 		c.address = "127.0.0.0:1"
 		c.successor = "127.0.0.4"
-		c.chordID = c.name2ID(c.address)
+		c.chordID = c.Name2ID(c.address)
 		upperBound := uint(math.Pow(2, float64(c.conf.ChordBytes)*8))
 
-		addressID := c.name2ID(c.address)
-		successorID := c.name2ID(c.successor)
+		addressID := c.Name2ID(c.address)
+		successorID := c.Name2ID(c.successor)
 
 		for i := uint(0); i < upperBound; i++ {
 			if addressID < i && i <= successorID {
@@ -111,11 +111,11 @@ func Test_Is_Predecessor(t *testing.T) {
 		c.conf.ChordBytes = 2
 		c.address = "127.0.0.0:1"
 		c.successor = "127.0.0.2"
-		c.chordID = c.name2ID(c.address)
+		c.chordID = c.Name2ID(c.address)
 		upperBound := uint(math.Pow(2, float64(c.conf.ChordBytes)*8))
 
-		addressID := c.name2ID(c.address)
-		successorID := c.name2ID(c.successor)
+		addressID := c.Name2ID(c.address)
+		successorID := c.Name2ID(c.successor)
 
 		for i := uint(0); i < upperBound; i++ {
 			if i > addressID || i <= successorID {
@@ -140,7 +140,7 @@ func Test_Finger_Start_End(t *testing.T) {
 	c.conf = &peer.Configuration{}
 	c.conf.ChordBytes = 1
 	c.address = "127.0.0.1:1"
-	c.chordID = c.name2ID(c.address) // chordID = 97 for ChordBytes = 1
+	c.chordID = c.Name2ID(c.address) // chordID = 97 for ChordBytes = 1
 
 	fingerStart, fingerEnd := c.fingerStartEnd(0)
 	require.Equal(t, fingerStart, uint(98))
@@ -165,7 +165,7 @@ func Test_Closest_Preceding_Finger(t *testing.T) {
 	c.conf = &peer.Configuration{}
 	c.conf.ChordBytes = 1
 	c.address = "10"
-	c.chordID = c.name2ID(c.address) // ChordID = 74 for address = "10"
+	c.chordID = c.Name2ID(c.address) // ChordID = 74 for address = "10"
 	c.fingers = make([]string, c.conf.ChordBytes*8)
 
 	c.fingers[0] = "4"   // ChordID = 75    (75  - 74 = 1)    for address = "4"
