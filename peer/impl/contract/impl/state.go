@@ -45,7 +45,7 @@ func (s *StateNode) getNodeID() int {
 // Construct corresponding state tree, given the code AST
 // The structure of AST is rather predictable, so we don't need to recursively traverse
 // We assign a id to each node, so it will be easier to retrieve & manipulate with node id
-func constructStateTree(ast *parser.Code) *StateNode {
+func BuildStateTree(ast *parser.Code) *StateNode {
 	id := 0
 	root := StateNode{id, "code", false, false, []*StateNode{}}
 	id++
@@ -79,7 +79,7 @@ func constructStateTree(ast *parser.Code) *StateNode {
 }
 
 // show the execution state of AST
-func getStateAST(ast parser.Code, stateAST *StateNode) string {
+func GetStateAST(ast parser.Code, stateAST *StateNode) string {
 	root := gotree.New("State")
 	boolHelper := map[bool]string{true: "T", false: "F"}
 
