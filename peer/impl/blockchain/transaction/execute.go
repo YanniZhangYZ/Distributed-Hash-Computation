@@ -26,16 +26,15 @@ func VerifyAndExecuteTransaction(tx *SignedTransaction, worldState *common.World
 	}
 
 	return err
-
 }
 
 func executeTransferTx(tx *SignedTransaction, worldState *common.WorldState) error {
-	// Check if the transaction is a new account declaration transaction
-	if tx.TX.Src.String() == tx.TX.Dst.String() {
+	// Check if the transaction is an account join declaration transaction (i.e. Src == Dst && Value >= 0)
+	if tx.TX.Src.String() == tx.TX.Dst.String() && tx.TX.Value >= 0 {
 
 		_, ok := (*worldState).Get(tx.TX.Src.String())
 		if ok {
-			return fmt.Errorf("invalid account declaration transaction, account already exists")
+			return fmt.Errorf("invalid account join declaration transaction, account already exists")
 		}
 
 		(*worldState).Set(tx.TX.Src.String(), common.State{
@@ -44,6 +43,17 @@ func executeTransferTx(tx *SignedTransaction, worldState *common.WorldState) err
 			CodeHash:    "",
 			StorageRoot: "",
 		})
+
+		return nil
+	}
+
+	// Check if the transaction is an account leave declaration transaction (i.e. Src == Dst && Value == -1)
+	if tx.TX.Src.String() == tx.TX.Dst.String() && tx.TX.Value == -1 {
+
+		_, ok := (*worldState).Get(tx.TX.Src.String())
+		if !ok {
+			return fmt.Errorf("invalid account leave declaration transaction, account doesn't exists")
+		}
 
 		return nil
 	}

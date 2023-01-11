@@ -17,20 +17,16 @@ import (
 )
 
 type Miner struct {
-	mu sync.Mutex
-
-	chain *block.Chain
-
-	address common.Address
-
+	mu     sync.Mutex
 	logger zerolog.Logger
 
-	message *message.Message
-
-	consensus *consensus.Consensus
-
+	conf             *peer.Configuration
+	message          *message.Message
+	consensus        *consensus.Consensus
 	blockNameStorage storage.Storage
 
+	address       common.Address
+	chain         *block.Chain
 	tmpWorldState common.WorldState
 
 	// Txs that are not verified and executed
@@ -55,8 +51,10 @@ type Miner struct {
 	wg     sync.WaitGroup
 }
 
-func NewMiner(message *message.Message, consensus *consensus.Consensus, storage storage.Storage) *Miner {
+func NewMiner(conf *peer.Configuration, message *message.Message, consensus *consensus.Consensus, storage storage.Storage) *Miner {
 	m := Miner{}
+	m.conf = conf
+	m.message = message
 	m.message = message
 	m.consensus = consensus
 	m.blockNameStorage = storage

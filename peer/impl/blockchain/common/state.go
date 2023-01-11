@@ -1,6 +1,10 @@
 package common
 
-import "fmt"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+)
 
 func (a *State) String() string {
 	s := ""
@@ -10,13 +14,13 @@ func (a *State) String() string {
 }
 
 func (a *State) Hash() []byte {
-	//TODO implement me
-	panic("implement me")
+	hash := sha256.New()
+	hash.Write([]byte(a.String()))
+	return hash.Sum(nil)
 }
 
 func (a *State) HashCode() string {
-	//TODO implement me
-	panic("implement me")
+	return hex.EncodeToString(a.Hash())
 }
 
 func QuickWorldState(accounts int, balance int64) WorldState {

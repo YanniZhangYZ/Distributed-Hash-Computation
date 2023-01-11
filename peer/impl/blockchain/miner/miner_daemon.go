@@ -111,6 +111,16 @@ func (m *Miner) processOneTx() {
 	err := transaction.VerifyAndExecuteTransaction(tx, &(m.tmpWorldState))
 
 	if err == nil {
+		// Update peer.conf.TotalPeers when nodes join or leave so that paxos can be informed accordingly
+		if tx.TX.Src.String() == tx.TX.Dst.String() {
+			if tx.TX.Value >= 0 {
+				m.conf.TotalPeers++
+			}
+			if tx.TX.Value == -1 {
+				m.conf.TotalPeers--
+			}
+		}
+
 		m.txProcessed.Enqueue(tx)
 		m.logger.Debug().
 			Int("nextBlockID", int(m.chain.Tail.ID+1)).

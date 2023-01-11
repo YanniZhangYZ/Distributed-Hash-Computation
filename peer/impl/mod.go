@@ -183,13 +183,13 @@ func (n *node) TransferMoney(dst common.Address, amount int64, timeout time.Dura
 }
 
 // ProposeContract implements peer.IBlockchain
-func (n *node) ProposeContract(password string, reward int64, recipient string) error {
-	return n.Blockchain.ProposeContract(password, reward, recipient)
+func (n *node) ProposeContract(hash string, salt string, reward int64, recipient string) error {
+	return n.Blockchain.ProposeContract(hash, salt, reward, recipient)
 }
 
 // ExecuteContract implements peer.IBlockchain
-func (n *node) ExecuteContract(todo int, timeout time.Duration) bool {
-	return n.Blockchain.ExecuteContract(todo, timeout)
+func (n *node) ExecuteContract(password string, contractAddr string) error {
+	return n.Blockchain.ExecuteContract(password, contractAddr)
 }
 
 // GetAccountAddress implements peer.IBlockchain

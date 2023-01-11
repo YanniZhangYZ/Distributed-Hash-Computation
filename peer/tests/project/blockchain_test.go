@@ -483,19 +483,19 @@ func Test_Blockchain_Late_Start_Catch_Up(t *testing.T) {
 	done2 := make(chan struct{})
 
 	// 1 -> 2 : $3
-	// 2 -> 1 : $5
+	// 1 -> 2 : $6
 	go func() {
 		err := node1.TransferMoney(common.Address{HexString: "2"}, 3, time.Second*600)
 		require.NoError(t, err)
-		err = node2.TransferMoney(common.Address{HexString: "1"}, 5, time.Second*600)
+		err = node1.TransferMoney(common.Address{HexString: "2"}, 6, time.Second*600)
 		require.NoError(t, err)
 		close(done1)
 	}()
 
-	// 1 -> 2 : $6
+	// 2 -> 1 : $5
 	// 2 -> 1 : $1
 	go func() {
-		err := node1.TransferMoney(common.Address{HexString: "2"}, 6, time.Second*600)
+		err := node2.TransferMoney(common.Address{HexString: "1"}, 5, time.Second*600)
 		require.NoError(t, err)
 		err = node2.TransferMoney(common.Address{HexString: "1"}, 1, time.Second*600)
 		require.NoError(t, err)
@@ -529,7 +529,7 @@ func Test_Blockchain_Late_Start_Catch_Up(t *testing.T) {
 	require.EqualValues(t, balance2, 13)
 	require.EqualValues(t, balance3, 10)
 
-	// 6 transactions in total
+	// 4 transactions in total
 	// Check blockchain after transfer
 	blockCnt := node1.GetChain().GetBlockCount()
 	require.Equal(t, node1.GetChain().GetBlockCount(), blockCnt)
@@ -580,7 +580,7 @@ func Test_Blockchain_Join(t *testing.T) {
 	done2 := make(chan struct{})
 
 	// 1 -> 2 : $3
-	// 2 -> 1 : $5
+	// 1 -> 2 : $6
 	go func() {
 		err := node1.TransferMoney(common.Address{HexString: "2"}, 3, time.Second*600)
 		require.NoError(t, err)
@@ -589,8 +589,8 @@ func Test_Blockchain_Join(t *testing.T) {
 		close(done1)
 	}()
 
-	// 1 -> 2 : $6
 	// 2 -> 1 : $1
+	// 2 -> 1 : $5
 	go func() {
 		err := node2.TransferMoney(common.Address{HexString: "1"}, 1, time.Second*600)
 		require.NoError(t, err)
