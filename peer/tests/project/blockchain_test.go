@@ -93,15 +93,18 @@ func Test_Blockchain_Success_Transfer(t *testing.T) {
 	node1 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0",
 		z.WithBlockchainAccountAddress("1"),
 		z.WithBlockchainInitialState(worldState.GetSimpleMap()),
-		z.WithBlockchainBlockTimeout(time.Second*3))
+		z.WithBlockchainBlockTimeout(time.Second*3),
+		z.WithTotalPeers(3))
 	node2 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0",
 		z.WithBlockchainAccountAddress("2"),
 		z.WithBlockchainInitialState(worldState.GetSimpleMap()),
-		z.WithBlockchainBlockTimeout(time.Second*3))
+		z.WithBlockchainBlockTimeout(time.Second*3),
+		z.WithTotalPeers(3))
 	node3 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0",
 		z.WithBlockchainAccountAddress("3"),
 		z.WithBlockchainInitialState(worldState.GetSimpleMap()),
-		z.WithBlockchainBlockTimeout(time.Second*3))
+		z.WithBlockchainBlockTimeout(time.Second*3),
+		z.WithTotalPeers(3))
 
 	defer node1.Stop()
 	defer node2.Stop()
@@ -120,7 +123,7 @@ func Test_Blockchain_Success_Transfer(t *testing.T) {
 	err := node1.TransferMoney(common.Address{HexString: "2"}, 3, time.Second*600)
 	require.NoError(t, err)
 
-	//time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 5)
 
 	// Check balance after transfer
 	balance1 := node1.GetBalance()
@@ -154,7 +157,8 @@ func Test_Blockchain_Multiple_Transfers(t *testing.T) {
 			z.WithBlockchainInitialState(worldState.GetSimpleMap()),
 			z.WithBlockchainBlockTimeout(time.Second*3),
 			z.WithBlockchainDifficulty(3),
-			z.WithBlockchainBlockSize(3))
+			z.WithBlockchainBlockSize(3),
+			z.WithTotalPeers(3))
 	}
 
 	node1 := newNode("1")
@@ -244,9 +248,10 @@ func Test_Blockchain_Multiple_Transfers(t *testing.T) {
 	require.NoError(t, node3.GetChain().ValidateChain())
 }
 
-// Test_Blockchain_Random_Transfers creates several nodes and a lot of random transactions among them.
+// Test_Blockchain_Random_Transfers_1 creates several nodes and a lot of random transactions among them.
 // It tests, after all these transactions, if the blockchain of each account is the same
-// and if the total balance is the same as before
+// and if the total balance is the same as before.
+// Transactions are organized in rounds. In each round, each node submits its transaction.
 // This test may take very long time. Be patient :)
 func Test_Blockchain_Random_Transfers(t *testing.T) {
 	transp := channelFac()
@@ -264,7 +269,8 @@ func Test_Blockchain_Random_Transfers(t *testing.T) {
 			z.WithBlockchainInitialState(worldState.GetSimpleMap()),
 			z.WithBlockchainBlockTimeout(time.Second*5),
 			z.WithBlockchainDifficulty(3),
-			z.WithBlockchainBlockSize(3))
+			z.WithBlockchainBlockSize(3),
+			z.WithTotalPeers(uint(numNode)))
 	}
 
 	// Create nodes
@@ -343,6 +349,108 @@ func Test_Blockchain_Random_Transfers(t *testing.T) {
 	}
 }
 
+// Test_Blockchain_Stress_Test creates many nodes and a lot of random transactions among them.
+// The difficulty of POW is very low to produce frequent block mining conflicts.
+// It tests, after all these transactions, if the blockchain of each account is the same
+// and if the total balance is the same as before.
+// Each node is executing in its own thread and submits its transactions independently.
+// This test may take VERY long time. Be patient :)
+func Test_Blockchain_Stress_Test(t *testing.T) {
+	transp := channelFac()
+
+	numNode := 20
+	numTxPerNode := 10
+	initBalance := 100
+	txVerifyTimeout := time.Second * 600
+
+	worldState := common.QuickWorldState(numNode, int64(initBalance))
+
+	newNode := func(i int) z.TestNode {
+		return z.NewTestNode(t, peerFac, transp, "127.0.0.1:0",
+			z.WithBlockchainAccountAddress(fmt.Sprintf("%d", i)),
+			z.WithBlockchainInitialState(worldState.GetSimpleMap()),
+			z.WithBlockchainBlockTimeout(time.Second*5),
+			z.WithBlockchainDifficulty(2),
+			z.WithBlockchainBlockSize(10),
+			z.WithTotalPeers(uint(numNode)))
+	}
+
+	// Create nodes
+	nodes := make([]z.TestNode, 0)
+	for i := 0; i < numNode; i++ {
+		nodes = append(nodes, newNode(i+1))
+		defer nodes[len(nodes)-1].Stop()
+	}
+
+	// Add each other as peers
+	for i := 0; i < numNode; i++ {
+		for j := 0; j < numNode; j++ {
+			if j == i {
+				continue
+			}
+			nodes[i].AddPeer(nodes[j].GetAddr())
+		}
+	}
+
+	// Create random transactions
+	dones := make([]chan struct{}, 0)
+	for n := 0; n < numNode; n++ {
+		done := make(chan struct{})
+		dones = append(dones, done)
+		currNode := n
+		go func() {
+			for i := 0; i < numTxPerNode; i++ {
+				dst := rand.Intn(numNode) + 1
+				for dst == currNode+1 {
+					dst = rand.Intn(numNode) + 1
+				}
+				dstAddress := common.Address{HexString: fmt.Sprintf("%d", dst)}
+
+				currBalance := nodes[currNode].GetBalance()
+				amount := rand.Int63n(currBalance)
+
+				err := nodes[currNode].TransferMoney(dstAddress, amount, txVerifyTimeout)
+				require.NoError(t, err)
+			}
+			close(done)
+		}()
+
+	}
+
+	// Wait until all nodes are done this round
+	for i := 0; i < numNode; i++ {
+		<-dones[i]
+	}
+
+	// Print each node's blockchain
+	for i := 0; i < numNode; i++ {
+		fmt.Fprint(os.Stdout, nodes[i].GetChain().PrintChain())
+	}
+
+	// Check sum of balances
+	balanceSum := int64(0)
+	for i := 0; i < numNode; i++ {
+		balanceSum += nodes[i].GetBalance()
+	}
+	require.EqualValues(t, initBalance*numNode, balanceSum)
+
+	// Check blockchain
+	blockCnt := nodes[0].GetChain().GetBlockCount()
+	txCnt := nodes[0].GetChain().GetTransactionCount()
+	lastBlockHash := nodes[0].GetChain().GetLastBlock().BlockHash
+	for n := 0; n < numNode; n++ {
+		require.Equal(t, nodes[n].GetChain().GetBlockCount(), blockCnt)
+		require.Equal(t, nodes[n].GetChain().GetTransactionCount(), txCnt)
+		require.Equal(t, nodes[n].GetChain().GetLastBlock().BlockHash, lastBlockHash)
+	}
+
+	// Full validation each node's blockchain
+	for i := 0; i < numNode; i++ {
+		err := nodes[i].GetChain().ValidateChain()
+		require.NoError(t, err)
+	}
+}
+
 // Test_Blockchain_Late_Start_Catch_Up tests if a node with its state already included in the world state
 // can start late and then catch up
 // Note that catch up is only possible if nodes enable anti-entropy and heartbeats.
@@ -375,19 +483,19 @@ func Test_Blockchain_Late_Start_Catch_Up(t *testing.T) {
 	done2 := make(chan struct{})
 
 	// 1 -> 2 : $3
-	// 2 -> 1 : $5
+	// 1 -> 2 : $6
 	go func() {
 		err := node1.TransferMoney(common.Address{HexString: "2"}, 3, time.Second*600)
 		require.NoError(t, err)
-		err = node2.TransferMoney(common.Address{HexString: "1"}, 5, time.Second*600)
+		err = node1.TransferMoney(common.Address{HexString: "2"}, 6, time.Second*600)
 		require.NoError(t, err)
 		close(done1)
 	}()
 
-	// 1 -> 2 : $6
+	// 2 -> 1 : $5
 	// 2 -> 1 : $1
 	go func() {
-		err := node1.TransferMoney(common.Address{HexString: "2"}, 6, time.Second*600)
+		err := node2.TransferMoney(common.Address{HexString: "1"}, 5, time.Second*600)
 		require.NoError(t, err)
 		err = node2.TransferMoney(common.Address{HexString: "1"}, 1, time.Second*600)
 		require.NoError(t, err)
@@ -421,7 +529,7 @@ func Test_Blockchain_Late_Start_Catch_Up(t *testing.T) {
 	require.EqualValues(t, balance2, 13)
 	require.EqualValues(t, balance3, 10)
 
-	// 6 transactions in total
+	// 4 transactions in total
 	// Check blockchain after transfer
 	blockCnt := node1.GetChain().GetBlockCount()
 	require.Equal(t, node1.GetChain().GetBlockCount(), blockCnt)
@@ -472,7 +580,7 @@ func Test_Blockchain_Join(t *testing.T) {
 	done2 := make(chan struct{})
 
 	// 1 -> 2 : $3
-	// 2 -> 1 : $5
+	// 1 -> 2 : $6
 	go func() {
 		err := node1.TransferMoney(common.Address{HexString: "2"}, 3, time.Second*600)
 		require.NoError(t, err)
@@ -481,8 +589,8 @@ func Test_Blockchain_Join(t *testing.T) {
 		close(done1)
 	}()
 
-	// 1 -> 2 : $6
 	// 2 -> 1 : $1
+	// 2 -> 1 : $5
 	go func() {
 		err := node2.TransferMoney(common.Address{HexString: "1"}, 1, time.Second*600)
 		require.NoError(t, err)

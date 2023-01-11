@@ -11,7 +11,9 @@ import (
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"go.dedis.ch/cs438/peer/impl/blockchain/miner"
 	"go.dedis.ch/cs438/peer/impl/blockchain/transaction"
+	"go.dedis.ch/cs438/peer/impl/consensus"
 	"go.dedis.ch/cs438/peer/impl/message"
+	"go.dedis.ch/cs438/storage"
 	"go.dedis.ch/cs438/types"
 	"os"
 	"sync"
@@ -42,7 +44,7 @@ type Blockchain struct {
 	publicKey  *ecdsa.PublicKey
 }
 
-func NewBlockchain(conf *peer.Configuration, message *message.Message) *Blockchain {
+func NewBlockchain(conf *peer.Configuration, message *message.Message, consensus *consensus.Consensus, storage storage.Storage) *Blockchain {
 	d := Blockchain{}
 	d.message = message
 	d.peerConf = message.GetConf()
@@ -50,7 +52,7 @@ func NewBlockchain(conf *peer.Configuration, message *message.Message) *Blockcha
 	d.nonce = 0
 	d.submittedTxs = make(map[string]*transaction.SignedTransaction)
 	d.logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).With().Str("account", d.address.String()).Logger()
-	d.miner = miner.NewMiner(message)
+	d.miner = miner.NewMiner(conf, message, consensus, storage)
 
 	return &d
 }
@@ -64,15 +66,13 @@ func (a *Blockchain) Start() {
 
 func (a *Blockchain) Stop() {
 	a.logger.Debug().Msg("stopping Blockchain")
-
 	a.cancel()
 	a.wg.Wait()
 	a.miner.Stop()
-
 	a.logger.Debug().Msg("stopped Blockchain")
 }
 
-func (a *Blockchain) BroadcastTransaction(signedTx *transaction.SignedTransaction) error {
+func (a *Blockchain) broadcastTransaction(signedTx *transaction.SignedTransaction) error {
 	a.logger.Debug().
 		Int("type", signedTx.TX.Type).
 		Str("src", signedTx.TX.Src.String()).
@@ -98,11 +98,10 @@ func (a *Blockchain) BroadcastTransaction(signedTx *transaction.SignedTransactio
 	return nil
 }
 
-func (a *Blockchain) CheckTransaction(txHash string, timeout time.Duration) error {
+func (a *Blockchain) checkTransaction(signedTx *transaction.SignedTransaction, timeout time.Duration) error {
 	// Now it check if the transaction is confirmed by only querying the blockchain of itself.
+	// TODO : Use channel
 	// TODO : Send TransactionVerifyMessage to the network to verify the transaction.
-
-	signedTx := a.submittedTxs[txHash]
 
 	start := time.Now()
 	for {
@@ -121,10 +120,10 @@ func (a *Blockchain) CheckTransaction(txHash string, timeout time.Duration) erro
 			return fmt.Errorf("transaction verification timeout")
 		}
 
-		if a.miner.HasTransaction(txHash) {
+		if a.miner.HasTransaction(signedTx) {
 			break
 		} else {
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 
@@ -158,19 +157,18 @@ func (a *Blockchain) TransferMoney(dst common.Address, amount int64, timeout tim
 
 	// 2. Sign the transaction
 	signedTx, err := rawTx.Sign(a.privateKey)
-	txHash := signedTx.HashCode()
 	if err != nil {
 		return err
 	}
 
 	// 3. Broadcast the transaction to the network
-	err = a.BroadcastTransaction(&signedTx)
+	err = a.broadcastTransaction(&signedTx)
 	if err != nil {
 		return err
 	}
 
 	// 4. Wait for the transaction to be included in a block
-	err = a.CheckTransaction(txHash, timeout)
+	err = a.checkTransaction(&signedTx, timeout)
 	if err != nil {
 		return err
 	}
@@ -178,12 +176,12 @@ func (a *Blockchain) TransferMoney(dst common.Address, amount int64, timeout tim
 	return nil
 }
 
-func (a *Blockchain) ProposeContract(password string, reward int64, recipient string) error {
+func (a *Blockchain) ProposeContract(hash string, salt string, reward int64, recipient string) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (a *Blockchain) ExecuteContract(todo int, timeout time.Duration) bool {
+func (a *Blockchain) ExecuteContract(password string, contractAddr string) error {
 	//TODO implement me
 	panic("implement me")
 }

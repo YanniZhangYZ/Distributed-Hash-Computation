@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"fmt"
 	"go.dedis.ch/cs438/peer/impl/blockchain/block"
 	"go.dedis.ch/cs438/peer/impl/blockchain/transaction"
 	"go.dedis.ch/cs438/types"
@@ -18,6 +19,7 @@ func (m *Miner) txProcessingDaemon() {
 			// 1. Reset miner's tmp world state before processing txs and forming a new block
 			m.mu.Lock()
 			m.resetTmpWorldState()
+			m.cleanTxPool()
 			preparingBlockID := m.chain.Tail.ID + 1
 			notifyCh := m.blockNotificationCh[int(preparingBlockID)]
 			m.mu.Unlock()
@@ -25,7 +27,7 @@ func (m *Miner) txProcessingDaemon() {
 			// 2. Process txs until a block is formed or timeout or new block from others is appended
 			m.processTxs(notifyCh)
 
-			// 3. Form a new block
+			// 3. Form a new block with processed txs
 			b := m.formBlock(preparingBlockID)
 			if b == nil {
 				continue
@@ -37,14 +39,18 @@ func (m *Miner) txProcessingDaemon() {
 
 			err := b.ProofOfWork(m.GetConf().BlockchainDifficulty, m.GetContext(), notifyCh)
 			if err != nil {
+				m.revertBlock(b)
 				m.logger.Debug().Uint32("blockID", preparingBlockID).Str("reason", err.Error()).Msg("Proof of Work failed")
 				continue
 			}
-			m.logger.Debug().Uint32("blockID", preparingBlockID).Msgf("Proof of Work finished in %f seconds", time.Now().Sub(start).Seconds())
+			m.logger.Debug().
+				Uint32("blockID", preparingBlockID).
+				Str("blockHash", b.BlockHash[:10]).
+				Msgf("Proof of Work finished in %f seconds", time.Now().Sub(start).Seconds())
 
 			// 5. check the new block and broadcast it if valid
 			err = m.chain.CheckNewBlock(b)
-			if err != nil {
+			if err != nil || m.IsBlockBuffered(preparingBlockID) {
 				m.logger.Debug().Err(err).Uint32("blockID", b.ID).Msg("discard an invalid mined block")
 				m.revertBlock(b)
 				continue
@@ -67,6 +73,7 @@ func (m *Miner) txProcessingDaemon() {
 					Str("blockHash", b.BlockHash[:10]).
 					Str("prevHash", b.PrevHash[:10]).
 					Uint64("timestamp", b.Timestamp).
+					Int("#tx", len(b.TXs)).
 					Msg("mined block is valid and broadcast")
 			}
 		}
@@ -104,8 +111,19 @@ func (m *Miner) processOneTx() {
 	err := transaction.VerifyAndExecuteTransaction(tx, &(m.tmpWorldState))
 
 	if err == nil {
+		// Update peer.conf.TotalPeers when nodes join or leave so that paxos can be informed accordingly
+		if tx.TX.Src.String() == tx.TX.Dst.String() {
+			if tx.TX.Value >= 0 {
+				m.conf.TotalPeers++
+			}
+			if tx.TX.Value == -1 {
+				m.conf.TotalPeers--
+			}
+		}
+
 		m.txProcessed.Enqueue(tx)
 		m.logger.Debug().
+			Int("nextBlockID", int(m.chain.Tail.ID+1)).
 			Int("type", tx.TX.Type).
 			Str("src", tx.TX.Src.String()).
 			Str("dst", tx.TX.Dst.String()).
@@ -119,6 +137,7 @@ func (m *Miner) processOneTx() {
 		m.txInvalid.Enqueue(tx)
 		m.logger.Debug().
 			Err(err).
+			Int("nextBlockID", int(m.chain.Tail.ID+1)).
 			Int("type", tx.TX.Type).
 			Str("src", tx.TX.Src.String()).
 			Str("dst", tx.TX.Dst.String()).
@@ -138,9 +157,6 @@ func (m *Miner) formBlock(preparingBlockID uint32) *block.Block {
 
 	// Check prevHash: If a new block from other is appended, invalid this miner's own block
 	if preparingBlockID != m.chain.Tail.ID+1 || m.txProcessed.IsEmpty() {
-		if !m.txProcessed.IsEmpty() {
-			m.cleanTxPool()
-		}
 		return nil
 	}
 
@@ -176,7 +192,7 @@ func (m *Miner) cleanTxPool() {
 
 	cleaned := make([]*transaction.SignedTransaction, 0)
 	for _, tx := range tmp {
-		if !m.chain.HasTransaction(tx.HashCode()) {
+		if !m.chain.HasTransaction(tx) {
 			cleaned = append(cleaned, tx)
 		}
 	}
@@ -197,7 +213,10 @@ func (m *Miner) cleanTxPool() {
 
 	m.resetTmpWorldState()
 
-	m.logger.Debug().Uint("#txPending", m.txPending.Len()).Msg("transaction pool cleaned")
+	m.logger.Debug().
+		Uint("#txPending", m.txPending.Len()).
+		Int("nextBlockID", int(m.chain.Tail.ID+1)).
+		Msg("transaction pool cleaned")
 }
 
 func (m *Miner) revertBlock(b *block.Block) {
@@ -206,13 +225,18 @@ func (m *Miner) revertBlock(b *block.Block) {
 
 	// Put all processed txs in this block back to txPending
 	for _, tx := range b.TXs {
-		if !m.chain.HasTransaction(tx.HashCode()) {
+		if !m.chain.HasTransaction(tx) {
 			m.txPending.Enqueue(tx)
 		}
 	}
+}
 
-	// Clean the txs to be prepared for next block generation
-	m.cleanTxPool()
+func (m *Miner) IsBlockBuffered(nextID uint32) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	_, ok := m.blockBuffer[nextID]
+	return ok
 }
 
 func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
@@ -222,27 +246,111 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 	b := blockMsg.TransBlock.GetBlock()
 
 	// Add the new block to the buffer
-	m.blockBuffer.Store(b.ID, b)
+	if _, ok := m.blockBuffer[b.ID]; !ok {
+		m.blockBuffer[b.ID] = make(map[string]*block.Block)
+	}
+	m.blockBuffer[b.ID][b.BlockHash] = b
+
 	m.logger.Debug().
 		Uint32("blockID", b.ID).
 		Str("creator", b.Creator.String()).
 		Str("blockHash", b.BlockHash[:10]).
 		Str("prevHash", b.PrevHash[:10]).
 		Uint64("timestamp", b.Timestamp).
+		Int("#conflictBlocks", len(m.blockBuffer[b.ID])).
+		Int("#tx", len(b.TXs)).
 		Msgf("buffered a received block")
 
 	// Append blocks as much as possible
 	for {
+		var nextBlock *block.Block = nil
+
 		// Try to retrieve the next block from the buffer
 		nextID := m.chain.Tail.ID + 1
-		nextBlockAny, ok := m.blockBuffer.Load(nextID)
+		_, ok := m.blockBuffer[nextID]
+
+		// No buffered blocks for the next ID
 		if !ok {
 			return
 		}
-		m.blockBuffer.Delete(nextID)
+
+		// Check if the consensus for the next block has been reached
+		nextBlockConsensus := m.blockNameStorage.GetNamingStore().Get(fmt.Sprintf("%d", nextID))
+
+		if nextBlockConsensus != nil {
+			// Next block has been decided
+			nextBlockHash := string(nextBlockConsensus)
+			b, ok := m.blockBuffer[nextID][nextBlockHash]
+			if !ok {
+				// Not yet received the decided next block, keep waiting
+				m.logger.Debug().
+					Uint32("nextID", nextID).
+					Str("decidedNextBlockHash", nextBlockHash[:10]).
+					Msg("next block is decided but not yet received, keep waiting")
+				return
+			} else {
+				// Decided next block received, append it to the blockchain
+				nextBlock = b
+				m.logger.Debug().
+					Uint32("nextID", nextID).
+					Str("decidedNextBlockHash", nextBlockHash[:10]).
+					Uint32("blockID", nextBlock.ID).
+					Str("creator", nextBlock.Creator.String()).
+					Str("blockHash", nextBlock.BlockHash[:10]).
+					Str("prevHash", nextBlock.PrevHash[:10]).
+					Uint64("timestamp", nextBlock.Timestamp).
+					Int("#tx", len(nextBlock.TXs)).
+					Msg("next block is decided and received, try to append it")
+			}
+		} else {
+			// Next block has not been decided yet, propose mine
+			blocks := make([]string, 0)
+			for h, _ := range m.blockBuffer[nextID] {
+				blocks = append(blocks, h)
+			}
+			sort.Strings(blocks)
+			nextBlockProposal := blocks[0]
+
+			m.logger.Debug().
+				Uint32("nextID", nextID).
+				Str("proposedNextBlockHash", nextBlockProposal[:10]).
+				Int("#conflictBlocks", len(blocks)).
+				Msg("next block is not decided, propose mine")
+
+			err := m.consensus.Tag(fmt.Sprintf("%d", nextID), nextBlockProposal)
+			if err != nil {
+				// Maybe another next block is chosen
+				m.logger.Debug().
+					Uint32("nextID", nextID).
+					Str("proposedNextBlockHash", nextBlockProposal[:10]).
+					Int("#conflictBlocks", len(blocks)).
+					Str("reason", err.Error()).
+					Msg("next block proposal failed")
+			} else {
+				// Proposed block is chosen
+				//nextBlock = m.blockBuffer[nextID][nextBlockProposal]
+
+				nextBlockConsensus = m.blockNameStorage.GetNamingStore().Get(fmt.Sprintf("%d", nextID))
+				nextBlockHash := string(nextBlockProposal)
+
+				m.logger.Debug().
+					Uint32("nextID", nextID).
+					Str("proposedNextBlockHash", nextBlockProposal[:10]).
+					Str("decidedNextBlockHash", nextBlockHash[:10]).
+					Int("#conflictBlocks", len(blocks)).
+					Msg("next block proposal succeeded")
+				//Msg("next block proposal succeeded, try to append it")
+			}
+
+			continue
+		}
+
+		// DEBUG
+		if nextBlock == nil {
+			panic("next block should be decided")
+		}
 
 		// Try to append the next block
-		nextBlock := nextBlockAny.(*block.Block)
 		err := m.chain.CheckNewBlock(nextBlock)
 		if err != nil {
 			m.logger.Debug().Err(err).
@@ -251,7 +359,8 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 				Str("blockHash", nextBlock.BlockHash[:10]).
 				Str("prevHash", nextBlock.PrevHash[:10]).
 				Uint64("timestamp", nextBlock.Timestamp).
-				Msg("appending a buffered block failed")
+				Int("#tx", len(nextBlock.TXs)).
+				Msg("appending block failed")
 			return
 		}
 
@@ -266,6 +375,7 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 			Str("blockHash", nextBlock.BlockHash[:10]).
 			Str("prevHash", nextBlock.PrevHash[:10]).
 			Uint64("timestamp", nextBlock.Timestamp).
+			Int("#tx", len(nextBlock.TXs)).
 			Msg("new block appended")
 
 		// Notify the completion of this block
@@ -274,6 +384,6 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 		// Create the channel for the next block
 		m.blockNotificationCh[int(nextBlock.ID+1)] = make(chan struct{})
 
-		m.cleanTxPool()
+		//m.cleanTxPool()
 	}
 }
