@@ -73,17 +73,6 @@ func (a *Blockchain) Stop() {
 }
 
 func (a *Blockchain) broadcastTransaction(signedTx *transaction.SignedTransaction) error {
-	a.logger.Debug().
-		Int("type", signedTx.TX.Type).
-		Str("src", signedTx.TX.Src.String()).
-		Str("dst", signedTx.TX.Dst.String()).
-		Int("nonce", signedTx.TX.Nonce).
-		Int64("value", signedTx.TX.Value).
-		Uint64("timestamp", signedTx.TX.Timestamp).
-		Str("code", signedTx.TX.Code).
-		Str("data", signedTx.TX.Data).
-		Msg("submit a transaction")
-
 	txMsg := types.TransactionMessage{SignedTX: *signedTx}
 	txTransMsg, err := a.message.GetConf().MessageRegistry.MarshalMessage(txMsg)
 	if err != nil {
@@ -95,6 +84,18 @@ func (a *Blockchain) broadcastTransaction(signedTx *transaction.SignedTransactio
 	}
 
 	a.submittedTxs[signedTx.HashCode()] = signedTx
+
+	a.logger.Debug().
+		Int("type", signedTx.TX.Type).
+		Str("src", signedTx.TX.Src.String()).
+		Str("dst", signedTx.TX.Dst.String()).
+		Int("nonce", signedTx.TX.Nonce).
+		Int64("value", signedTx.TX.Value).
+		Uint64("timestamp", signedTx.TX.Timestamp).
+		Str("code", signedTx.TX.Code).
+		Str("data", signedTx.TX.Data).
+		Msg("submitted a transaction")
+
 	return nil
 }
 

@@ -169,7 +169,7 @@ func (m *Miner) formBlock(preparingBlockID uint32) *block.Block {
 		b.TXs = append(b.TXs, tx)
 	}
 
-	b.State = m.tmpWorldState.Copy()
+	b.State = *m.tmpWorldState.Copy()
 
 	return b
 }

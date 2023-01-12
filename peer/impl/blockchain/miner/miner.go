@@ -63,7 +63,7 @@ func NewMiner(conf *peer.Configuration, message *message.Message, consensus *con
 	m.chain = block.NewChain(m.address, m.GetConf().BlockchainDifficulty, m.GetConf().BlockchainInitialState)
 	m.logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).With().Str("account", m.address.String()).Logger()
 
-	m.tmpWorldState = common.NewKVStore[common.State]()
+	m.tmpWorldState = common.NewWorldState()
 
 	m.txPending = common.NewSafeQueue[*transaction.SignedTransaction]()
 	m.txProcessed = common.NewSafeQueue[*transaction.SignedTransaction]()
@@ -107,7 +107,7 @@ func (m *Miner) GetAddress() common.Address {
 }
 
 func (m *Miner) resetTmpWorldState() {
-	m.tmpWorldState = m.chain.Tail.State.Copy()
+	m.tmpWorldState = *m.chain.Tail.State.Copy()
 }
 
 func (m *Miner) HasTransactionHash(txHash string) bool {
@@ -128,7 +128,7 @@ func (m *Miner) GetWorldState() common.WorldState {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return m.chain.Tail.State.Copy()
+	return *m.chain.Tail.State.Copy()
 }
 
 func (m *Miner) GetContext() *context.Context {

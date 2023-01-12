@@ -55,7 +55,7 @@ func NewGenesisBlock(initState map[string]common.State) *Block {
 
 	b.TXs = make([]*transaction.SignedTransaction, 0)
 
-	b.State = common.NewKVStore[common.State]()
+	b.State = common.NewWorldState()
 	for addr, state := range initState {
 		b.State.Set(addr, state)
 	}
@@ -152,7 +152,7 @@ func (b *TransBlock) GetBlock() *Block {
 		StateHash: b.StateHash,
 		BlockHash: b.BlockHash,
 		TXs:       b.TXs,
-		State:     common.NewKVStore[common.State](),
+		State:     common.NewWorldState(),
 	}
 
 	for k, v := range b.StateInMap {
@@ -234,7 +234,7 @@ func (b *Block) ValidateBlock(prevWorldState *common.WorldState) error {
 	// Replay transactions
 	tmpWorldState := (*prevWorldState).Copy()
 	for _, tx := range b.TXs {
-		err := transaction.VerifyAndExecuteTransaction(tx, &tmpWorldState)
+		err := transaction.VerifyAndExecuteTransaction(tx, tmpWorldState)
 		if err != nil {
 			return err
 		}

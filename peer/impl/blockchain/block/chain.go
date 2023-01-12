@@ -65,7 +65,7 @@ func (c *Chain) NextBlock() *Block {
 		Creator:   c.address,
 		PrevHash:  b.BlockHash,
 		TXs:       make([]*transaction.SignedTransaction, 0),
-		State:     common.NewKVStore[common.State](),
+		State:     common.NewWorldState(),
 	}
 }
 
@@ -81,8 +81,10 @@ func (c *Chain) CheckNewBlock(b *Block) error {
 		return fmt.Errorf("block's PrevHash mismatch")
 	}
 
-	// TODO : check block hash
-	// TODO : replay the txs from this block, check the state
+	err := b.ValidateBlock(&c.Tail.State)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
