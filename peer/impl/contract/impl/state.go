@@ -102,7 +102,7 @@ func GetStateAST(ast parser.Code, stateAST *StateNode) string {
 		ifStateNode := stateAST.children[len(ast.Assumptions)+i]
 
 		id := strconv.Itoa(ifStateNode.children[0].nodeID)
-		c := ifclause.ConditionObjObj.ToString()
+		c := ifclause.Condition.ToString()
 		exeState := boolHelper[ifStateNode.children[0].isExecuted]
 		ifNode.Add(id + ": " + c + " [" + exeState + "]")
 

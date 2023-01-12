@@ -402,12 +402,12 @@ func Test_Parser_Assumption(t *testing.T) {
 // test id clause
 func Test_Parser_Ifclause(t *testing.T) {
 	ifStrings := []string{
-		`IF finisher.key67.hash == finisher.hash67 THEN
+		`IF finisher.key67.hash == "inowrogionjde" THEN
 			smartAccount.transfer("finisher_ID", 46.967)
 		`,
 	}
 	// expectedValue2 := "publisher_ID"
-	// expectedValue3 := "crackedKey"
+	expectedValue3 := "inowrogionjde"
 	expectedValue4 := "finisher_ID"
 	expectedValue5 := float64(46.967)
 
@@ -415,8 +415,8 @@ func Test_Parser_Ifclause(t *testing.T) {
 
 	expectedIf := []*parser.IfClause{
 		{
-			ConditionObjObj: parser.ConditionObjObj{
-				Object1: parser.Object{
+			Condition: parser.Condition{
+				Object: parser.Object{
 					Role: "finisher",
 					Fields: []*parser.Field{
 						{Name: "key67"},
@@ -424,11 +424,9 @@ func Test_Parser_Ifclause(t *testing.T) {
 					},
 				},
 				Operator: "==",
-				Object2: parser.Object{
-					Role: "finisher",
-					Fields: []*parser.Field{
-						{Name: "hash67"},
-					},
+				Value: parser.Value{
+					String: &expectedValue3,
+					Number: nil,
 				},
 			},
 			Actions: []*parser.Action{
@@ -477,14 +475,14 @@ func Test_Parser_Contract(t *testing.T) {
 	codeStrings := []string{
 		`
 		ASSUME publisher.budget > 0
-		IF finisher.key98.hash == finisher.hash98 THEN
+		IF finisher.key98.hash == "inowrogionjde" THEN
 			smartAccount.transfer("finisher_ID", 46.967)
 		`,
 	}
 	expectedValue1 := float64(0)
 	// expectedValue2 := float64(0)
 	// expectedValue3 := "publisher_ID"
-	// expectedValue4 := "crackedKey"
+	expectedValue4 := "inowrogionjde"
 	expectedValue5 := "finisher_ID"
 	expectedValue6 := float64(46.967)
 	var parsedCode []*parser.Code
@@ -510,8 +508,8 @@ func Test_Parser_Contract(t *testing.T) {
 			},
 			IfClauses: []*parser.IfClause{
 				{
-					ConditionObjObj: parser.ConditionObjObj{
-						Object1: parser.Object{
+					Condition: parser.Condition{
+						Object: parser.Object{
 							Role: "finisher",
 							Fields: []*parser.Field{
 								{Name: "key98"},
@@ -519,11 +517,9 @@ func Test_Parser_Contract(t *testing.T) {
 							},
 						},
 						Operator: "==",
-						Object2: parser.Object{
-							Role: "finisher",
-							Fields: []*parser.Field{
-								{Name: "hash98"},
-							},
+						Value: parser.Value{
+							String: &expectedValue4,
+							Number: nil,
 						},
 					},
 					Actions: []*parser.Action{

@@ -2,6 +2,9 @@ package impl
 
 import (
 	// "fmt"
+
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 
 	"fmt"
@@ -85,6 +88,112 @@ func (c *Contract) GetStateAST() *StateNode {
 	return c.stateTree
 }
 
+func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error) {
+	isValid := true
+	for i, assumption := range c.codeAST.Assumptions {
+		condition := assumption.Condition
+		conditionValid, err := c.CheckConditionOneAttribute(condition, worldState)
+		if err != nil {
+			return false, err
+		}
+		if !conditionValid {
+			isValid = false
+		} else { // synchronize the validity to the state tree
+			c.stateTree.children[i].setValid()
+			c.stateTree.children[i].children[0].setValid()
+		}
+
+		c.stateTree.children[i].setExecuted()
+		c.stateTree.children[i].children[0].setExecuted()
+	}
+
+	return isValid, nil
+}
+
+func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action, error) {
+	var actions []parser.Action
+
+	// Here we loop all the if clause in the code AST tree
+	for i, ifclause := range c.codeAST.IfClauses {
+		// we assume the contion in the if clause
+		// is the comparison between object and object, note object and value
+		condition := ifclause.Condition
+		conditionValid, err := c.CheckConditionTwoAttribute(condition, worldState)
+		if err != nil {
+			return []parser.Action{}, err
+		}
+		ifclauseState := c.stateTree.children[i+len(c.codeAST.Assumptions)]
+		conditionState := ifclauseState.children[0]
+
+		if !conditionValid {
+			ifclauseState.setExecuted()
+			conditionState.setExecuted()
+		} else {
+			ifclauseState.setExecuted()
+			ifclauseState.setValid()
+			conditionState.setExecuted()
+			conditionState.setValid()
+
+			for j := 1; j < len(ifclauseState.children); j++ {
+				ifclauseState.children[j].setExecuted()
+			}
+			for _, action := range ifclause.Actions {
+				actions = append(actions, *action)
+			}
+		}
+	}
+
+	return actions, nil
+}
+
+// This function compares two strings
+func CompareString(leftVal string, rightVal string, operator string) (bool, error) {
+	// fmt.Println(leftVal)
+	// fmt.Println(rightVal)
+	switch operator {
+	case "==":
+		return (leftVal == rightVal), nil
+	case "!=":
+		return (leftVal != rightVal), nil
+	}
+	return false, xerrors.Errorf("comparator not supported on string: %v", operator)
+}
+
+// This function compares two values
+func CompareNumber(leftVal float64, rightVal float64, operator string) (bool, error) {
+	switch operator {
+	case ">":
+		return (leftVal > rightVal), nil
+	case ">=":
+		return (leftVal >= rightVal), nil
+	case "<":
+		return (leftVal < rightVal), nil
+	case "<=":
+		return (leftVal <= rightVal), nil
+	case "==":
+		return (leftVal == rightVal), nil
+	case "!=":
+		return (leftVal != rightVal), nil
+	}
+	return false, xerrors.Errorf("comparator not supported on number: %v", operator)
+}
+
+// Contract.String() outputs the contract in pretty readable format
+func (c Contract) ToString() string {
+	out := new(strings.Builder)
+
+	out.WriteString("=================================================================\n")
+	out.WriteString("| Contract: " + c.contractName + "\n")
+	out.WriteString("| ID: " + c.contractID + "\n")
+	out.WriteString("| Publisher: [" + c.publisher + "] \n")
+	out.WriteString("| Finisher: [" + c.finisher + "] \n")
+	out.WriteString("| Contract code: " + "\n")
+	out.WriteString(c.codePlain + "\n")
+	out.WriteString("=================================================================\n")
+
+	return out.String()
+}
+
 // Here we check the condition of comparing an obj and another obj
 // finisher.key0.hash == finisher.hash0
 func (c *Contract) CheckConditionObjObj(condition parser.ConditionObjObj, worldState *common.WorldState) (bool, error) {
@@ -166,24 +275,6 @@ func (c *Contract) CheckConditionObjObj(condition parser.ConditionObjObj, worldS
 
 }
 
-func (c *Contract) CheckRoleAccount(role string, worldState *common.WorldState) (common.State, error) {
-	var account string
-	if role == publisherText {
-		account = c.publisher
-	} else if role == finisherText {
-		account = c.finisher
-	}
-
-	// retrieve value corresponding to role.fields from the world state
-	state, ok := (*worldState).Get(account)
-	if !ok {
-		return state, fmt.Errorf("account doesn't exists")
-	}
-
-	return state, nil
-
-}
-
 // This check is used in Assumption
 // for comparison between left is a variable and right is a value
 // here only publisher is involved
@@ -196,11 +287,6 @@ func (c *Contract) CheckConditionOneAttribute(condition parser.Condition, worldS
 
 	// evaluate and retrieve the compared value
 	var account string
-	// if role == publisherText {
-	// 	account = c.publisher
-	// } else if role == finisherText {
-	// 	account = c.finisher
-	// }
 	if role == publisherText {
 		account = c.publisher
 	} else {
@@ -209,7 +295,7 @@ func (c *Contract) CheckConditionOneAttribute(condition parser.Condition, worldS
 
 	// we assume the fields restricted to balance / storage key
 	var leftVal interface{}
-	if len(fields) > 1 {
+	if len(fields) != 1 {
 		return false, xerrors.Errorf("Condition field unknown. Can only have one attribute")
 	}
 	attribute := fields[0].Name
@@ -254,16 +340,18 @@ func (c *Contract) CheckConditionTwoAttribute(condition parser.Condition, worldS
 
 	// evaluate and retrieve the compared value
 	var account string
-	// if role == publisherText {
-	// 	account = c.publisher
-	// } else if role == finisherText {
-	// 	account = c.finisher
-	// }
 	if role == finisherText {
 		account = c.finisher
 	} else {
 		return false, xerrors.Errorf("invalid grammar. Expecting [finisher], get: %v", role)
 
+	}
+
+	var rightVal interface{}
+	if value.String != nil {
+		rightVal = *value.String
+	} else {
+		return false, xerrors.Errorf("invalid grammar. Expecting a hash string")
 	}
 
 	// we assume the fields restricted to balance / storage key
@@ -281,18 +369,14 @@ func (c *Contract) CheckConditionTwoAttribute(condition parser.Condition, worldS
 	}
 
 	if attribute1 == "crackedPwd" && attribute2 == "hash" {
-		leftVal = float64(state.Balance)
-		// traverse map and compute key hash
+		crackedPwdHash, err := GetTaskHash(state.Tasks, rightVal.(string))
+		if err != nil {
+			return false, err
+		}
+		leftVal = crackedPwdHash
 	} else {
 		errMsg := "invalid grammar. Expecting [crackedPwd.hash], get: " + attribute1 + "." + attribute2
 		return false, xerrors.Errorf(errMsg)
-	}
-
-	var rightVal interface{}
-	if value.String == nil {
-		rightVal = *value.Number
-	} else {
-		rightVal = *value.String
 	}
 
 	// Here we check whether the left and righ data have the same type
@@ -304,10 +388,12 @@ func (c *Contract) CheckConditionTwoAttribute(condition parser.Condition, worldS
 	return c.CompareLeftRightVal(leftVal, rightVal, operator)
 }
 
+// This function checks whether the left and right data have the same data type
 func (c *Contract) CheckLeftRightType(left interface{}, right interface{}) bool {
 	return reflect.TypeOf(left) == reflect.TypeOf(right)
 }
 
+// This function compares the value of left and right data
 func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, operator string) (bool, error) {
 	if reflect.TypeOf(left).String() == "float64" {
 		var leftNum = left.(float64)
@@ -323,104 +409,37 @@ func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, oper
 	return false, xerrors.Errorf("unsupported type: %v", reflect.TypeOf(left))
 }
 
-func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error) {
-	isValid := true
-	for i, assumption := range c.codeAST.Assumptions {
-		condition := assumption.Condition
-		conditionValid, err := c.CheckConditionOneAttribute(condition, worldState)
-		if err != nil {
-			return false, err
-		}
-		if !conditionValid {
-			isValid = false
-		} else { // synchronize the validity to the state tree
-			c.stateTree.children[i].setValid()
-			c.stateTree.children[i].children[0].setValid()
-		}
+// This function firt search for the target hash in State.Tasks
+// It then retrive the cracked passward and salt, and recompute the hash
+func GetTaskHash(tasks map[string][2]string, targetHash string) (string, error) {
+	crackedPwd := ""
+	salt := ""
+	for k, v := range tasks {
+		if k == targetHash {
+			crackedPwd = v[0]
+			salt = v[1]
 
-		c.stateTree.children[i].setExecuted()
-		c.stateTree.children[i].children[0].setExecuted()
-	}
-
-	return isValid, nil
-}
-
-func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action, error) {
-	var actions []parser.Action
-
-	// Here we loop all the if clause in the code AST tree
-	for i, ifclause := range c.codeAST.IfClauses {
-		// we assume the contion in the if clause
-		// is the comparison between object and object, note object and value
-		conditionObjObj := ifclause.ConditionObjObj
-		conditionValid, err := c.CheckConditionObjObj(conditionObjObj, worldState)
-		if err != nil {
-			return []parser.Action{}, err
-		}
-		ifclauseState := c.stateTree.children[i+len(c.codeAST.Assumptions)]
-		conditionState := ifclauseState.children[0]
-
-		if !conditionValid {
-			ifclauseState.setExecuted()
-			conditionState.setExecuted()
-		} else {
-			ifclauseState.setExecuted()
-			ifclauseState.setValid()
-			conditionState.setExecuted()
-			conditionState.setValid()
-
-			for j := 1; j < len(ifclauseState.children); j++ {
-				ifclauseState.children[j].setExecuted()
-			}
-			for _, action := range ifclause.Actions {
-				actions = append(actions, *action)
-			}
+			break
 		}
 	}
-
-	return actions, nil
-}
-
-func CompareString(leftVal string, rightVal string, operator string) (bool, error) {
-	switch operator {
-	case "==":
-		return (leftVal == rightVal), nil
-	case "!=":
-		return (leftVal != rightVal), nil
+	if crackedPwd == "" {
+		return "", xerrors.Errorf("No such hash in the tasks.")
 	}
-	return false, xerrors.Errorf("comparator not supported on string: %v", operator)
+
+	saltBytes, _ := hex.DecodeString(salt)
+	hashStr := HashCrackedPassword(crackedPwd, saltBytes)
+	return hashStr, nil
 }
 
-func CompareNumber(leftVal float64, rightVal float64, operator string) (bool, error) {
-	switch operator {
-	case ">":
-		return (leftVal > rightVal), nil
-	case "<":
-		return (leftVal < rightVal), nil
-	case ">=":
-		return (leftVal >= rightVal), nil
-	case "<=":
-		return (leftVal <= rightVal), nil
-	case "==":
-		return (leftVal == rightVal), nil
-	case "!=":
-		return (leftVal != rightVal), nil
-	}
-	return false, xerrors.Errorf("comparator not supported on number: %v", operator)
-}
+// This function hash the given password and salt using sha256
+func HashCrackedPassword(password string, salt []byte) string {
+	passwordBytes := []byte(password)
 
-// Contract.String() outputs the contract in pretty readable format
-func (c Contract) ToString() string {
-	out := new(strings.Builder)
-
-	out.WriteString("=================================================================\n")
-	out.WriteString("| Contract: " + c.contractName + "\n")
-	out.WriteString("| ID: " + c.contractID + "\n")
-	out.WriteString("| Publisher: [" + c.publisher + "] \n")
-	out.WriteString("| Finisher: [" + c.finisher + "] \n")
-	out.WriteString("| Contract code: " + "\n")
-	out.WriteString(c.codePlain + "\n")
-	out.WriteString("=================================================================\n")
-
-	return out.String()
+	h := sha256.New()
+	// Append salt to password
+	passwordBytes = append(passwordBytes, salt...)
+	h.Write(passwordBytes)
+	hashedPasswordBytes := h.Sum(nil)
+	hashStr := hex.EncodeToString(hashedPasswordBytes)
+	return hashStr
 }

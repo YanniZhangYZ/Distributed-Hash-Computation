@@ -68,8 +68,8 @@ type Assumption struct { // each assumption specifies a condition
 // If clause is defined as
 // comaprison between obj and obj + actions to be executed in the clause
 type IfClause struct { // one condition with one or more actions
-	ConditionObjObj ConditionObjObj `"IF" @@`
-	Actions         []*Action       `( "THEN" @@+ )`
+	Condition Condition `"IF" @@`
+	Actions   []*Action `( "THEN" @@+ )`
 }
 
 // this condition is for comparison between obj and value
