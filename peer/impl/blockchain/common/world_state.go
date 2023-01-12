@@ -4,63 +4,63 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"sync"
 )
 
-// mapKVStore implements KVStore
-type mapKVStore[TV comparable] struct {
+type WorldState struct {
 	mu sync.Mutex
-	m  map[string]TV
+	m  map[string]State
 }
 
-func NewKVStore[TV comparable]() KVStore[TV] {
-	return &mapKVStore[TV]{
+func NewWorldState() WorldState {
+	return WorldState{
 		mu: sync.Mutex{},
-		m:  make(map[string]TV),
+		m:  make(map[string]State),
 	}
 }
 
-func (m *mapKVStore[TV]) Len() int {
+func (m *WorldState) Len() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return len(m.m)
 }
 
-func (m *mapKVStore[TV]) Get(key string) (value TV, ok bool) {
+func (m *WorldState) Get(key string) (value State, ok bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	value, ok = m.m[key]
 	return
 }
 
-func (m *mapKVStore[TV]) Set(key string, value TV) {
+func (m *WorldState) Set(key string, value State) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.m[key] = value
 	return
 }
 
-func (m *mapKVStore[TV]) Delete(key string) {
+func (m *WorldState) Delete(key string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.m, key)
 	return
 }
 
-func (m *mapKVStore[TV]) Copy() KVStore[TV] {
+func (m *WorldState) Copy() *WorldState {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	cp := NewKVStore[TV]()
+	cp := NewWorldState()
 	for k, v := range m.m {
 		cp.Set(k, v)
 	}
 
-	return cp
+	return &cp
 }
 
-func (m *mapKVStore[TV]) Hash() []byte {
+func (m *WorldState) Hash() []byte {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -82,20 +82,15 @@ func (m *mapKVStore[TV]) Hash() []byte {
 	return h.Sum(nil)
 }
 
-func (m *mapKVStore[TV]) HashCode() string {
+func (m *WorldState) HashCode() string {
 	return hex.EncodeToString(m.Hash())
 }
 
-func (m *mapKVStore[TV]) ForEach(fn func(key string, value TV) bool) bool {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (m *mapKVStore[TV]) GetSimpleMap() map[string]TV {
+func (m *WorldState) GetSimpleMap() map[string]State {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m2 := make(map[string]TV)
+	m2 := make(map[string]State)
 
 	for k, v := range m.m {
 		m2[k] = v
@@ -103,7 +98,7 @@ func (m *mapKVStore[TV]) GetSimpleMap() map[string]TV {
 	return m2
 }
 
-func (m *mapKVStore[TV]) Keys() []string {
+func (m *WorldState) Keys() []string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	keys := make([]string, 0, len(m.m))
@@ -113,7 +108,7 @@ func (m *mapKVStore[TV]) Keys() []string {
 	return keys
 }
 
-func (m *mapKVStore[TV]) Equal(other *KVStore[TV]) bool {
+func (m *WorldState) Equal(other *WorldState) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -128,10 +123,24 @@ func (m *mapKVStore[TV]) Equal(other *KVStore[TV]) bool {
 
 	for _, k := range keys {
 		v, ok := (*other).Get(k)
-		if !ok || v != m.m[k] {
+		if !ok || !v.Equals(m.m[k]) {
 			return false
 		}
 	}
 
 	return true
+}
+
+func QuickWorldState(accounts int, balance int64) *WorldState {
+	worldState := NewWorldState()
+	for i := 0; i < accounts; i++ {
+		worldState.Set(fmt.Sprintf("%d", i+1), State{
+			Nonce:       0,
+			Balance:     balance,
+			CodeHash:    "",
+			StorageRoot: "",
+			Tasks:       make(map[string][2]string),
+		})
+	}
+	return &worldState
 }

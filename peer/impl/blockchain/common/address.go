@@ -5,6 +5,11 @@ import (
 	"encoding/hex"
 )
 
+type Address struct {
+	//Addr      [8]byte
+	HexString string
+}
+
 func (a *Address) String() string {
 	return a.HexString
 }

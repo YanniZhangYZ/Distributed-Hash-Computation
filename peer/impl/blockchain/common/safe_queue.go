@@ -5,6 +5,12 @@ import (
 	"sync"
 )
 
+// SafeQueue is a thread-safe version of queue
+type SafeQueue[T any] struct {
+	q  *list.List
+	mu sync.Mutex
+}
+
 // NewSafeQueue is not used so far
 func NewSafeQueue[T any]() SafeQueue[T] {
 	return SafeQueue[T]{
