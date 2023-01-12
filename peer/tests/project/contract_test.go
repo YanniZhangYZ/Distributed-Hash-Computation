@@ -1,10 +1,11 @@
-package test
+package project
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"go.dedis.ch/cs438/peer/impl/contract/impl"
 	"go.dedis.ch/cs438/peer/impl/contract/parser"
 )
@@ -65,4 +66,33 @@ func Test_Contract_State_Tree(t *testing.T) {
 
 	fmt.Println(contract.ToString())
 	fmt.Println(impl.GetStateAST(codeAST, stateAST))
+}
+
+func Test_Contract_Check_Assumption(t *testing.T) {
+
+	plainContract :=
+		`
+		ASSUME publisher.budget > 0
+		IF finisher.key98.hash == "abcdgak13eJ46" THEN
+			finisher.submit("publisher_ID", "crackedKey")
+			publisher.transfer("finisher_ID", 46.967)
+	`
+
+	// create a contract instance
+	contract := impl.NewContract(
+		"1",                  // ID
+		"crack pwd contract", // name
+		plainContract,        // plain_code
+		"p1",                 // publisher
+		"f1",                 // finisher
+	)
+
+	worldState := common.QuickWorldState(1, 20)
+	add := &worldState
+
+	isValid, err := contract.CheckAssumptions(add)
+	require.NoError(t, err)
+
+	require.Equal(t, isValid, true)
+
 }

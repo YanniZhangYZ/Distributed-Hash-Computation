@@ -1,4 +1,4 @@
-package test
+package project
 
 import (
 	"testing"
@@ -54,7 +54,7 @@ func Test_Parser_Object(t *testing.T) {
 	objPlain := []string{
 		`publisher.budget`,
 		`finisher.key35`,
-		`finisher.attribute`,
+		`smartAccount.attribute`,
 	}
 	var parsedObjs []*parser.Object
 
@@ -72,7 +72,7 @@ func Test_Parser_Object(t *testing.T) {
 			},
 		},
 		{
-			Role: "finisher",
+			Role: "smartAccount",
 			Fields: []*parser.Field{
 				{Name: "attribute"},
 			},
@@ -96,7 +96,7 @@ func Test_Parser_Object_Multi_Attribute(t *testing.T) {
 	objPlain := []string{
 		`publisher.budget.blah`,
 		`finisher.key0.hash`,
-		`finisher.attribute.attribute.attribute`,
+		`smartAccount.attribute.attribute.attribute`,
 	}
 	var parsedObjs []*parser.Object
 
@@ -116,7 +116,7 @@ func Test_Parser_Object_Multi_Attribute(t *testing.T) {
 			},
 		},
 		{
-			Role: "finisher",
+			Role: "smartAccount",
 			Fields: []*parser.Field{
 				{Name: "attribute"},
 				{Name: "attribute"},
@@ -142,7 +142,7 @@ func Test_Parser_Condition(t *testing.T) {
 	conditionStrings := []string{
 		`publisher.budget > 3.246`,
 		`finisher.key24.verified > 0`,
-		`publisher.attribute.attribute == "yeah"`,
+		`smartAccount.attribute.attribute == "yeah"`,
 	}
 	expectedValue1 := float64(3.246)
 	expectedValue2 := float64(0)
@@ -180,7 +180,7 @@ func Test_Parser_Condition(t *testing.T) {
 		},
 		{
 			Object: parser.Object{
-				Role: "publisher",
+				Role: "smartAccount",
 				Fields: []*parser.Field{
 					{Name: "attribute"},
 					{Name: "attribute"},
@@ -284,19 +284,19 @@ func Test_Parser_ConditionObjObj(t *testing.T) {
 // Test parsing Action with multiple attribute
 func Test_Parser_Action(t *testing.T) {
 	actionStrings := []string{
-		`publisher.transfer("finisher_ID", 46.967)`,
-		`finisher.submit("publisher_ID", "crackedKey")`,
+		`smartAccount.transfer("finisher_ID", 46.967)`,
+		`smartAccount.transfer("finisher_ID", "crackedKey")`,
 	}
 	expectedValue11 := "finisher_ID"
 	expectedValue12 := float64(46.967)
-	expectedValue21 := "publisher_ID"
+	expectedValue21 := "finisher_ID"
 	expectedValue22 := "crackedKey"
 
 	var parsedActions []*parser.Action
 
 	expectedActions := []*parser.Action{
 		{
-			Role:   "publisher",
+			Role:   "smartAccount",
 			Action: "transfer",
 			Params: []*parser.Value{
 				{String: &expectedValue11, Number: nil},
@@ -304,8 +304,8 @@ func Test_Parser_Action(t *testing.T) {
 			},
 		},
 		{
-			Role:   "finisher",
-			Action: "submit",
+			Role:   "smartAccount",
+			Action: "transfer",
 			Params: []*parser.Value{
 				{String: &expectedValue21, Number: nil},
 				{String: &expectedValue22, Number: nil},
@@ -330,7 +330,7 @@ func Test_Parser_Assumption(t *testing.T) {
 	assumeStrings := []string{
 		`ASSUME publisher.budget > 49.597`,
 		`ASSUME publisher.attribute.attribute == "yeah"`,
-		`ASSUME finisher.attribute.attribute != "hahaha"`,
+		`ASSUME smartAccount.attribute.attribute != "hahaha"`,
 	}
 	expectedValue1 := float64(49.597)
 	expectedValue2 := "yeah"
@@ -373,7 +373,7 @@ func Test_Parser_Assumption(t *testing.T) {
 		{
 			Condition: parser.Condition{
 				Object: parser.Object{
-					Role: "finisher",
+					Role: "smartAccount",
 					Fields: []*parser.Field{
 						{Name: "attribute"},
 						{Name: "attribute"},
@@ -403,12 +403,11 @@ func Test_Parser_Assumption(t *testing.T) {
 func Test_Parser_Ifclause(t *testing.T) {
 	ifStrings := []string{
 		`IF finisher.key67.hash == finisher.hash67 THEN
-			finisher.submit("publisher_ID", "crackedKey")
-			publisher.transfer("finisher_ID", 46.967)
+			smartAccount.transfer("finisher_ID", 46.967)
 		`,
 	}
-	expectedValue2 := "publisher_ID"
-	expectedValue3 := "crackedKey"
+	// expectedValue2 := "publisher_ID"
+	// expectedValue3 := "crackedKey"
 	expectedValue4 := "finisher_ID"
 	expectedValue5 := float64(46.967)
 
@@ -433,16 +432,16 @@ func Test_Parser_Ifclause(t *testing.T) {
 				},
 			},
 			Actions: []*parser.Action{
+				// {
+				// 	Role:   "finisher",
+				// 	Action: "submit",
+				// 	Params: []*parser.Value{
+				// 		{String: &expectedValue2, Number: nil},
+				// 		{String: &expectedValue3, Number: nil},
+				// 	},
+				// },
 				{
-					Role:   "finisher",
-					Action: "submit",
-					Params: []*parser.Value{
-						{String: &expectedValue2, Number: nil},
-						{String: &expectedValue3, Number: nil},
-					},
-				},
-				{
-					Role:   "publisher",
+					Role:   "smartAccount",
 					Action: "transfer",
 					Params: []*parser.Value{
 						{String: &expectedValue4, Number: nil},
@@ -467,18 +466,25 @@ func Test_Parser_Ifclause(t *testing.T) {
 
 // test the functionality of parsing entire contract
 func Test_Parser_Contract(t *testing.T) {
+	// codeStrings := []string{
+	// 	`
+	// 	ASSUME publisher.budget > 0
+	// 	IF finisher.key98.hash == finisher.hash98 THEN
+	// 		finisher.submit("publisher_ID", "crackedKey")
+	// 		publisher.transfer("finisher_ID", 46.967)
+	// 	`,
+	// }
 	codeStrings := []string{
 		`
 		ASSUME publisher.budget > 0
 		IF finisher.key98.hash == finisher.hash98 THEN
-			finisher.submit("publisher_ID", "crackedKey")
-			publisher.transfer("finisher_ID", 46.967)
+			smartAccount.transfer("finisher_ID", 46.967)
 		`,
 	}
 	expectedValue1 := float64(0)
 	// expectedValue2 := float64(0)
-	expectedValue3 := "publisher_ID"
-	expectedValue4 := "crackedKey"
+	// expectedValue3 := "publisher_ID"
+	// expectedValue4 := "crackedKey"
 	expectedValue5 := "finisher_ID"
 	expectedValue6 := float64(46.967)
 	var parsedCode []*parser.Code
@@ -521,16 +527,16 @@ func Test_Parser_Contract(t *testing.T) {
 						},
 					},
 					Actions: []*parser.Action{
+						// {
+						// 	Role:   "finisher",
+						// 	Action: "submit",
+						// 	Params: []*parser.Value{
+						// 		{String: &expectedValue3, Number: nil},
+						// 		{String: &expectedValue4, Number: nil},
+						// 	},
+						// },
 						{
-							Role:   "finisher",
-							Action: "submit",
-							Params: []*parser.Value{
-								{String: &expectedValue3, Number: nil},
-								{String: &expectedValue4, Number: nil},
-							},
-						},
-						{
-							Role:   "publisher",
+							Role:   "smartAccount",
 							Action: "transfer",
 							Params: []*parser.Value{
 								{String: &expectedValue5, Number: nil},

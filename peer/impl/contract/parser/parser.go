@@ -28,10 +28,14 @@ import (
 // ASSUME publisher.budget > 0
 // IF finisher.key0.hash == finisher.hash0  THEN
 //      # to submit, finisher needs publisherID and key0's corresponding cracked key
-// 		finisher.submit("123", "2ab3dvjhkj1k")
+// 		finisher.submit(publisherID, finisher.key0)
 // 		# to do the transaction, publisher needs finisherID and amount of money.
 //      # This money should be reduce from publisher's budget
-// 		publisher.transfer("456", 20)
+// 		smartAccount.transfer(finisherID, amount of money)
+
+// ASSUME smartAccount.balance > 10
+// IF finisher.crackedPwd.hash == "abcuusljfwpe1npo30dmks3e"  THEN
+// 		smartAccount.transfer(finisherID, amount of money)
 
 // Lexer for the contract code. Rules are specified with regexp.
 // Need to tokenize to the minimum unit be
@@ -92,7 +96,7 @@ type Value struct {
 // the object is consist of a role and fields
 // e.g. publisher.budget
 type Object struct {
-	Role   string   `( @"publisher" | @"finisher" )`
+	Role   string   `( @"publisher" | @"finisher" | @"smartAccount")`
 	Fields []*Field `@@*`
 }
 
@@ -103,8 +107,11 @@ type Field struct {
 
 // Action is conducted by specific role with specific action and parameters it needs
 type Action struct {
-	Role   string   ` ( @"publisher" | @"finisher" )`
-	Action string   ` ( "." (@"submit" | @"transfer") )`
+	// Role   string   ` ( @"publisher" | @"finisher" | @"smartAccount")`
+	Role string ` (@"smartAccount")`
+
+	// Action string   ` ( "." (@"submit" | @"transfer") )`
+	Action string   ` ( "." (@"transfer") )`
 	Params []*Value `( "(" ( @@ ( "," @@ )* )? ")" )`
 }
 

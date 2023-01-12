@@ -16,6 +16,7 @@ import (
 
 const finisherText = "finisher"
 const publisherText = "publisher"
+const smartAccountText = "smartAccount"
 
 // implements contract.ContractCode, maintained in contract account
 type Contract struct {
@@ -185,8 +186,9 @@ func (c *Contract) CheckRoleAccount(role string, worldState *common.WorldState) 
 
 // This check is used in Assumption
 // for comparison between left is a variable and right is a value
-// e.g. publisher.budget > 0
-func (c *Contract) CheckCondition(condition parser.Condition, worldState *common.WorldState) (bool, error) {
+// here only publisher is involved
+// e.g. publisher.balance > 0
+func (c *Contract) CheckConditionOneAttribute(condition parser.Condition, worldState *common.WorldState) (bool, error) {
 	role := condition.Object.Role
 	fields := condition.Object.Fields
 	operator := condition.Operator
@@ -194,10 +196,15 @@ func (c *Contract) CheckCondition(condition parser.Condition, worldState *common
 
 	// evaluate and retrieve the compared value
 	var account string
+	// if role == publisherText {
+	// 	account = c.publisher
+	// } else if role == finisherText {
+	// 	account = c.finisher
+	// }
 	if role == publisherText {
 		account = c.publisher
-	} else if role == finisherText {
-		account = c.finisher
+	} else {
+		return false, xerrors.Errorf("invalid grammar. Expecting [publisher], get: %v", role)
 	}
 
 	// we assume the fields restricted to balance / storage key
@@ -213,19 +220,72 @@ func (c *Contract) CheckCondition(condition parser.Condition, worldState *common
 		return false, fmt.Errorf("account doesn't exists or account state is corrupted")
 	}
 
-	if attribute == "Balance" {
+	if attribute == "balance" {
 		leftVal = float64(state.Balance)
 	} else {
-		return false, xerrors.Errorf("invalid grammar. Expecting [Balance], get: %v", attribute)
-		// !!!! NEED TO CHECK with Qiyuan!!!!! how to get attribute
+		return false, xerrors.Errorf("invalid grammar. Expecting [balance], get: %v", attribute)
+	}
 
-		// leftVal, err := state.StorageRoot.Get(attribute)
-		// if reflect.TypeOf(leftVal).String() == "int" {
-		// 	leftVal = float64(leftVal.(int))
-		// }
-		// if err != nil {
-		// 	return false, xerrors.Errorf("no such key exist in storage: %v", attribute)
-		// }
+	var rightVal interface{}
+	if value.String == nil {
+		rightVal = *value.Number
+	} else {
+		rightVal = *value.String
+	}
+
+	// Here we check whether the left and righ data have the same type
+	if !c.CheckLeftRightType(leftVal, rightVal) {
+		return false, xerrors.Errorf("left and right value type are not consistent.")
+
+	}
+	// from now on, we can know that the left and right value have the same data type
+	return c.CompareLeftRightVal(leftVal, rightVal, operator)
+}
+
+// This check is used in if clause
+// for comparison between left is a variable and right is a value
+// here only finisher is involved
+// e.g. finisher.crackedPwd.has == "ddnisoqhfqp0unu1h"
+func (c *Contract) CheckConditionTwoAttribute(condition parser.Condition, worldState *common.WorldState) (bool, error) {
+	role := condition.Object.Role
+	fields := condition.Object.Fields
+	operator := condition.Operator
+	value := condition.Value
+
+	// evaluate and retrieve the compared value
+	var account string
+	// if role == publisherText {
+	// 	account = c.publisher
+	// } else if role == finisherText {
+	// 	account = c.finisher
+	// }
+	if role == finisherText {
+		account = c.finisher
+	} else {
+		return false, xerrors.Errorf("invalid grammar. Expecting [finisher], get: %v", role)
+
+	}
+
+	// we assume the fields restricted to balance / storage key
+	var leftVal interface{}
+	if len(fields) != 2 {
+		return false, xerrors.Errorf("Condition field unknown. Need to have two attributes")
+	}
+	attribute1 := fields[0].Name
+	attribute2 := fields[1].Name
+
+	// retrieve value corresponding to role.fields from the world state
+	state, ok := (*worldState).Get(account)
+	if !ok {
+		return false, fmt.Errorf("account doesn't exists or account state is corrupted")
+	}
+
+	if attribute1 == "crackedPwd" && attribute2 == "hash" {
+		leftVal = float64(state.Balance)
+		// traverse map and compute key hash
+	} else {
+		errMsg := "invalid grammar. Expecting [crackedPwd.hash], get: " + attribute1 + "." + attribute2
+		return false, xerrors.Errorf(errMsg)
 	}
 
 	var rightVal interface{}
@@ -267,7 +327,7 @@ func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error)
 	isValid := true
 	for i, assumption := range c.codeAST.Assumptions {
 		condition := assumption.Condition
-		conditionValid, err := c.CheckCondition(condition, worldState)
+		conditionValid, err := c.CheckConditionOneAttribute(condition, worldState)
 		if err != nil {
 			return false, err
 		}
