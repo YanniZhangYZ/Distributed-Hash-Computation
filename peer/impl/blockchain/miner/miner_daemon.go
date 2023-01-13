@@ -130,7 +130,7 @@ func (m *Miner) processOneTx() {
 			Int("nonce", tx.TX.Nonce).
 			Int64("value", tx.TX.Value).
 			Uint64("timestamp", tx.TX.Timestamp).
-			Str("code", tx.TX.Code).
+			//Str("code", tx.TX.Code).
 			Str("data", tx.TX.Data).
 			Msg("enqueue a confirmed transaction")
 	} else {
@@ -144,7 +144,7 @@ func (m *Miner) processOneTx() {
 			Int("nonce", tx.TX.Nonce).
 			Int64("value", tx.TX.Value).
 			Uint64("timestamp", tx.TX.Timestamp).
-			Str("code", tx.TX.Code).
+			//Str("code", tx.TX.Code).
 			Str("data", tx.TX.Data).
 			Msg("discard an invalid transaction")
 	}
@@ -192,7 +192,7 @@ func (m *Miner) cleanTxPool() {
 
 	cleaned := make([]*transaction.SignedTransaction, 0)
 	for _, tx := range tmp {
-		if !m.chain.HasTransaction(tx) {
+		if !m.chain.HasTransactionHash(tx.HashCode()) {
 			cleaned = append(cleaned, tx)
 		}
 	}
@@ -225,7 +225,7 @@ func (m *Miner) revertBlock(b *block.Block) {
 
 	// Put all processed txs in this block back to txPending
 	for _, tx := range b.TXs {
-		if !m.chain.HasTransaction(tx) {
+		if !m.chain.HasTransactionHash(tx.HashCode()) {
 			m.txPending.Enqueue(tx)
 		}
 	}

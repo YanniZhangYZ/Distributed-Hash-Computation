@@ -15,13 +15,15 @@ type State struct {
 	// Balance – The number of money owned by this address.
 	Balance int64
 
-	// CodeHash – This is a hash refers to the code of an account on the Ethereum virtual machine (EVM).
-	// CodeHash is DISABLED for Externally owned account (EOA). This field is set to an empty string for EOAs.
+	CodeHash string
+
+	// Contract – This is the code of an account on the Ethereum virtual machine (EVM).
+	// DISABLED for Externally owned account (EOA). This field is set to an empty string for EOAs.
 	// Contract accounts have code fragments programmed in that can perform different operations.
 	// This code gets executed if the account gets a message call. It cannot be changed.
 	// All such code fragments are contained in the state database under their corresponding hashes for later retrieval.
 	// This hash value is known as a codeHash.
-	CodeHash string
+	Contract []byte
 
 	// StorageRoot – Sometimes known as a storage hash.
 	// StorageRoot is DISABLED for Externally owned account (EOA). This field is set to an empty string for EOAs.
@@ -70,6 +72,16 @@ func (a *State) Equals(other State) bool {
 		return false
 	}
 
+	if len(a.Contract) != len(other.Contract) {
+		return false
+	}
+
+	for i := 0; i < len(a.Contract); i++ {
+		if a.Contract[i] != other.Contract[i] {
+			return false
+		}
+	}
+
 	if a.StorageRoot != other.StorageRoot {
 		return false
 	}
@@ -89,4 +101,21 @@ func (a *State) Equals(other State) bool {
 	}
 
 	return true
+}
+
+func (a *State) Copy() State {
+	cpy := State{}
+	cpy.Nonce = a.Nonce
+	cpy.Balance = a.Balance
+	cpy.CodeHash = a.CodeHash
+	cpy.StorageRoot = a.StorageRoot
+
+	cpy.Contract = make([]byte, len(a.Contract))
+	copy(cpy.Contract, a.Contract)
+
+	cpy.Tasks = make(map[string][2]string)
+	for k, v := range a.Tasks {
+		cpy.Tasks[k] = [2]string{v[0], v[1]}
+	}
+	return cpy
 }

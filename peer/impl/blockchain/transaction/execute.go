@@ -3,6 +3,7 @@ package transaction
 import (
 	"fmt"
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
+	"go.dedis.ch/cs438/peer/impl/contract/impl"
 )
 
 // VerifyAndExecuteTransaction verify and execute a transaction on a given world state
@@ -12,15 +13,9 @@ func VerifyAndExecuteTransaction(tx *SignedTransaction, worldState *common.World
 	case TRANSFER_TX:
 		err = executeTransferTx(tx, worldState)
 	case CONTRACT_DEPLOYMENT_TX:
-		{
-			//TODO implement me
-			panic("implement me")
-		}
+		err = executeContractDeploymentTx(tx, worldState)
 	case CONTRACT_EXECUTION_TX:
-		{
-			//TODO implement me
-			panic("implement me")
-		}
+		err = executeContractExecutionTx(tx, worldState)
 	default:
 		panic("Unknown transaction type")
 	}
@@ -38,10 +33,8 @@ func executeTransferTx(tx *SignedTransaction, worldState *common.WorldState) err
 		}
 
 		(*worldState).Set(tx.TX.Src.String(), common.State{
-			Nonce:       0,
-			Balance:     tx.TX.Value,
-			CodeHash:    "",
-			StorageRoot: "",
+			Nonce:   0,
+			Balance: tx.TX.Value,
 		})
 
 		return nil
@@ -69,7 +62,6 @@ func executeTransferTx(tx *SignedTransaction, worldState *common.WorldState) err
 	}
 
 	// 1. Verify nonce
-	// TODO : do not verify transaction nonce for now
 	//if tx.TX.Nonce != srcState.Nonce+1 {
 	//	return fmt.Errorf("invalid nonce %d, which should be %d", tx.TX.Nonce, srcState.Nonce+1)
 	//}
@@ -88,6 +80,102 @@ func executeTransferTx(tx *SignedTransaction, worldState *common.WorldState) err
 	dstState.Balance += tx.TX.Value
 	(*worldState).Set(tx.TX.Src.String(), srcState)
 	(*worldState).Set(tx.TX.Dst.String(), dstState)
+
+	return nil
+}
+
+func executeContractDeploymentTx(tx *SignedTransaction, worldState *common.WorldState) error {
+	if len(tx.TX.Contract) == 0 {
+		return fmt.Errorf("invalid contract deployment transaction")
+	}
+
+	// Check if the publisher has enough balance to pay the deposit
+	srcState, ok := (*worldState).Get(tx.TX.Src.String())
+	if !ok {
+		return fmt.Errorf("TX src not found in the world state")
+
+	}
+	if srcState.Balance < tx.TX.Value {
+		return fmt.Errorf("insufficient balance, publisher has %d but tries to publish a contract with %d reward", srcState.Balance, tx.TX.Value)
+	}
+
+	// Create the contract instance
+	var contract impl.Contract
+	err := impl.Unmarshal(tx.TX.Contract, &contract)
+	if err != nil {
+		return err
+	}
+
+	// Create a smart contract account in the world state
+	worldState.Set(tx.TX.Dst.String(), common.State{
+		Nonce:       0,
+		Balance:     tx.TX.Value,
+		Contract:    tx.TX.Contract,
+		StorageRoot: "",
+		Tasks:       make(map[string][2]string),
+	})
+
+	// Publisher pay the deposit
+	srcState.Balance -= tx.TX.Value
+	(*worldState).Set(tx.TX.Src.String(), srcState)
+
+	return nil
+}
+
+func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldState) error {
+	contractAddr := tx.TX.Dst.String()
+	contractState, ok := worldState.Get(contractAddr)
+	if !ok {
+		return fmt.Errorf("contract account address invalid")
+	}
+
+	// Retrieve the smart contract instance from the world state
+	var contract impl.Contract
+	err := impl.Unmarshal(contractState.Contract, &contract)
+	if err != nil {
+		return err
+	}
+
+	// Check if the contract has enough balance to pay the execution
+	assumptionValid, err2 := contract.CheckAssumptions(worldState)
+	if err2 != nil {
+		return err2
+	}
+	if !assumptionValid {
+		return fmt.Errorf("smart contract assumption checking failed")
+	}
+
+	// Execute the contract
+	actions, err3 := contract.GatherActions(worldState)
+	if err3 != nil {
+		return err3
+	}
+	if len(actions) != 1 || actions[0].Action != "transfer" || len(actions[0].Params) != 2 {
+		return fmt.Errorf("unable to execute such action, len(actions)=%d", len(actions))
+	}
+
+	var receiver string
+	var reward int64
+	if actions[0].Params[0].String != nil {
+		receiver = *actions[0].Params[0].String
+		reward = int64(*actions[0].Params[1].Number)
+	} else {
+		receiver = *actions[0].Params[1].String
+		reward = int64(*actions[0].Params[0].Number)
+	}
+
+	// Transfer the money
+	// TODO : Maybe send another independent TransferTx to issue the reward
+	receiverState, ok2 := worldState.Get(receiver)
+	if !ok2 {
+		return fmt.Errorf("reward receiver account not found in the world state")
+	}
+
+	receiverState.Balance += reward
+	contractState.Balance -= reward
+
+	worldState.Set(receiver, receiverState)
+	worldState.Set(contractAddr, contractState)
 
 	return nil
 }

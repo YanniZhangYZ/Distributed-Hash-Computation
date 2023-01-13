@@ -18,7 +18,6 @@ type Chain struct {
 	Blocks          map[string]*Block
 	Tail            *Block
 	HashToTxs       map[string]*transaction.SignedTransaction
-	AllTxs          map[transaction.Transaction]struct{}
 }
 
 func (c *Chain) HasTransactionHash(hash string) bool {
@@ -26,14 +25,6 @@ func (c *Chain) HasTransactionHash(hash string) bool {
 	defer c.mu.Unlock()
 
 	_, ok := c.HashToTxs[hash]
-	return ok
-}
-
-func (c *Chain) HasTransaction(tx *transaction.SignedTransaction) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	_, ok := c.AllTxs[tx.TX]
 	return ok
 }
 
@@ -46,7 +37,6 @@ func NewChain(addr common.Address, difficulty uint, initState map[string]common.
 		Blocks:          make(map[string]*Block),
 		Tail:            NewGenesisBlock(initState),
 		HashToTxs:       make(map[string]*transaction.SignedTransaction),
-		AllTxs:          make(map[transaction.Transaction]struct{}),
 	}
 	c.Blocks[c.Tail.BlockHash] = c.Tail
 
@@ -102,7 +92,6 @@ func (c *Chain) AppendBlock(b *Block) error {
 
 	for _, tx := range b.TXs {
 		c.HashToTxs[tx.HashCode()] = tx
-		c.AllTxs[tx.TX] = struct{}{}
 	}
 
 	return nil

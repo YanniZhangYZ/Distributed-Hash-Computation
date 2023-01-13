@@ -12,6 +12,7 @@ import (
 	"go.dedis.ch/cs438/peer/impl/blockchain/miner"
 	"go.dedis.ch/cs438/peer/impl/blockchain/transaction"
 	"go.dedis.ch/cs438/peer/impl/consensus"
+	"go.dedis.ch/cs438/peer/impl/contract/impl"
 	"go.dedis.ch/cs438/peer/impl/message"
 	"go.dedis.ch/cs438/storage"
 	"go.dedis.ch/cs438/types"
@@ -32,6 +33,9 @@ type Blockchain struct {
 	// nonce is number of transactions this account has sent
 	nonce int
 
+	// numContract is the number of contracts this account has published
+	numContract int
+
 	// submittedTxs keeps record of all submitted txs
 	submittedTxs map[string]*transaction.SignedTransaction
 
@@ -50,6 +54,7 @@ func NewBlockchain(conf *peer.Configuration, message *message.Message, consensus
 	d.peerConf = message.GetConf()
 	d.address = common.Address{HexString: d.peerConf.BlockchainAccountAddress}
 	d.nonce = 0
+	d.numContract = 0
 	d.submittedTxs = make(map[string]*transaction.SignedTransaction)
 	d.logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).With().Str("account", d.address.String()).Logger()
 	d.miner = miner.NewMiner(conf, message, consensus, storage)
@@ -92,7 +97,7 @@ func (a *Blockchain) broadcastTransaction(signedTx *transaction.SignedTransactio
 		Int("nonce", signedTx.TX.Nonce).
 		Int64("value", signedTx.TX.Value).
 		Uint64("timestamp", signedTx.TX.Timestamp).
-		Str("code", signedTx.TX.Code).
+		//Str("code", string(signedTx.TX.Code)).
 		Str("data", signedTx.TX.Data).
 		Msg("submitted a transaction")
 
@@ -114,7 +119,7 @@ func (a *Blockchain) checkTransaction(signedTx *transaction.SignedTransaction, t
 				Int("nonce", signedTx.TX.Nonce).
 				Int64("value", signedTx.TX.Value).
 				Uint64("timestamp", signedTx.TX.Timestamp).
-				Str("code", signedTx.TX.Code).
+				//Str("code", string(signedTx.TX.Code)).
 				Str("data", signedTx.TX.Data).
 				Msg("submitted transaction verification timeout")
 
@@ -135,7 +140,7 @@ func (a *Blockchain) checkTransaction(signedTx *transaction.SignedTransaction, t
 		Int("nonce", signedTx.TX.Nonce).
 		Int64("value", signedTx.TX.Value).
 		Uint64("timestamp", signedTx.TX.Timestamp).
-		Str("code", signedTx.TX.Code).
+		//Str("code", string(signedTx.TX.Code)).
 		Str("data", signedTx.TX.Data).
 		Msg("submitted transaction verified")
 
@@ -177,14 +182,72 @@ func (a *Blockchain) TransferMoney(dst common.Address, amount int64, timeout tim
 	return nil
 }
 
-func (a *Blockchain) ProposeContract(hash string, salt string, reward int64, recipient string) error {
-	//TODO implement me
-	panic("implement me")
+func (a *Blockchain) ProposeContract(hash string, salt string, reward int64, recipient string, timeout time.Duration) error {
+	plainContract := fmt.Sprintf(
+		`
+		ASSUME publisher.balance > 5
+		IF finisher.crackedPwd.hash == "%s" THEN
+		smartAccount.transfer("finisher_ID", %d)
+	`, hash, reward)
+
+	// Create a contract instance
+	a.numContract++
+	contractAddress := fmt.Sprintf("%s_%d", a.address.String(), a.numContract)
+	contract := impl.NewContract(
+		contractAddress,      // ID
+		"crack pwd contract", // name
+		plainContract,        // plain_code
+		a.address.String(),   // publisher
+		recipient,            // finisher
+	)
+
+	a.nonce++
+	rawTx := transaction.NewContractDeploymentTX(a.address, common.StringToAddress(contractAddress), reward, contract, a.nonce)
+
+	// Sign the transaction
+	signedTx, err := rawTx.Sign(a.privateKey)
+	if err != nil {
+		return err
+	}
+
+	// Broadcast the transaction to the network
+	err = a.broadcastTransaction(&signedTx)
+	if err != nil {
+		return err
+	}
+
+	// Wait for the transaction to be included in a block
+	err = a.checkTransaction(&signedTx, timeout)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (a *Blockchain) ExecuteContract(password string, contractAddr string) error {
-	//TODO implement me
-	panic("implement me")
+func (a *Blockchain) ExecuteContract(password string, hash string, salt string, contractAddr string, timeout time.Duration) error {
+	a.nonce++
+	rawTx := transaction.NewContractExecutionTX(a.address, common.StringToAddress(contractAddr), password, hash, salt, a.nonce)
+
+	// Sign the transaction
+	signedTx, err := rawTx.Sign(a.privateKey)
+	if err != nil {
+		return err
+	}
+
+	// Broadcast the transaction to the network
+	err = a.broadcastTransaction(&signedTx)
+	if err != nil {
+		return err
+	}
+
+	// Wait for the transaction to be included in a block
+	err = a.checkTransaction(&signedTx, timeout)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *Blockchain) GetAccountAddress() string {
