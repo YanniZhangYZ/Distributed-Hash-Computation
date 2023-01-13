@@ -212,7 +212,7 @@ func newConfigTemplate() configTemplate {
 		BlockchainDifficulty:     3,
 		BlockchainBlockSize:      5,
 		BlockchainBlockTimeout:   time.Second * 5,
-		BlockchainInitialState:   make(map[string]common.State),
+		BlockchainInitialState:   nil,
 
 		PasswordHashAlgorithm: crypto.SHA256,
 	}

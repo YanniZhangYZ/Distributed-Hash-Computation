@@ -182,6 +182,16 @@ func (n *node) RingLen() uint {
 	return n.chord.RingLen()
 }
 
+// JoinBlockchain implements peer.IBlockchain
+func (n *node) JoinBlockchain(balance int64, timeout time.Duration) error {
+	return n.Blockchain.JoinBlockchain(balance, timeout)
+}
+
+// LeaveBlockchain informs the blockchain network of the leave of the account
+func (n *node) LeaveBlockchain() error {
+	return n.Blockchain.LeaveBlockchain()
+}
+
 // TransferMoney implements peer.IBlockchain
 func (n *node) TransferMoney(dst common.Address, amount int64, timeout time.Duration) error {
 	return n.Blockchain.TransferMoney(dst, amount, timeout)

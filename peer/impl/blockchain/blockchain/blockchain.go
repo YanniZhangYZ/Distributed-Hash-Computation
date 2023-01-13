@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,7 +54,23 @@ func NewBlockchain(conf *peer.Configuration, message *message.Message, consensus
 	d := Blockchain{}
 	d.message = message
 	d.peerConf = message.GetConf()
-	d.address = common.Address{HexString: d.peerConf.BlockchainAccountAddress}
+
+	// Set the blockchain address
+	// Currently, the blockchain address is set to be the port number of the node's network address for simplicity
+	socketAddr := strings.Split(conf.Socket.GetAddress(), ":")
+	if len(socketAddr) != 2 {
+		panic(fmt.Errorf("invalid socket address to generate blockchain address: %s", conf.Socket.GetAddress()))
+	}
+	d.address = common.Address{HexString: socketAddr[1]}
+	if len(d.peerConf.BlockchainAccountAddress) != 0 && d.peerConf.BlockchainAccountAddress != socketAddr[1] {
+		panic(fmt.Errorf("BlockchainAccountAddress is given but doesn't match the port number of the socket address: %s and %s",
+			d.peerConf.BlockchainAccountAddress,
+			conf.Socket.GetAddress()))
+	}
+
+	// Overwrite the BlockchainAccountAddress in the configuration
+	conf.BlockchainAccountAddress = socketAddr[1]
+
 	d.nonce = 0
 	d.numContract = 0
 	d.submittedTxs = make(map[string]*transaction.SignedTransaction)
@@ -145,6 +162,25 @@ func (a *Blockchain) checkTransaction(signedTx *transaction.SignedTransaction, t
 		Str("data", signedTx.TX.Data).
 		Msg("submitted transaction verified")
 
+	return nil
+}
+
+func (a *Blockchain) JoinBlockchain(balance int64, timeout time.Duration) error {
+	err := a.TransferMoney(a.address, balance, timeout)
+	if err != nil {
+		return err
+	}
+	a.logger.Debug().
+		Int64("balance", balance).
+		Msg("node joined the blockchain network")
+	return nil
+}
+
+func (a *Blockchain) LeaveBlockchain() error {
+	// Nothing to do for leaving the blockchain
+	// Do not rejoin!
+	a.logger.Debug().
+		Msg("node left the blockchain network")
 	return nil
 }
 
