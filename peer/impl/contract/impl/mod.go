@@ -76,6 +76,12 @@ func BuildPlainContract(targetHash string, finisherAddr string, reward int64) st
 	return plain
 }
 
+func (c *Contract) PrintContractExecutionState() {
+	fmt.Println("📝📝📝 Contract Info.")
+	fmt.Println(c.ToStringBasic())
+	fmt.Println(PrintStateAST(c.GetCodeAST(), c.GetStateAST()))
+}
+
 // This function marshals the Contract instance into a byte representation.
 // we need to use marshal and unmarshal to enable contract instance transition in packet
 // It should be noted that for those data structures we put in Marshal
@@ -145,11 +151,11 @@ func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error)
 
 	// We only show the contract info
 	// when the assumption is executed but its condition is not valid
-	if isValid == false {
-		fmt.Println("📝📝📝 Contract Info.")
-		fmt.Println(c.ToStringBasic())
-		fmt.Println(PrintStateAST(c.GetCodeAST(), c.GetStateAST()))
-	}
+	// if isValid == false {
+	// 	fmt.Println("📝📝📝 Contract Info.")
+	// 	fmt.Println(c.ToStringBasic())
+	// 	fmt.Println(PrintStateAST(c.GetCodeAST(), c.GetStateAST()))
+	// }
 
 	return isValid, nil
 }
@@ -192,9 +198,9 @@ func (c *Contract) GatherActions(worldState *common.WorldState) (bool, []parser.
 	}
 
 	// print out the contract info and execution state
-	fmt.Println("📝📝📝 Contract Info.")
-	fmt.Println(c.ToStringBasic())
-	fmt.Println(PrintStateAST(c.GetCodeAST(), c.GetStateAST()))
+	// fmt.Println("📝📝📝 Contract Info.")
+	// fmt.Println(c.ToStringBasic())
+	// fmt.Println(PrintStateAST(c.GetCodeAST(), c.GetStateAST()))
 
 	return conditionValid, actions, nil
 }
@@ -481,6 +487,10 @@ func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, oper
 	} else if reflect.TypeOf(left).String() == "string" {
 		var leftStr = left.(string)
 		var rightStr = right.(string)
+		// fmt.Println("hello!!!")
+		// fmt.Println(leftStr)
+		// fmt.Println(rightStr)
+
 		return CompareTwoString(leftStr, rightStr, operator)
 
 	}
@@ -492,6 +502,7 @@ func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, oper
 // The return value is then used for password carcking correctness verification
 func GetTaskHash(tasks map[string][2]string, targetHash string) (string, error) {
 	if len(tasks) == 0 {
+		fmt.Printf("Task list is empty. No such hash.")
 		return "", xerrors.Errorf("Task list is empty. No such hash.")
 	}
 	v, ok := tasks[targetHash]
@@ -500,6 +511,9 @@ func GetTaskHash(tasks map[string][2]string, targetHash string) (string, error) 
 	}
 	crackedPwd := v[0]
 	salt := v[1]
+	// fmt.Println("haha I GOT")
+	// fmt.Println(crackedPwd)
+	// fmt.Println(salt)
 	saltBytes, _ := hex.DecodeString(salt)
 	hashStr := HashCrackedPassword(crackedPwd, saltBytes)
 	return hashStr, nil

@@ -32,6 +32,8 @@ type SmartContract interface {
 	// e.g. IF finisher.crackedPwd.hash == "someHash" THEN
 	GatherActions(*common.WorldState) (bool, []parser.Action, error)
 
+	PrintContractExecutionState()
+
 	// This function gets the publisher of this contract
 	GetPublisherAccount() string
 

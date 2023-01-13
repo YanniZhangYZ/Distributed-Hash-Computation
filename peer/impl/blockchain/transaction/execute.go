@@ -163,6 +163,7 @@ func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldS
 
 	// Execute the contract
 	ifThenValid, actions, err3 := contract.GatherActions(worldState)
+	contract.PrintContractExecutionState()
 	if err3 != nil {
 		return err3
 	}
