@@ -56,8 +56,11 @@ func NewGenesisBlock(initState map[string]common.State) *Block {
 	b.TXs = make([]*transaction.SignedTransaction, 0)
 
 	b.State = common.NewWorldState()
-	for addr, state := range initState {
-		b.State.Set(addr, state)
+
+	if initState != nil {
+		for addr, state := range initState {
+			b.State.Set(addr, state)
+		}
 	}
 
 	b.BlockHash = b.HashCode()

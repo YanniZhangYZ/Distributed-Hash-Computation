@@ -614,7 +614,8 @@ func Test_Blockchain_Join(t *testing.T) {
 	time.Sleep(time.Second * 5)
 
 	// Node3 declare its blockchain account with initial balance of 100
-	err := node3.TransferMoney(common.StringToAddress("3"), 100, time.Second*600)
+	err := node3.JoinBlockchain(100, time.Second*600)
+	//err := node3.TransferMoney(common.StringToAddress("3"), 100, time.Second*600)
 	require.NoError(t, err)
 
 	err = node3.TransferMoney(common.StringToAddress("1"), 10, time.Second*600)
@@ -646,6 +647,139 @@ func Test_Blockchain_Join(t *testing.T) {
 	require.Equal(t, node1.GetChain().GetTransactionCount(), 7)
 	require.Equal(t, node2.GetChain().GetTransactionCount(), 7)
 	require.Equal(t, node3.GetChain().GetTransactionCount(), 7)
+
+	lastBlockHash := node1.GetChain().GetLastBlock().BlockHash
+	require.Equal(t, node2.GetChain().GetLastBlock().BlockHash, lastBlockHash)
+	require.Equal(t, node3.GetChain().GetLastBlock().BlockHash, lastBlockHash)
+
+	require.NoError(t, node1.GetChain().ValidateChain())
+	require.NoError(t, node2.GetChain().ValidateChain())
+	require.NoError(t, node3.GetChain().ValidateChain())
+}
+
+// Test_Blockchain_All_Join tests if the initial world state is empty and all nodes declare itself by joining
+func Test_Blockchain_All_Join(t *testing.T) {
+	transp := channelFac()
+
+	newNode := func() z.TestNode {
+		return z.NewTestNode(t, peerFac, transp, "127.0.0.1:0",
+			z.WithBlockchainInitialState(nil),
+			z.WithBlockchainBlockTimeout(time.Second*3),
+			z.WithBlockchainDifficulty(3),
+			z.WithBlockchainBlockSize(2),
+			z.WithHeartbeat(time.Second*1),
+			z.WithAntiEntropy(time.Second*1))
+	}
+
+	// Create each node and let them join the blockchain
+	node1 := newNode()
+	defer node1.Stop()
+	err1 := node1.JoinBlockchain(10, time.Second*600)
+	require.NoError(t, err1)
+
+	node2 := newNode()
+	defer node2.Stop()
+	node1.AddPeer(node2.GetAddr())
+	node2.AddPeer(node1.GetAddr())
+	err2 := node2.JoinBlockchain(10, time.Second*600)
+	require.NoError(t, err2)
+
+	node3 := newNode()
+	defer node3.Stop()
+	node1.AddPeer(node3.GetAddr())
+	node2.AddPeer(node3.GetAddr())
+	node3.AddPeer(node1.GetAddr())
+	node3.AddPeer(node2.GetAddr())
+	err3 := node3.JoinBlockchain(10, time.Second*600)
+	require.NoError(t, err3)
+
+	// Print the blockchain of each miner
+	fmt.Fprint(os.Stdout, node1.GetChain().PrintChain())
+	fmt.Fprint(os.Stdout, node2.GetChain().PrintChain())
+	fmt.Fprint(os.Stdout, node3.GetChain().PrintChain())
+
+	// Check the consistence of blockchain after joining
+	require.Equal(t, node1.GetChain().GetLastBlock().BlockHash, node2.GetChain().GetLastBlock().BlockHash)
+	require.Equal(t, node1.GetChain().GetLastBlock().BlockHash, node3.GetChain().GetLastBlock().BlockHash)
+	require.Equal(t, node1.GetChain().GetBlockCount(), node2.GetChain().GetBlockCount())
+	require.Equal(t, node1.GetChain().GetBlockCount(), node3.GetChain().GetBlockCount())
+
+	require.NoError(t, node1.GetChain().ValidateChain())
+	require.NoError(t, node2.GetChain().ValidateChain())
+	require.NoError(t, node3.GetChain().ValidateChain())
+
+	// There should be three txs in the blockchain and three accounts in the world state
+	require.Equal(t, node1.GetChain().GetTransactionCount(), 3)
+	require.Equal(t, node1.GetChain().GetLastBlock().State.Len(), 3)
+
+	require.EqualValues(t, node1.GetBalance(), 10)
+	require.EqualValues(t, node2.GetBalance(), 10)
+	require.EqualValues(t, node3.GetBalance(), 10)
+
+	// Try to do some transactions
+
+	done1 := make(chan struct{})
+	done2 := make(chan struct{})
+	done3 := make(chan struct{})
+
+	// 1 -> 2 : $3
+	// 1 -> 2 : $5
+	go func() {
+		err := node1.TransferMoney(common.Address{HexString: "2"}, 3, time.Second*600)
+		require.NoError(t, err)
+		err = node1.TransferMoney(common.Address{HexString: "2"}, 5, time.Second*600)
+		require.NoError(t, err)
+		close(done1)
+	}()
+
+	// 2 -> 3 : $6
+	// 2 -> 1 : $1
+	go func() {
+		err := node2.TransferMoney(common.Address{HexString: "3"}, 6, time.Second*600)
+		require.NoError(t, err)
+		err = node2.TransferMoney(common.Address{HexString: "1"}, 1, time.Second*600)
+		require.NoError(t, err)
+		close(done2)
+	}()
+
+	// 3 -> 1 : $4
+	// 3 -> 2 : $2
+	go func() {
+		err := node3.TransferMoney(common.Address{HexString: "1"}, 4, time.Second*600)
+		require.NoError(t, err)
+		err = node3.TransferMoney(common.Address{HexString: "2"}, 2, time.Second*600)
+		require.NoError(t, err)
+		close(done3)
+	}()
+
+	// Wait for all money transfers to be done
+	<-done1
+	<-done2
+	<-done3
+
+	// Print the blockchain of each account
+	fmt.Fprint(os.Stdout, node1.GetChain().PrintChain())
+	fmt.Fprint(os.Stdout, node2.GetChain().PrintChain())
+	fmt.Fprint(os.Stdout, node3.GetChain().PrintChain())
+
+	// Check balance after transfer
+	balance1 := node1.GetBalance()
+	balance2 := node2.GetBalance()
+	balance3 := node3.GetBalance()
+	require.EqualValues(t, balance1, 7)
+	require.EqualValues(t, balance2, 13)
+	require.EqualValues(t, balance3, 10)
+
+	// 6 transactions in total
+	// Check blockchain after transfer
+	blockCnt := node1.GetChain().GetBlockCount()
+	require.Equal(t, node1.GetChain().GetBlockCount(), blockCnt)
+	require.Equal(t, node2.GetChain().GetBlockCount(), blockCnt)
+	require.Equal(t, node3.GetChain().GetBlockCount(), blockCnt)
+
+	require.Equal(t, node1.GetChain().GetTransactionCount(), 9)
+	require.Equal(t, node2.GetChain().GetTransactionCount(), 9)
+	require.Equal(t, node3.GetChain().GetTransactionCount(), 9)
 
 	lastBlockHash := node1.GetChain().GetLastBlock().BlockHash
 	require.Equal(t, node2.GetChain().GetLastBlock().BlockHash, lastBlockHash)

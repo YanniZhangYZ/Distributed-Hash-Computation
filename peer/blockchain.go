@@ -8,6 +8,11 @@ import (
 
 // IBlockchain is the interface that describes functions of a distributed password cracker
 type IBlockchain interface {
+	// JoinBlockchain informs the blockchain network of the new account
+	JoinBlockchain(balance int64, timeout time.Duration) error
+
+	// LeaveBlockchain informs the blockchain network of the exit of this account
+	LeaveBlockchain() error
 
 	// TransferMoney transfers amount of money from your own account to another
 	TransferMoney(dst common.Address, amount int64, timeout time.Duration) error
