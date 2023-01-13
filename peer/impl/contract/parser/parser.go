@@ -46,7 +46,7 @@ var ContractLexer = lexer.MustSimple([]lexer.Rule{
 	{Name: `Int64`, Pattern: `\d+(?:\.\d+)?`, Action: nil},
 	{Name: `String`, Pattern: `"(.*?)"`, Action: nil},           // quoted string tokens
 	{Name: `Operator`, Pattern: `==|!=|>=|<=|>|<`, Action: nil}, // only comparison operator
-	{Name: `Ident`, Pattern: `[a-zA-Z][a-zA-Z0-9_]*`, Action: nil},
+	{Name: `Attribute`, Pattern: `[a-zA-Z][a-zA-Z0-9_]*`, Action: nil},
 	{Name: "comment", Pattern: `[#;][^\n]*`, Action: nil},
 	{Name: "Punct", Pattern: `[(),\.]`, Action: nil},
 	{Name: "whitespace", Pattern: `\s+`, Action: nil},
@@ -54,7 +54,7 @@ var ContractLexer = lexer.MustSimple([]lexer.Rule{
 
 //Below we specify the grammar for smart contract
 
-// Code is constructed with assuptions and if clauses
+// Code is constructed with assuptions and if-then
 type Code struct {
 	Assumptions []*Assumption `@@*` // 0 or more assumptions
 	IfClauses   []*IfClause   `@@*` // 0 or more If clauses
@@ -65,8 +65,8 @@ type Assumption struct { // each assumption specifies a condition
 	Condition Condition `( "ASSUME" @@ )`
 }
 
-// If clause is defined as
-// comaprison between obj and obj + actions to be executed in the clause
+// If-then is defined as
+// comaprison between obj and value + actions to be executed in the clause
 type IfClause struct { // one condition with one or more actions
 	Condition Condition `"IF" @@`
 	Actions   []*Action `( "THEN" @@+ )`
@@ -86,7 +86,7 @@ type ConditionObjObj struct {
 	Object2  Object `@@`
 }
 
-// a value can be either a string or a float.
+// a value can be either a string or a int64.
 // The current smart contract only support these two types.
 type Value struct {
 	String *string `@String`
@@ -102,7 +102,7 @@ type Object struct {
 
 // field corresponds to the attribute of the role
 type Field struct {
-	Name string `"." @Ident`
+	Name string `"." @Attribute`
 }
 
 // Action is conducted by specific role with specific action and parameters it needs

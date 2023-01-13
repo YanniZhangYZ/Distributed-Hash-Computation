@@ -1,8 +1,6 @@
 package impl
 
 import (
-	// "fmt"
-
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -22,18 +20,22 @@ const publisherText = "publisher"
 const smartAccountText = "smartAccount"
 
 // implements contract.ContractCode, maintained in contract account
+// It should be noted that the contract will be marshaled and unmarshaled to transmit in the channel
+// Therefore it is necessary to name the variables with names that is Capitalized
+// Or else the json.Marshal and json.Unmarshal cannot resolve the corresponding value
 type Contract struct {
 	contract.SmartContract
-	ContractID   string
-	ContractName string
-	CodeAST      parser.Code
-	CodePlain    string
-	StateTree    *StateNode
-	Publisher    string
-	Finisher     string
+	ContractID   string      // The address of the smart contract account in the blockchain network
+	ContractName string      // Contract Name
+	CodeAST      parser.Code // The code AST
+	CodePlain    string      // Thhe text version of user input contract code
+	StateTree    *StateNode  // The state AST to keep track of the execution of contract
+	Publisher    string      // Address of the task publisher
+	Finisher     string      // Address of the task finisher
 }
 
-// Create & initialize a new Code instance
+// Initialized a new contract
+// The codeAST and stateAST are also initialized given the plain contract code
 func NewContract(ContractID string,
 	ContractName string,
 	CodePlain string,
@@ -47,7 +49,7 @@ func NewContract(ContractID string,
 	stateAST := BuildStateTree(&CodeAST)
 
 	return &Contract{
-		ContractID:   ContractID, // the address of the smart contract account in the blockchain network
+		ContractID:   ContractID,
 		ContractName: ContractName,
 		CodeAST:      CodeAST,
 		CodePlain:    CodePlain,
@@ -57,10 +59,13 @@ func NewContract(ContractID string,
 	}
 }
 
+// This function will print the text version of contract code itself
 func (c *Contract) PrintPlainContract() {
 	fmt.Println(c.CodePlain)
 }
 
+// This function helps to facilitate constructing the  text version contract code
+// The template is provided
 func BuildPlainContract(targetHash string, finisherAddr string, reward int64) string {
 	plain := fmt.Sprintf(`
 	ASSUME smartAccount.balance > 0
@@ -73,57 +78,73 @@ func BuildPlainContract(targetHash string, finisherAddr string, reward int64) st
 
 // This function marshals the Contract instance into a byte representation.
 // we need to use marshal and unmarshal to enable contract instance transition in packet
+// It should be noted that for those data structures we put in Marshal
+// It is necessary to name the inner variables with names that is Capitalized
+// Or else the json.Marshal cannot resolve the corresponding value
 func (c *Contract) Marshal() ([]byte, error) {
 	tmp, err := json.Marshal(c)
 	return tmp, err
 }
 
 // Unmarshal unmarshals the data into the Contract instance.
+// It should be noted that for those data structures we put in Marshal before
+// It is necessary to name the inner variables with names that is Capitalized
+// Or else the json.Unmarshal cannot resolve the corresponding value
 func Unmarshal(data []byte, contract *Contract) error {
 	return json.Unmarshal(data, contract)
 }
 
-// get the publisher of this contract
+// This function gets the publisher of this contract
 func (c *Contract) GetPublisherAccount() string {
 	return c.Publisher
 }
 
-// get the finisher of this contract
+// This function gets the finisher of this contract
 func (c *Contract) GetFinisherAccount() string {
 	return c.Finisher
 }
 
-// get the code AST
+// This function gets the code AST
 func (c *Contract) GetCodeAST() parser.Code {
 	return c.CodeAST
 }
 
-// get the state tree
+// This function gets the state tree
 func (c *Contract) GetStateAST() *StateNode {
 	return c.StateTree
 }
 
+// This function checks the validity of Assumptions made in the contract
+// In this project we specify that the left part of condition we used in Assumption
+// should be a variable and can have only one attribute.
+// The right part of the condition should be a string or a float
+// e.g. ASSUME smartAccount.balance > 0
 func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error) {
 	isValid := true
 
+	// We support multiple assumptions before the if-then clause
 	for i, assumption := range c.CodeAST.Assumptions {
 		condition := assumption.Condition
 		conditionValid, err := c.CheckConditionOneAttribute(condition, worldState)
 		if err != nil {
 			return false, err
 		}
+		// update the execution state to the contract state tree.
+		c.StateTree.Children[i].setExecuted()
+		c.StateTree.Children[i].Children[0].setExecuted()
 
 		if !conditionValid {
 			isValid = false
-		} else { // synchronize the validity to the state tree
+		} else {
+			// update the validity of condition to the contract state tree.
 			c.StateTree.Children[i].setValid()
 			c.StateTree.Children[i].Children[0].setValid()
 		}
 
-		c.StateTree.Children[i].setExecuted()
-		c.StateTree.Children[i].Children[0].setExecuted()
 	}
 
+	// We only show the contract info
+	// when the assumption is executed but its condition is not valid
 	if isValid == false {
 		fmt.Println("📝📝📝 Contract Info.")
 		fmt.Println(c.ToStringBasic())
@@ -133,12 +154,17 @@ func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error)
 	return isValid, nil
 }
 
+// This function deals with the if-then clause.
+// In this project we specify that the left part of condition we used in if-then
+// should be a variable and have two attributes.
+// The right part of the condition should be a string or a float
+// e.g. IF finisher.crackedPwd.hash == "someHash" THEN
 func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action, error) {
 	var actions []parser.Action
 	// Here we loop all the if clause in the code AST tree
 	for i, ifclause := range c.CodeAST.IfClauses {
 		// we assume the contion in the if clause
-		// is the comparison between object and object, note object and value
+		// is the comparison between object and value
 		condition := ifclause.Condition
 		conditionValid, err := c.CheckConditionTwoAttribute(condition, worldState)
 		if err != nil {
@@ -146,17 +172,19 @@ func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action
 		}
 		ifclauseState := c.StateTree.Children[i+len(c.CodeAST.Assumptions)]
 		conditionState := ifclauseState.Children[0]
+		// update the execution state to the contract state tree.
+		conditionState.setExecuted()
+		ifclauseState.setExecuted()
 
-		if !conditionValid {
-			ifclauseState.setExecuted()
-			conditionState.setExecuted()
-		} else {
-			ifclauseState.setExecuted()
+		if conditionValid {
+			// update the validity to the contract state tree.
+			// ifclauseState.setExecuted()
 			ifclauseState.setValid()
-			conditionState.setExecuted()
+			// conditionState.setExecuted()
 			conditionState.setValid()
 
 			for j := 1; j < len(ifclauseState.Children); j++ {
+				// update the action inside the if-then as executed
 				ifclauseState.Children[j].setExecuted()
 			}
 			for _, action := range ifclause.Actions {
@@ -164,6 +192,7 @@ func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action
 			}
 		}
 
+		// print out the contract info and execution state
 		fmt.Println("📝📝📝 Contract Info.")
 		fmt.Println(c.ToStringBasic())
 		fmt.Println(PrintStateAST(c.GetCodeAST(), c.GetStateAST()))
@@ -172,8 +201,8 @@ func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action
 	return actions, nil
 }
 
-// This function compares two strings
-func CompareString(leftVal string, rightVal string, operator string) (bool, error) {
+// This function compares two strings given the operator
+func CompareTwoString(leftVal string, rightVal string, operator string) (bool, error) {
 	// fmt.Println(leftVal)
 	// fmt.Println(rightVal)
 	switch operator {
@@ -185,8 +214,8 @@ func CompareString(leftVal string, rightVal string, operator string) (bool, erro
 	return false, xerrors.Errorf("comparator not supported on string: %v", operator)
 }
 
-// This function compares two values
-func CompareNumber(leftVal int64, rightVal int64, operator string) (bool, error) {
+// This function compares two values given the operator
+func CompareTwoNumber(leftVal int64, rightVal int64, operator string) (bool, error) {
 	switch operator {
 	case ">":
 		return (leftVal > rightVal), nil
@@ -204,7 +233,7 @@ func CompareNumber(leftVal int64, rightVal int64, operator string) (bool, error)
 	return false, xerrors.Errorf("comparator not supported on number: %v", operator)
 }
 
-// Contract.String() outputs the contract in readable format
+// Contract.String() outputs the info of contract including plain contract code
 func (c Contract) ToString() string {
 	out := new(strings.Builder)
 
@@ -220,7 +249,8 @@ func (c Contract) ToString() string {
 	return out.String()
 }
 
-// Contract.String() outputs the contract in readable format
+// outputs the info of contract without plain contract code
+// this function provide complement information of execution state
 func (c Contract) ToStringBasic() string {
 	out := new(strings.Builder)
 
@@ -234,7 +264,7 @@ func (c Contract) ToStringBasic() string {
 	return out.String()
 }
 
-// Here we check the condition of comparing an obj and another obj
+// Here we check the condition who is doing comparison between an obj and another obj
 // finisher.key0.hash == finisher.hash0
 func (c *Contract) CheckConditionObjObj(condition parser.ConditionObjObj, worldState *common.WorldState) (bool, error) {
 	role1 := condition.Object1.Role
@@ -317,7 +347,8 @@ func (c *Contract) CheckConditionObjObj(condition parser.ConditionObjObj, worldS
 
 // This check is used in Assumption
 // for comparison between left is a variable and right is a value
-// here only publisher is involved
+// here only smartAccount is involved
+// and balance is expected
 // e.g. smartAccount.balance > 0
 func (c *Contract) CheckConditionOneAttribute(condition parser.Condition, worldState *common.WorldState) (bool, error) {
 	role := condition.Object.Role
@@ -328,6 +359,8 @@ func (c *Contract) CheckConditionOneAttribute(condition parser.Condition, worldS
 	// evaluate and retrieve the compared value
 	var account string
 	if role == smartAccountText {
+		// here we get the account from contract.ContractID
+		// This is the address of samrtAccount in the blockchain
 		account = c.ContractID
 	} else {
 		return false, xerrors.Errorf("invalid grammar. Expecting [smartAccount], get: %v", role)
@@ -346,6 +379,7 @@ func (c *Contract) CheckConditionOneAttribute(condition parser.Condition, worldS
 		return false, fmt.Errorf("account doesn't exists or account state is corrupted")
 	}
 
+	// here we expect smartAccount.balance
 	if attribute == "balance" {
 		leftVal = int64(state.Balance)
 	} else {
@@ -365,13 +399,15 @@ func (c *Contract) CheckConditionOneAttribute(condition parser.Condition, worldS
 
 	}
 	// from now on, we can know that the left and right value have the same data type
+	// and we compare the left and right value
 	return c.CompareLeftRightVal(leftVal, rightVal, operator)
 }
 
-// This check is used in if clause
+// This check is used in if-then clause
 // for comparison between left is a variable and right is a value
 // here only finisher is involved
-// e.g. finisher.crackedPwd.has == "ddnisoqhfqp0unu1h"
+// and we expect the grammar to be finisher.crackedPwd.hash == some hash
+// e.g. finisher.crackedPwd.hash == "ddnisoqhfqp0unu1h"
 func (c *Contract) CheckConditionTwoAttribute(condition parser.Condition, worldState *common.WorldState) (bool, error) {
 	role := condition.Object.Role
 	fields := condition.Object.Fields
@@ -387,6 +423,7 @@ func (c *Contract) CheckConditionTwoAttribute(condition parser.Condition, worldS
 
 	}
 
+	// here we get the hash string
 	var rightVal interface{}
 	if value.String != nil {
 		rightVal = *value.String
@@ -394,7 +431,7 @@ func (c *Contract) CheckConditionTwoAttribute(condition parser.Condition, worldS
 		return false, xerrors.Errorf("invalid grammar. Expecting a hash string")
 	}
 
-	// we assume the fields restricted to balance / storage key
+	// we expect exactly two fields
 	var leftVal interface{}
 	if len(fields) != 2 {
 		return false, xerrors.Errorf("Condition field unknown. Need to have two attributes")
@@ -408,7 +445,10 @@ func (c *Contract) CheckConditionTwoAttribute(condition parser.Condition, worldS
 		return false, fmt.Errorf("account doesn't exists or account state is corrupted")
 	}
 
+	// we expect the grammar like finisher.crackedPwd.hash == some hash
 	if attribute1 == "crackedPwd" && attribute2 == "hash" {
+		// we compute the hash of cracked key + salt
+		// this value is used for the verification
 		crackedPwdHash, err := GetTaskHash(state.Tasks, rightVal.(string))
 		if err != nil {
 			return false, err
@@ -438,12 +478,12 @@ func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, oper
 	if reflect.TypeOf(left).String() == "int64" {
 		var leftNum = left.(int64)
 		var rightNum = right.(int64)
-		return CompareNumber(leftNum, rightNum, operator)
+		return CompareTwoNumber(leftNum, rightNum, operator)
 
 	} else if reflect.TypeOf(left).String() == "string" {
 		var leftStr = left.(string)
 		var rightStr = right.(string)
-		return CompareString(leftStr, rightStr, operator)
+		return CompareTwoString(leftStr, rightStr, operator)
 
 	}
 	return false, xerrors.Errorf("unsupported type: %v", reflect.TypeOf(left))
@@ -451,6 +491,7 @@ func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, oper
 
 // This function firt search for the target hash in State.Tasks
 // It then retrive the cracked passward and salt, and recompute the hash
+// The return value is then used for password carcking correctness verification
 func GetTaskHash(tasks map[string][2]string, targetHash string) (string, error) {
 	if len(tasks) == 0 {
 		fmt.Println("The task list is empty!!!!")
