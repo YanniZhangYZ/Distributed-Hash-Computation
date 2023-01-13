@@ -76,10 +76,13 @@ func (p *PasswordCracker) SubmitRequest(hashStr string, saltStr string, reward i
 
 	// Propose a password-cracking smart contract to the blockchain
 	// It blocks until the ContractDeployTx has been confirmed
-	receptorBlockchainAddr := strings.Split(receptor, ":")[1]
-	contractAddr, err := p.blockchain.ProposeContract(hashStr, saltStr, int64(reward), receptorBlockchainAddr, timeout)
-	if err != nil {
-		return err
+	contractAddr := ""
+	if timeout > 0 {
+		receptorBlockchainAddr := strings.Split(receptor, ":")[1]
+		contractAddr, err = p.blockchain.ProposeContract(hashStr, saltStr, int64(reward), receptorBlockchainAddr, timeout)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Prepare a password cracking request to the receptor

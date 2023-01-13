@@ -211,7 +211,7 @@ func newConfigTemplate() configTemplate {
 		BlockchainAccountAddress: "",
 		BlockchainDifficulty:     3,
 		BlockchainBlockSize:      5,
-		BlockchainBlockTimeout:   time.Second * 5,
+		BlockchainBlockTimeout:   time.Second * 600,
 		BlockchainInitialState:   nil,
 
 		PasswordHashAlgorithm: crypto.SHA256,
