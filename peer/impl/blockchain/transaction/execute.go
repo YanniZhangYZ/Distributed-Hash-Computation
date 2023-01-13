@@ -162,9 +162,12 @@ func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldS
 	}
 
 	// Execute the contract
-	actions, err3 := contract.GatherActions(worldState)
+	ifThenValid, actions, err3 := contract.GatherActions(worldState)
 	if err3 != nil {
 		return err3
+	}
+	if !ifThenValid {
+		return fmt.Errorf("unable to execute action, if-then condition not satisfied")
 	}
 
 	if len(actions) != 1 || actions[0].Action != "transfer" || len(actions[0].Params) != 2 {

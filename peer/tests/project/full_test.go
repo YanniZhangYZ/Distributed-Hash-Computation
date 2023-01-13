@@ -2,11 +2,12 @@ package project
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
-	z "go.dedis.ch/cs438/internal/testing"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	z "go.dedis.ch/cs438/internal/testing"
 )
 
 // Test_Simple_Submit_Execute tests a simple scenario where one node submit a password cracking request
@@ -21,7 +22,7 @@ func Test_Simple_Submit_Execute(t *testing.T) {
 			z.WithBlockchainBlockSize(2),
 			z.WithHeartbeat(time.Second*1),
 			z.WithAntiEntropy(time.Second*1),
-			z.WithChordBytes(1),
+			z.WithChordBytes(1), // correspond to salt length
 			z.WithChordStabilizeInterval(time.Millisecond*200),
 			z.WithChordFixFingerInterval(time.Millisecond*200))
 	}
@@ -57,7 +58,7 @@ func Test_Simple_Submit_Execute(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for dictionary construction
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 5) // neccessary to compute dictionary
 
 	// Node1 submits a request
 	// Password is apple

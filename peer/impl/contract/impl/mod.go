@@ -159,46 +159,44 @@ func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error)
 // should be a variable and have two attributes.
 // The right part of the condition should be a string or a float
 // e.g. IF finisher.crackedPwd.hash == "someHash" THEN
-func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action, error) {
+func (c *Contract) GatherActions(worldState *common.WorldState) (bool, []parser.Action, error) {
 	var actions []parser.Action
 	// Here we loop all the if clause in the code AST tree
-	for i, ifclause := range c.CodeAST.IfClauses {
-		// we assume the contion in the if clause
-		// is the comparison between object and value
-		condition := ifclause.Condition
-		conditionValid, err := c.CheckConditionTwoAttribute(condition, worldState)
-		if err != nil {
-			return []parser.Action{}, err
+	// we assume the contion in the if clause
+	// is the comparison between object and value
+	condition := c.CodeAST.IfClauses[0].Condition
+	conditionValid, err := c.CheckConditionTwoAttribute(condition, worldState)
+	if err != nil {
+		return false, []parser.Action{}, err
+	}
+	ifclauseState := c.StateTree.Children[len(c.CodeAST.Assumptions)]
+	conditionState := ifclauseState.Children[0]
+	// update the execution state to the contract state tree.
+	conditionState.setExecuted()
+	ifclauseState.setExecuted()
+
+	if conditionValid {
+		// update the validity to the contract state tree.
+		// ifclauseState.setExecuted()
+		ifclauseState.setValid()
+		// conditionState.setExecuted()
+		conditionState.setValid()
+
+		for j := 1; j < len(ifclauseState.Children); j++ {
+			// update the action inside the if-then as executed
+			ifclauseState.Children[j].setExecuted()
 		}
-		ifclauseState := c.StateTree.Children[i+len(c.CodeAST.Assumptions)]
-		conditionState := ifclauseState.Children[0]
-		// update the execution state to the contract state tree.
-		conditionState.setExecuted()
-		ifclauseState.setExecuted()
-
-		if conditionValid {
-			// update the validity to the contract state tree.
-			// ifclauseState.setExecuted()
-			ifclauseState.setValid()
-			// conditionState.setExecuted()
-			conditionState.setValid()
-
-			for j := 1; j < len(ifclauseState.Children); j++ {
-				// update the action inside the if-then as executed
-				ifclauseState.Children[j].setExecuted()
-			}
-			for _, action := range ifclause.Actions {
-				actions = append(actions, *action)
-			}
+		for _, action := range c.CodeAST.IfClauses[0].Actions {
+			actions = append(actions, *action)
 		}
-
-		// print out the contract info and execution state
-		fmt.Println("📝📝📝 Contract Info.")
-		fmt.Println(c.ToStringBasic())
-		fmt.Println(PrintStateAST(c.GetCodeAST(), c.GetStateAST()))
 	}
 
-	return actions, nil
+	// print out the contract info and execution state
+	fmt.Println("📝📝📝 Contract Info.")
+	fmt.Println(c.ToStringBasic())
+	fmt.Println(PrintStateAST(c.GetCodeAST(), c.GetStateAST()))
+
+	return conditionValid, actions, nil
 }
 
 // This function compares two strings given the operator

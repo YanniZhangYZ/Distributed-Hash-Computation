@@ -384,7 +384,7 @@ func Test_Contract_Gather_Action_True(t *testing.T) {
 	}
 	worldState.Set("1", state1)
 
-	actions, err := contract.GatherActions(worldState)
+	_, actions, err := contract.GatherActions(worldState)
 	require.NoError(t, err)
 	expected1 := "finisher_ID"
 	expected2 := int64(46)
@@ -448,7 +448,7 @@ func Test_Contract_Gather_Action_Error(t *testing.T) {
 		"1",                  // finisher
 	)
 
-	_, err := contract.GatherActions(worldState)
+	_, _, err := contract.GatherActions(worldState)
 	expectErr := xerrors.Errorf("invalid grammar. Expecting [finisher], get: publisher")
 	require.EqualError(t, err, expectErr.Error())
 
@@ -469,7 +469,7 @@ func Test_Contract_Gather_Action_Error(t *testing.T) {
 		"1",                  // finisher
 	)
 
-	_, err = contract.GatherActions(worldState)
+	_, _, err = contract.GatherActions(worldState)
 	expectErr = xerrors.Errorf("invalid grammar. Expecting a hash string")
 	require.EqualError(t, err, expectErr.Error())
 
@@ -490,7 +490,7 @@ func Test_Contract_Gather_Action_Error(t *testing.T) {
 		"1",                  // finisher
 	)
 
-	_, err = contract.GatherActions(worldState)
+	_, _, err = contract.GatherActions(worldState)
 	expectErr = xerrors.Errorf("Condition field unknown. Need to have two attributes")
 	require.EqualError(t, err, expectErr.Error())
 
@@ -511,7 +511,7 @@ func Test_Contract_Gather_Action_Error(t *testing.T) {
 		"6",                  // finisher
 	)
 
-	_, err = contract.GatherActions(worldState)
+	_, _, err = contract.GatherActions(worldState)
 	expectErr = xerrors.Errorf("account doesn't exists or account state is corrupted")
 	require.EqualError(t, err, expectErr.Error())
 
@@ -532,7 +532,7 @@ func Test_Contract_Gather_Action_Error(t *testing.T) {
 		"1",                  // finisher
 	)
 
-	_, err = contract.GatherActions(worldState)
+	_, _, err = contract.GatherActions(worldState)
 	expectErr = xerrors.Errorf("invalid grammar. Expecting [crackedPwd.hash], get: abc.abc")
 	require.EqualError(t, err, expectErr.Error())
 

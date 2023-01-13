@@ -30,7 +30,7 @@ type SmartContract interface {
 	// should be a variable and have two attributes.
 	// The right part of the condition should be a string or a float
 	// e.g. IF finisher.crackedPwd.hash == "someHash" THEN
-	GatherActions(*common.WorldState) ([]parser.Action, error)
+	GatherActions(*common.WorldState) (bool, []parser.Action, error)
 
 	// This function gets the publisher of this contract
 	GetPublisherAccount() string
