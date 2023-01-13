@@ -106,7 +106,7 @@ func (c *Contract) GetStateAST() *StateNode {
 func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error) {
 	isValid := true
 
-	for _, assumption := range c.CodeAST.Assumptions {
+	for i, assumption := range c.CodeAST.Assumptions {
 		condition := assumption.Condition
 		conditionValid, err := c.CheckConditionOneAttribute(condition, worldState)
 		if err != nil {
@@ -115,18 +115,19 @@ func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error)
 
 		if !conditionValid {
 			isValid = false
+		} else { // synchronize the validity to the state tree
+			c.StateTree.Children[i].setValid()
+			c.StateTree.Children[i].Children[0].setValid()
 		}
 
-		// if !conditionValid {
-		// 	isValid = false
-		// } else { // synchronize the validity to the state tree
-		// 	c.StateTree.children[i].setValid()
-		// 	c.StateTree.children[i].children[0].setValid()
-		// }
+		c.StateTree.Children[i].setExecuted()
+		c.StateTree.Children[i].Children[0].setExecuted()
+	}
 
-		// c.StateTree.children[i].setExecuted()
-		// c.StateTree.children[i].children[0].setExecuted()
-
+	if isValid == false {
+		fmt.Println("📝📝📝 Contract Info.")
+		fmt.Println(c.ToStringBasic())
+		fmt.Println(PrintStateAST(c.GetCodeAST(), c.GetStateAST()))
 	}
 
 	return isValid, nil
@@ -135,7 +136,7 @@ func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error)
 func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action, error) {
 	var actions []parser.Action
 	// Here we loop all the if clause in the code AST tree
-	for _, ifclause := range c.CodeAST.IfClauses {
+	for i, ifclause := range c.CodeAST.IfClauses {
 		// we assume the contion in the if clause
 		// is the comparison between object and object, note object and value
 		condition := ifclause.Condition
@@ -143,31 +144,29 @@ func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action
 		if err != nil {
 			return []parser.Action{}, err
 		}
-		// ifclauseState := c.StateTree.children[i+len(c.CodeAST.Assumptions)]
-		// conditionState := ifclauseState.children[0]
+		ifclauseState := c.StateTree.Children[i+len(c.CodeAST.Assumptions)]
+		conditionState := ifclauseState.Children[0]
 
-		if conditionValid {
+		if !conditionValid {
+			ifclauseState.setExecuted()
+			conditionState.setExecuted()
+		} else {
+			ifclauseState.setExecuted()
+			ifclauseState.setValid()
+			conditionState.setExecuted()
+			conditionState.setValid()
+
+			for j := 1; j < len(ifclauseState.Children); j++ {
+				ifclauseState.Children[j].setExecuted()
+			}
 			for _, action := range ifclause.Actions {
 				actions = append(actions, *action)
 			}
 		}
 
-		// if !conditionValid {
-		// 	ifclauseState.setExecuted()
-		// 	conditionState.setExecuted()
-		// } else {
-		// 	ifclauseState.setExecuted()
-		// 	ifclauseState.setValid()
-		// 	conditionState.setExecuted()
-		// 	conditionState.setValid()
-
-		// 	for j := 1; j < len(ifclauseState.children); j++ {
-		// 		ifclauseState.children[j].setExecuted()
-		// 	}
-		// 	for _, action := range ifclause.Actions {
-		// 		actions = append(actions, *action)
-		// 	}
-		// }
+		fmt.Println("📝📝📝 Contract Info.")
+		fmt.Println(c.ToStringBasic())
+		fmt.Println(PrintStateAST(c.GetCodeAST(), c.GetStateAST()))
 	}
 
 	return actions, nil
@@ -205,18 +204,32 @@ func CompareNumber(leftVal int64, rightVal int64, operator string) (bool, error)
 	return false, xerrors.Errorf("comparator not supported on number: %v", operator)
 }
 
-// Contract.String() outputs the contract in pretty readable format
+// Contract.String() outputs the contract in readable format
 func (c Contract) ToString() string {
 	out := new(strings.Builder)
 
-	out.WriteString("=================================================================\n")
+	out.WriteString("================================================\n")
 	out.WriteString("| Contract: " + c.ContractName + "\n")
 	out.WriteString("| ID: " + c.ContractID + "\n")
 	out.WriteString("| Publisher: [" + c.Publisher + "] \n")
 	out.WriteString("| Finisher: [" + c.Finisher + "] \n")
 	out.WriteString("| Contract code: " + "\n")
 	out.WriteString(c.CodePlain + "\n")
-	out.WriteString("=================================================================\n")
+	out.WriteString("================================================\n")
+
+	return out.String()
+}
+
+// Contract.String() outputs the contract in readable format
+func (c Contract) ToStringBasic() string {
+	out := new(strings.Builder)
+
+	out.WriteString("================================================\n")
+	out.WriteString("| Contract: " + c.ContractName + "\n")
+	out.WriteString("| ID: " + c.ContractID + "\n")
+	out.WriteString("| Publisher: [" + c.Publisher + "] \n")
+	out.WriteString("| Finisher: [" + c.Finisher + "] \n")
+	out.WriteString("================================================\n")
 
 	return out.String()
 }

@@ -66,14 +66,14 @@ func Test_Contract_State_Tree(t *testing.T) {
 	require.NoError(t, err)
 
 	fmt.Println(contract.ToString())
-	fmt.Println(impl.GetStateAST(codeAST, stateAST))
-	fmt.Println(impl.GetCodeAST(codeAST))
+	fmt.Println(impl.PrintStateAST(codeAST, stateAST))
+	fmt.Println(impl.PrintCodeAST(codeAST))
 }
 
 func Test_Contract_Plain_Text(t *testing.T) {
 	plainContract := impl.BuildPlainContract("yuvubknluykgink", "finisherAddr", 3)
 	expected := `
-	ASSUME publisher.balance > 0
+	ASSUME smartAccount.balance > 0
 	IF finisher.crackedPwd.hash == "yuvubknluykgink" THEN
 		smartAccount.transfer("finisherAddr", 3)
 	`
@@ -81,7 +81,7 @@ func Test_Contract_Plain_Text(t *testing.T) {
 
 }
 
-func Test_Contract_Check_Assumption(t *testing.T) {
+func Test_Contract_Check_Assumption_True(t *testing.T) {
 
 	plainContract :=
 		`
@@ -104,7 +104,9 @@ func Test_Contract_Check_Assumption(t *testing.T) {
 	isValid, err := contract.CheckAssumptions(worldState)
 	require.NoError(t, err)
 	require.Equal(t, isValid, true)
+}
 
+func Test_Contract_Check_Assumption_False(t *testing.T) {
 	//----------------- second--------------------
 
 	plainContract2 :=

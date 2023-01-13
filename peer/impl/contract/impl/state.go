@@ -12,35 +12,35 @@ import (
 // Note that this project only consider Assumption, Condition, Ifclause, Action
 
 type StateNode struct {
-	nodeID           int
-	nodeType         string
-	hashValidGrammar bool // for Assumption, Condition, Ifclause
-	isExecuted       bool // for Action
-	children         []*StateNode
+	NodeID           int
+	NodeType         string
+	HashValidGrammar bool // for Assumption, Condition, Ifclause
+	IsExecuted       bool // for Action
+	Children         []*StateNode
 }
 
 func (s *StateNode) addChild(n *StateNode) {
-	s.children = append(s.children, n)
+	s.Children = append(s.Children, n)
 }
 
 func (s *StateNode) setExecuted() {
-	s.isExecuted = true
+	s.IsExecuted = true
 }
 
 func (s *StateNode) getExecuted() bool {
-	return s.isExecuted
+	return s.IsExecuted
 }
 
 func (s *StateNode) setValid() {
-	s.hashValidGrammar = true
+	s.HashValidGrammar = true
 }
 
 func (s *StateNode) getValid() bool {
-	return s.hashValidGrammar
+	return s.HashValidGrammar
 }
 
 func (s *StateNode) getNodeID() int {
-	return s.nodeID
+	return s.NodeID
 }
 
 // Construct corresponding state tree from the given code AST
@@ -84,34 +84,36 @@ func BuildStateTree(ast *parser.Code) *StateNode {
 }
 
 // show the execution state of AST
-func GetStateAST(ast parser.Code, stateAST *StateNode) string {
-	root := gotree.New("StateAST")
-	boolHelper := map[bool]string{true: "T", false: "F"}
+func PrintStateAST(ast parser.Code, stateAST *StateNode) string {
+	root := gotree.New("📝📝📝 Contract Execution State")
+	boolHelper := map[bool]string{true: "✅", false: "❎"}
 
 	assumeNode := root.Add("Assumption")
 
 	for i, a := range ast.Assumptions {
-		id := strconv.Itoa(stateAST.children[i].nodeID)
+		id := strconv.Itoa(stateAST.Children[i].NodeID)
 		c := a.Condition.ToString()
-		exeState := boolHelper[stateAST.children[i].isExecuted]
-		assumeNode.Add(id + ": " + c + " [" + exeState + "]")
+		exeState := boolHelper[stateAST.Children[i].IsExecuted]
+		validState := boolHelper[stateAST.Children[0].HashValidGrammar]
+		assumeNode.Add(id + ": " + c + " [Executed" + exeState + "]" + " [Valid" + validState + "]")
 	}
 
 	for i, ifclause := range ast.IfClauses {
 		ifNode := root.Add("If Clause")
-		ifStateNode := stateAST.children[len(ast.Assumptions)+i]
+		ifStateNode := stateAST.Children[len(ast.Assumptions)+i]
 
-		id := strconv.Itoa(ifStateNode.children[0].nodeID)
+		id := strconv.Itoa(ifStateNode.Children[0].NodeID)
 		c := ifclause.Condition.ToString()
-		exeState := boolHelper[ifStateNode.children[0].isExecuted]
-		ifNode.Add(id + ": " + c + " [" + exeState + "]")
+		exeState := boolHelper[ifStateNode.Children[0].IsExecuted]
+		validState := boolHelper[ifStateNode.Children[0].HashValidGrammar]
+		ifNode.Add(id + ": " + c + " [Executed" + exeState + "]" + " [Valid" + validState + "]")
 
 		for j, action := range ifclause.Actions {
-			id = strconv.Itoa(ifStateNode.children[j+1].nodeID)
+			id = strconv.Itoa(ifStateNode.Children[j+1].NodeID)
 			act := action.ToString()
-			exeState = boolHelper[ifStateNode.children[j+1].isExecuted]
+			exeState = boolHelper[ifStateNode.Children[j+1].IsExecuted]
 			ifNode.Add(
-				id + ": " + act + " [" + exeState + "]")
+				id + ": " + act + " [Executed" + exeState + "]")
 		}
 	}
 
@@ -119,7 +121,7 @@ func GetStateAST(ast parser.Code, stateAST *StateNode) string {
 }
 
 // DisplayAST displays the code AST, convenient for debug
-func GetCodeAST(ast parser.Code) string {
+func PrintCodeAST(ast parser.Code) string {
 	root := gotree.New("CodeAST")
 
 	assumptionNode := root.Add("Assumption")
