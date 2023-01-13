@@ -51,7 +51,7 @@ type PasswordCracker struct {
 }
 
 // SubmitRequest submits the password cracking request to another peer using DHT
-func (p *PasswordCracker) SubmitRequest(hashStr string, saltStr string) error {
+func (p *PasswordCracker) SubmitRequest(hashStr string, saltStr string, reward int) error {
 	hash, err := hex.DecodeString(hashStr)
 	if err != nil {
 		return err
@@ -71,6 +71,7 @@ func (p *PasswordCracker) SubmitRequest(hashStr string, saltStr string) error {
 	// TODO:
 	//  Blockchain & Broadcast transaction, and wait for the transaction gets committed
 	//  the transaction probably should include in the message sent to the receptor
+	//  Use the reward as input to the smart contract
 
 	// Prepare a password cracking request to the receptor
 	passwordCrackerReqMsg := types.PasswordCrackerRequestMessage{
@@ -113,8 +114,6 @@ func (p *PasswordCracker) ReceiveResult(hashStr string, saltStr string) string {
 	}
 	password := taskResult.(map[string]string)["password"]
 	p.tasks.Delete(taskKey)
-
-	// TODO: If the password is empty, we should reclaim our money back, using TXN
 
 	return password
 }
