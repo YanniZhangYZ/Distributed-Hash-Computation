@@ -235,8 +235,13 @@ func (m *Miner) IsBlockBuffered(nextID uint32) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	_, ok := m.blockBuffer[nextID]
-	return ok
+	for k, _ := range m.blockBuffer {
+		if k >= nextID {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
