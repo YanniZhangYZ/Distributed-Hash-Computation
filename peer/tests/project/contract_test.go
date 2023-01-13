@@ -33,9 +33,9 @@ func Test_Contract_Marshal(t *testing.T) {
 
 	buf, err := contract.Marshal()
 	require.NoError(t, err)
-
 	var unmarshalContract impl.Contract
 	err = impl.Unmarshal(buf, &unmarshalContract)
+	require.Equal(t, contract.ToString(), unmarshalContract.ToString())
 	require.NoError(t, err)
 
 }

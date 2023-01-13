@@ -152,10 +152,6 @@ func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldS
 		return err
 	}
 
-	fmt.Println("hello! Here's the plain contract")
-	contract.PrintPlainContract()
-	fmt.Println("hello! End of the plain contract")
-
 	// Check if the contract has enough balance to pay the execution
 	assumptionValid, err2 := contract.CheckAssumptions(worldState)
 	if err2 != nil {
@@ -170,6 +166,7 @@ func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldS
 	if err3 != nil {
 		return err3
 	}
+
 	if len(actions) != 1 || actions[0].Action != "transfer" || len(actions[0].Params) != 2 {
 		return fmt.Errorf("unable to execute such action, len(actions)=%d", len(actions))
 	}

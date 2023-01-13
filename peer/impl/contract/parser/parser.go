@@ -182,7 +182,7 @@ func (v Value) ToString() string {
 	if v.String != nil {
 		return *v.String
 	}
-	return fmt.Sprintf("%f", *v.Number)
+	return fmt.Sprintf("%d", *v.Number)
 }
 
 // toString for role's attribut

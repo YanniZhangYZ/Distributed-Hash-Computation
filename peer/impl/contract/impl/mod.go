@@ -24,46 +24,46 @@ const smartAccountText = "smartAccount"
 // implements contract.ContractCode, maintained in contract account
 type Contract struct {
 	contract.SmartContract
-	contractID   string
-	contractName string
-	codeAST      parser.Code
-	codePlain    string
-	stateTree    *StateNode
-	publisher    string
-	finisher     string
+	ContractID   string
+	ContractName string
+	CodeAST      parser.Code
+	CodePlain    string
+	StateTree    *StateNode
+	Publisher    string
+	Finisher     string
 }
 
 // Create & initialize a new Code instance
-func NewContract(contractID string,
-	contractName string,
-	plainCode string,
-	publisher string,
-	finisher string) contract.SmartContract {
+func NewContract(ContractID string,
+	ContractName string,
+	CodePlain string,
+	Publisher string,
+	Finisher string) contract.SmartContract {
 
-	codeAST, err := parser.BuildCodeAST(plainCode)
+	CodeAST, err := parser.BuildCodeAST(CodePlain)
 	if err != nil {
 		panic(err)
 	}
-	stateAST := BuildStateTree(&codeAST)
+	stateAST := BuildStateTree(&CodeAST)
 
 	return &Contract{
-		contractID:   contractID, // the address of the smart contract account in the blockchain network
-		contractName: contractName,
-		codeAST:      codeAST,
-		codePlain:    plainCode,
-		stateTree:    stateAST,
-		publisher:    publisher,
-		finisher:     finisher,
+		ContractID:   ContractID, // the address of the smart contract account in the blockchain network
+		ContractName: ContractName,
+		CodeAST:      CodeAST,
+		CodePlain:    CodePlain,
+		StateTree:    stateAST,
+		Publisher:    Publisher,
+		Finisher:     Finisher,
 	}
 }
 
 func (c *Contract) PrintPlainContract() {
-	fmt.Println(c.codePlain)
+	fmt.Println(c.CodePlain)
 }
 
 func BuildPlainContract(targetHash string, finisherAddr string, reward int64) string {
 	plain := fmt.Sprintf(`
-	ASSUME publisher.balance > 0
+	ASSUME smartAccount.balance > 0
 	IF finisher.crackedPwd.hash == "%s" THEN
 		smartAccount.transfer("%s", %d)
 	`, targetHash, finisherAddr, reward)
@@ -74,7 +74,8 @@ func BuildPlainContract(targetHash string, finisherAddr string, reward int64) st
 // This function marshals the Contract instance into a byte representation.
 // we need to use marshal and unmarshal to enable contract instance transition in packet
 func (c *Contract) Marshal() ([]byte, error) {
-	return json.Marshal(c)
+	tmp, err := json.Marshal(c)
+	return tmp, err
 }
 
 // Unmarshal unmarshals the data into the Contract instance.
@@ -84,41 +85,48 @@ func Unmarshal(data []byte, contract *Contract) error {
 
 // get the publisher of this contract
 func (c *Contract) GetPublisherAccount() string {
-	return c.publisher
+	return c.Publisher
 }
 
 // get the finisher of this contract
 func (c *Contract) GetFinisherAccount() string {
-	return c.finisher
+	return c.Finisher
 }
 
 // get the code AST
 func (c *Contract) GetCodeAST() parser.Code {
-	return c.codeAST
+	return c.CodeAST
 }
 
 // get the state tree
 func (c *Contract) GetStateAST() *StateNode {
-	return c.stateTree
+	return c.StateTree
 }
 
 func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error) {
 	isValid := true
-	for i, assumption := range c.codeAST.Assumptions {
+
+	for _, assumption := range c.CodeAST.Assumptions {
 		condition := assumption.Condition
 		conditionValid, err := c.CheckConditionOneAttribute(condition, worldState)
 		if err != nil {
 			return false, err
 		}
+
 		if !conditionValid {
 			isValid = false
-		} else { // synchronize the validity to the state tree
-			c.stateTree.children[i].setValid()
-			c.stateTree.children[i].children[0].setValid()
 		}
 
-		c.stateTree.children[i].setExecuted()
-		c.stateTree.children[i].children[0].setExecuted()
+		// if !conditionValid {
+		// 	isValid = false
+		// } else { // synchronize the validity to the state tree
+		// 	c.StateTree.children[i].setValid()
+		// 	c.StateTree.children[i].children[0].setValid()
+		// }
+
+		// c.StateTree.children[i].setExecuted()
+		// c.StateTree.children[i].children[0].setExecuted()
+
 	}
 
 	return isValid, nil
@@ -127,7 +135,7 @@ func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error)
 func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action, error) {
 	var actions []parser.Action
 	// Here we loop all the if clause in the code AST tree
-	for i, ifclause := range c.codeAST.IfClauses {
+	for _, ifclause := range c.CodeAST.IfClauses {
 		// we assume the contion in the if clause
 		// is the comparison between object and object, note object and value
 		condition := ifclause.Condition
@@ -135,25 +143,31 @@ func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action
 		if err != nil {
 			return []parser.Action{}, err
 		}
-		ifclauseState := c.stateTree.children[i+len(c.codeAST.Assumptions)]
-		conditionState := ifclauseState.children[0]
+		// ifclauseState := c.StateTree.children[i+len(c.CodeAST.Assumptions)]
+		// conditionState := ifclauseState.children[0]
 
-		if !conditionValid {
-			ifclauseState.setExecuted()
-			conditionState.setExecuted()
-		} else {
-			ifclauseState.setExecuted()
-			ifclauseState.setValid()
-			conditionState.setExecuted()
-			conditionState.setValid()
-
-			for j := 1; j < len(ifclauseState.children); j++ {
-				ifclauseState.children[j].setExecuted()
-			}
+		if conditionValid {
 			for _, action := range ifclause.Actions {
 				actions = append(actions, *action)
 			}
 		}
+
+		// if !conditionValid {
+		// 	ifclauseState.setExecuted()
+		// 	conditionState.setExecuted()
+		// } else {
+		// 	ifclauseState.setExecuted()
+		// 	ifclauseState.setValid()
+		// 	conditionState.setExecuted()
+		// 	conditionState.setValid()
+
+		// 	for j := 1; j < len(ifclauseState.children); j++ {
+		// 		ifclauseState.children[j].setExecuted()
+		// 	}
+		// 	for _, action := range ifclause.Actions {
+		// 		actions = append(actions, *action)
+		// 	}
+		// }
 	}
 
 	return actions, nil
@@ -196,12 +210,12 @@ func (c Contract) ToString() string {
 	out := new(strings.Builder)
 
 	out.WriteString("=================================================================\n")
-	out.WriteString("| Contract: " + c.contractName + "\n")
-	out.WriteString("| ID: " + c.contractID + "\n")
-	out.WriteString("| Publisher: [" + c.publisher + "] \n")
-	out.WriteString("| Finisher: [" + c.finisher + "] \n")
+	out.WriteString("| Contract: " + c.ContractName + "\n")
+	out.WriteString("| ID: " + c.ContractID + "\n")
+	out.WriteString("| Publisher: [" + c.Publisher + "] \n")
+	out.WriteString("| Finisher: [" + c.Finisher + "] \n")
 	out.WriteString("| Contract code: " + "\n")
-	out.WriteString(c.codePlain + "\n")
+	out.WriteString(c.CodePlain + "\n")
 	out.WriteString("=================================================================\n")
 
 	return out.String()
@@ -219,9 +233,9 @@ func (c *Contract) CheckConditionObjObj(condition parser.ConditionObjObj, worldS
 	//------------ check the first account and fields--------------------
 	var account1 string
 	if role1 == publisherText {
-		account1 = c.publisher
+		account1 = c.Publisher
 	} else if role1 == finisherText {
-		account1 = c.finisher
+		account1 = c.Finisher
 	}
 	state1, ok := (*worldState).Get(account1)
 	if !ok {
@@ -243,9 +257,9 @@ func (c *Contract) CheckConditionObjObj(condition parser.ConditionObjObj, worldS
 
 	var account2 string
 	if role2 == publisherText {
-		account2 = c.publisher
+		account2 = c.Publisher
 	} else if role2 == finisherText {
-		account2 = c.finisher
+		account2 = c.Finisher
 	}
 	state2, ok := (*worldState).Get(account2)
 	if !ok {
@@ -301,7 +315,7 @@ func (c *Contract) CheckConditionOneAttribute(condition parser.Condition, worldS
 	// evaluate and retrieve the compared value
 	var account string
 	if role == smartAccountText {
-		account = c.contractID
+		account = c.ContractID
 	} else {
 		return false, xerrors.Errorf("invalid grammar. Expecting [smartAccount], get: %v", role)
 	}
@@ -354,7 +368,7 @@ func (c *Contract) CheckConditionTwoAttribute(condition parser.Condition, worldS
 	// evaluate and retrieve the compared value
 	var account string
 	if role == finisherText {
-		account = c.finisher
+		account = c.Finisher
 	} else {
 		return false, xerrors.Errorf("invalid grammar. Expecting [finisher], get: %v", role)
 
@@ -425,7 +439,9 @@ func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, oper
 // This function firt search for the target hash in State.Tasks
 // It then retrive the cracked passward and salt, and recompute the hash
 func GetTaskHash(tasks map[string][2]string, targetHash string) (string, error) {
-
+	if len(tasks) == 0 {
+		fmt.Println("The task list is empty!!!!")
+	}
 	v, ok := tasks[targetHash]
 	if !ok {
 		return "", xerrors.Errorf("No such hash in the tasks.")

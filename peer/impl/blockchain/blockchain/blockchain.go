@@ -192,8 +192,6 @@ func (a *Blockchain) ProposeContract(hash string, salt string, reward int64, rec
 	// `, hash, reward)
 	plainContract := impl.BuildPlainContract(hash, recipient, reward)
 
-	fmt.Println(plainContract)
-
 	// Create a contract instance
 	a.numContract++
 	contractAddress := fmt.Sprintf("%s_%d", a.address.String(), a.numContract)
