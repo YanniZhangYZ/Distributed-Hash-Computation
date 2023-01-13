@@ -66,3 +66,18 @@ func saltValidator(ans interface{}) error {
 
 	return nil
 }
+
+func rewardValidator(ans interface{}) error {
+	rewardStr, _ := ans.(string)
+
+	reward, err := strconv.Atoi(rewardStr)
+	if err != nil {
+		return xerrors.Errorf("Please enter a valid Reward value in decimal, e.g., 15")
+	}
+
+	if reward <= 0 {
+		return xerrors.Errorf("Please enter a positive Reward value")
+	}
+
+	return nil
+}

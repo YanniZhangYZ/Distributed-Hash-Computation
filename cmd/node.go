@@ -149,7 +149,15 @@ func askHashSalt() (string, string) {
 
 func crackPassword(node peer.Peer) error {
 	hash, salt := askHashSalt()
-	return node.PasswordSubmitRequest(hash, salt, 0)
+	var reward int
+	err := survey.AskOne(
+		&survey.Input{Message: "Enter the reward you want to spend on this task: "},
+		&reward,
+		survey.WithValidator(rewardValidator))
+	if err != nil {
+		return xerrors.Errorf("failed to get the answer: %v", err)
+	}
+	return node.PasswordSubmitRequest(hash, salt, reward)
 }
 
 func receivePassword(node peer.Peer) error {
