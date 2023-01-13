@@ -18,6 +18,9 @@ func (p *PasswordCracker) execPasswordCrackerRequestMessage(msg types.Message, p
 
 	crackPasswordAndReply := func() {
 		password := p.crackPassword(passwordCrackerRequestMsg.Hash, passwordCrackerRequestMsg.Salt)
+
+		// TODO: Blockchain finisher TXN
+
 		passwordCrackerReplyMsg := types.PasswordCrackerReplyMessage{
 			Hash:     passwordCrackerRequestMsg.Hash,
 			Salt:     passwordCrackerRequestMsg.Salt,

@@ -114,7 +114,5 @@ func (p *PasswordCracker) ReceiveResult(hashStr string, saltStr string) string {
 	password := taskResult.(map[string]string)["password"]
 	p.tasks.Delete(taskKey)
 
-	// TODO: If the password is empty, we should reclaim our money back, using TXN
-
 	return password
 }
