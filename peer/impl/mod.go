@@ -213,8 +213,8 @@ func (n *node) GetChain() *block.Chain {
 }
 
 // PasswordSubmitRequest implements peer.PasswordCracker
-func (n *node) PasswordSubmitRequest(hashStr string, saltStr string) error {
-	return n.passwordCracker.SubmitRequest(hashStr, saltStr)
+func (n *node) PasswordSubmitRequest(hashStr string, saltStr string, reward int) error {
+	return n.passwordCracker.SubmitRequest(hashStr, saltStr, reward)
 }
 
 // PasswordReceiveResult implements peer.PasswordCracker

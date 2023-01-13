@@ -149,7 +149,7 @@ func askHashSalt() (string, string) {
 
 func crackPassword(node peer.Peer) error {
 	hash, salt := askHashSalt()
-	return node.PasswordSubmitRequest(hash, salt)
+	return node.PasswordSubmitRequest(hash, salt, 0)
 }
 
 func receivePassword(node peer.Peer) error {
