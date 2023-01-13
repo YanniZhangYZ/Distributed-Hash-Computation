@@ -85,7 +85,7 @@ func BuildStateTree(ast *parser.Code) *StateNode {
 
 // show the execution state of AST
 func GetStateAST(ast parser.Code, stateAST *StateNode) string {
-	root := gotree.New("State")
+	root := gotree.New("StateAST")
 	boolHelper := map[bool]string{true: "T", false: "F"}
 
 	assumeNode := root.Add("Assumption")
@@ -115,5 +115,24 @@ func GetStateAST(ast parser.Code, stateAST *StateNode) string {
 		}
 	}
 
+	return root.Print()
+}
+
+// DisplayAST displays the code AST, convenient for debug
+func GetCodeAST(ast parser.Code) string {
+	root := gotree.New("CodeAST")
+
+	assumptionNode := root.Add("Assumption")
+	for _, a := range ast.Assumptions {
+		assumptionNode.Add(a.Condition.ToString())
+	}
+
+	for _, ifClause := range ast.IfClauses {
+		ifNode := root.Add("If Clause")
+		ifNode.Add(ifClause.Condition.ToString())
+		for _, action := range ifClause.Actions {
+			ifNode.Add(action.ToString())
+		}
+	}
 	return root.Print()
 }

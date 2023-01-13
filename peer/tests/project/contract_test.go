@@ -46,8 +46,8 @@ func Test_Contract_State_Tree(t *testing.T) {
 
 	plainContract :=
 		`
-		ASSUME publisher.budget > 0
-		IF finisher.key98.hash == "yuvubknluykgink" THEN
+		ASSUME publisher.balance > 0
+		IF finisher.crackedPwd.hash == "yuvubknluykgink" THEN
 			smartAccount.transfer("finisher_ID", 46.967)
 	`
 
@@ -62,10 +62,12 @@ func Test_Contract_State_Tree(t *testing.T) {
 
 	codeAST, err := parser.BuildCodeAST(plainContract)
 	stateAST := impl.BuildStateTree(&codeAST)
+
 	require.NoError(t, err)
 
 	fmt.Println(contract.ToString())
 	fmt.Println(impl.GetStateAST(codeAST, stateAST))
+	fmt.Println(impl.GetCodeAST(codeAST))
 }
 
 func Test_Contract_Check_Assumption(t *testing.T) {

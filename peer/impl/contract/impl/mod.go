@@ -278,7 +278,7 @@ func (c *Contract) CheckConditionObjObj(condition parser.ConditionObjObj, worldS
 // This check is used in Assumption
 // for comparison between left is a variable and right is a value
 // here only publisher is involved
-// e.g. publisher.balance > 0
+// e.g. smartAccount.balance > 0
 func (c *Contract) CheckConditionOneAttribute(condition parser.Condition, worldState *common.WorldState) (bool, error) {
 	role := condition.Object.Role
 	fields := condition.Object.Fields
@@ -287,10 +287,10 @@ func (c *Contract) CheckConditionOneAttribute(condition parser.Condition, worldS
 
 	// evaluate and retrieve the compared value
 	var account string
-	if role == publisherText {
-		account = c.publisher
+	if role == smartAccountText {
+		account = c.contractID
 	} else {
-		return false, xerrors.Errorf("invalid grammar. Expecting [publisher], get: %v", role)
+		return false, xerrors.Errorf("invalid grammar. Expecting [smartAccount], get: %v", role)
 	}
 
 	// we assume the fields restricted to balance / storage key
