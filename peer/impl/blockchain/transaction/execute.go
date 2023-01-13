@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"go.dedis.ch/cs438/peer/impl/contract/impl"
+	"strings"
 )
 
 // VerifyAndExecuteTransaction verify and execute a transaction on a given world state
@@ -128,6 +129,20 @@ func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldS
 	if !ok {
 		return fmt.Errorf("contract account address invalid")
 	}
+
+	// Update the finisher's state
+	finisherState, ok := worldState.Get(tx.TX.Src.String())
+	if !ok {
+		return fmt.Errorf("invalid finisher address")
+	}
+
+	// Parse the data to get password, hash, salt
+	data := strings.Split(tx.TX.Data, ",")
+	if len(data) != 3 {
+		return fmt.Errorf("invalid data of a ContractExecutionTx, data : %s", tx.TX.Data)
+	}
+	finisherState.Tasks[data[1]] = [2]string{data[0], data[2]}
+	worldState.Set(tx.TX.Src.String(), finisherState)
 
 	// Retrieve the smart contract instance from the world state
 	var contract impl.Contract
