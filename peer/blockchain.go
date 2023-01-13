@@ -17,12 +17,12 @@ type IBlockchain interface {
 	// a new smart contract to the blockchain to verify the outcome from the recipient.
 	// Reward is debited from the job proposer's balance in advance and will be transferred to the job recipient
 	// upon successful completion of the job.
-	ProposeContract(hash string, salt string, reward int64, recipient string) error
+	ProposeContract(hash string, salt string, reward int64, recipient string, timeout time.Duration) error
 
 	// ExecuteContract execute a password-cracking contract whose address is contractAddr by providing
 	// the cracked password.
 	// Reward for this contract will be issued to the executor is the password is verified by the contract.
-	ExecuteContract(password string, contractAddr string) error
+	ExecuteContract(password string, hash string, salt string, contractAddr string, timeout time.Duration) error
 
 	// GetAccountAddress returns the account address of the peer.
 	// This address is different from the network socket address.

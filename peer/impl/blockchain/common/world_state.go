@@ -54,7 +54,7 @@ func (m *WorldState) Copy() *WorldState {
 
 	cp := NewWorldState()
 	for k, v := range m.m {
-		cp.Set(k, v)
+		cp.Set(k, v.Copy())
 	}
 
 	return &cp
@@ -93,7 +93,7 @@ func (m *WorldState) GetSimpleMap() map[string]State {
 	m2 := make(map[string]State)
 
 	for k, v := range m.m {
-		m2[k] = v
+		m2[k] = v.Copy()
 	}
 	return m2
 }
@@ -137,6 +137,7 @@ func QuickWorldState(accounts int, balance int64) *WorldState {
 		worldState.Set(fmt.Sprintf("%d", i+1), State{
 			Nonce:       0,
 			Balance:     balance,
+			Contract:    make([]byte, 0),
 			CodeHash:    "",
 			StorageRoot: "",
 			Tasks:       make(map[string][2]string),

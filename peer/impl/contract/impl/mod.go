@@ -47,7 +47,7 @@ func NewContract(contractID string,
 	stateAST := BuildStateTree(&codeAST)
 
 	return &Contract{
-		contractID:   contractID,
+		contractID:   contractID, // the address of the smart contract account in the blockchain network
 		contractName: contractName,
 		codeAST:      codeAST,
 		codePlain:    plainCode,
@@ -412,6 +412,10 @@ func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, oper
 // This function firt search for the target hash in State.Tasks
 // It then retrive the cracked passward and salt, and recompute the hash
 func GetTaskHash(tasks map[string][2]string, targetHash string) (string, error) {
+
+	// v, ok := tasks[targetHash]
+	// if ok // !ok
+
 	crackedPwd := ""
 	salt := ""
 	for k, v := range tasks {

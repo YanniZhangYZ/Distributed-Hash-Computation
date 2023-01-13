@@ -655,3 +655,116 @@ func Test_Blockchain_Join(t *testing.T) {
 	require.NoError(t, node2.GetChain().ValidateChain())
 	require.NoError(t, node3.GetChain().ValidateChain())
 }
+
+// Test_Blockchain_Deploy_Contract tests if a node could publish a smart contract to the blockchain
+// A new contract account should be added to the world state and the publisher should pay the deposit
+func Test_Blockchain_Deploy_Contract(t *testing.T) {
+	transp := channelFac()
+
+	worldState := common.QuickWorldState(2, 10)
+
+	newNode := func(address string) z.TestNode {
+		return z.NewTestNode(t, peerFac, transp, "127.0.0.1:0",
+			z.WithBlockchainAccountAddress(address),
+			z.WithBlockchainInitialState(worldState.GetSimpleMap()),
+			z.WithBlockchainBlockTimeout(time.Second*3),
+			z.WithBlockchainDifficulty(3),
+			z.WithBlockchainBlockSize(2),
+			z.WithHeartbeat(time.Second*1),
+			z.WithAntiEntropy(time.Second*1))
+	}
+
+	node1 := newNode("1")
+	node2 := newNode("2")
+
+	defer node1.Stop()
+	defer node2.Stop()
+
+	node1.AddPeer(node2.GetAddr())
+	node2.AddPeer(node1.GetAddr())
+
+	time.Sleep(time.Millisecond * 10)
+
+	err := node1.ProposeContract("abcdefg", "xxxx", 3, "2", time.Second*600)
+	require.NoError(t, err)
+
+	// Print the blockchain of each miner
+	fmt.Fprint(os.Stdout, node1.GetChain().PrintChain())
+	fmt.Fprint(os.Stdout, node2.GetChain().PrintChain())
+
+	// There should be one transaction, two blocks, and three accounts in the blockchain
+	require.Equal(t, node1.GetChain().GetTransactionCount(), 1)
+	require.Equal(t, node2.GetChain().GetTransactionCount(), 1)
+	require.Equal(t, node1.GetChain().GetBlockCount(), 2)
+	require.Equal(t, node2.GetChain().GetBlockCount(), 2)
+	require.Equal(t, node1.GetChain().GetLastBlock().State.Len(), 3)
+	require.Equal(t, node2.GetChain().GetLastBlock().State.Len(), 3)
+	require.Equal(t, node1.GetChain().GetLastBlock().BlockHash, node2.GetChain().GetLastBlock().BlockHash)
+
+	// Node1 should first pay the deposit to the contract account
+	// Check the balance
+	require.EqualValues(t, node1.GetBalance(), 7)
+	require.EqualValues(t, node2.GetBalance(), 10)
+
+	contractState, _ := node1.GetChain().GetLastBlock().State.Get("1_1")
+	require.EqualValues(t, contractState.Balance, 3)
+
+}
+
+// Test_Blockchain_Execute_Contract tests if a node could execute a smart contract and earn its reward
+func Test_Blockchain_Execute_Contract(t *testing.T) {
+	transp := channelFac()
+
+	worldState := common.QuickWorldState(2, 10)
+
+	newNode := func(address string) z.TestNode {
+		return z.NewTestNode(t, peerFac, transp, "127.0.0.1:0",
+			z.WithBlockchainAccountAddress(address),
+			z.WithBlockchainInitialState(worldState.GetSimpleMap()),
+			z.WithBlockchainBlockTimeout(time.Second*3),
+			z.WithBlockchainDifficulty(2),
+			z.WithBlockchainBlockSize(2),
+			z.WithHeartbeat(time.Second*1),
+			z.WithAntiEntropy(time.Second*1))
+	}
+
+	node1 := newNode("1")
+	node2 := newNode("2")
+
+	defer node1.Stop()
+	defer node2.Stop()
+
+	node1.AddPeer(node2.GetAddr())
+	node2.AddPeer(node1.GetAddr())
+
+	time.Sleep(time.Millisecond * 10)
+
+	// Node1 publishes the contract
+	err := node1.ProposeContract("c612f289f5324c73d96a20ca14cf834e95a359a2b28101401e1bd7daa3bac4e2",
+		"002e", 3, "2", time.Second*600)
+	require.NoError(t, err)
+
+	// Node2 executes the contract
+	err = node2.ExecuteContract("banana",
+		"c612f289f5324c73d96a20ca14cf834e95a359a2b28101401e1bd7daa3bac4e2", "002e", "1_1", time.Second*600)
+	require.NoError(t, err)
+
+	// Print the blockchain of each miner
+	fmt.Fprint(os.Stdout, node1.GetChain().PrintChain())
+	fmt.Fprint(os.Stdout, node2.GetChain().PrintChain())
+
+	// There should be two transactions, two/three blocks, and three accounts in the blockchain
+	require.Equal(t, node1.GetChain().GetTransactionCount(), 2)
+	require.Equal(t, node2.GetChain().GetTransactionCount(), 2)
+	require.Equal(t, node1.GetChain().GetBlockCount(), node2.GetChain().GetBlockCount())
+	require.Equal(t, node1.GetChain().GetLastBlock().State.Len(), 3)
+	require.Equal(t, node2.GetChain().GetLastBlock().State.Len(), 3)
+	require.Equal(t, node1.GetChain().GetLastBlock().BlockHash, node2.GetChain().GetLastBlock().BlockHash)
+
+	// The contract account should transfer node1's deposit to node2
+	// Check the balance
+	require.EqualValues(t, node1.GetBalance(), 7)
+	require.EqualValues(t, node2.GetBalance(), 13)
+	contractState, _ := node1.GetChain().GetLastBlock().State.Get("1_1")
+	require.EqualValues(t, contractState.Balance, 0)
+}

@@ -121,7 +121,7 @@ func (m *Miner) HasTransaction(tx *transaction.SignedTransaction) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return m.chain.HasTransaction(tx)
+	return m.chain.HasTransactionHash(tx.HashCode())
 }
 
 func (m *Miner) GetWorldState() common.WorldState {

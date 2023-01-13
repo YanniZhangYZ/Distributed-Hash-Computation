@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
+	"go.dedis.ch/cs438/peer/impl/contract"
 	"time"
 )
 
@@ -52,9 +53,9 @@ type Transaction struct {
 	// For CONTRACT_EXECUTION_TX, Data field is interpreted by the smart contract code as the execution argument
 	Data string
 
-	// Code is the smart contract code
+	// Contract is the smart contract code
 	// Only used for CONTRACT_DEPLOYMENT_TX
-	Code string
+	Contract []byte
 
 	// Signature from the sender
 	// This is generated when the sender's private key signs the transaction and confirms the sender has authorized this transaction
@@ -84,14 +85,29 @@ func NewTransferTX(src common.Address, dst common.Address, amount int64, nonce i
 	}
 }
 
-func NewContractDeploymentTX( /* TODO */ ) Transaction {
-	//TODO implement me
-	panic("implement me")
+func NewContractDeploymentTX(src common.Address, contractAddr common.Address, reward int64, contract contract.SmartContract, nonce int) Transaction {
+	contractBytes, _ := contract.Marshal()
+	return Transaction{
+		Type:      CONTRACT_DEPLOYMENT_TX,
+		Src:       src,
+		Dst:       contractAddr,
+		Value:     reward,
+		Timestamp: uint64(time.Now().UnixMicro()),
+		Nonce:     nonce,
+		Contract:  contractBytes,
+	}
 }
 
-func NewContractExecutionTX( /* TODO */ ) Transaction {
-	//TODO implement me
-	panic("implement me")
+func NewContractExecutionTX(src common.Address, contractAddr common.Address, password string, hash string, salt string, nonce int) Transaction {
+	return Transaction{
+		Type:      CONTRACT_EXECUTION_TX,
+		Src:       src,
+		Dst:       contractAddr,
+		Value:     0,
+		Timestamp: uint64(time.Now().UnixMicro()),
+		Nonce:     nonce,
+		Data:      fmt.Sprintf("%s,%s,%s", password, hash, salt),
+	}
 }
 
 func (tx *SignedTransaction) String() string {
@@ -102,7 +118,7 @@ func (tx *SignedTransaction) String() string {
 	str += fmt.Sprintf("Nonce:%d, ", tx.TX.Nonce)
 	str += fmt.Sprintf("Value:%d, ", tx.TX.Value)
 	str += fmt.Sprintf("Data:%s, ", tx.TX.Data)
-	str += fmt.Sprintf("Code:%s, ", tx.TX.Code)
+	str += fmt.Sprintf("Contract:%s, ", string(tx.TX.Contract))
 	str += fmt.Sprintf("Signature:%s, ", tx.TX.Signature)
 	str += fmt.Sprintf("Timestamp:%d, ", tx.TX.Timestamp)
 	str += fmt.Sprintf("Comment:%s, ", tx.TX.Comment)
