@@ -70,7 +70,7 @@ func Test_Contract_State_Tree(t *testing.T) {
 	fmt.Println(impl.PrintCodeAST(codeAST))
 }
 
-func Test_Contract_Plain_Text(t *testing.T) {
+func Test_Contract_Build_Plain_Text(t *testing.T) {
 	plainContract := impl.BuildPlainContract("yuvubknluykgink", "finisherAddr", 3)
 	expected := `
 	ASSUME smartAccount.balance > 0
@@ -78,7 +78,6 @@ func Test_Contract_Plain_Text(t *testing.T) {
 		smartAccount.transfer("finisherAddr", 3)
 	`
 	require.Equal(t, plainContract, expected)
-
 }
 
 func Test_Contract_Check_Assumption_True(t *testing.T) {
@@ -133,7 +132,7 @@ func Test_Contract_Check_Assumption_False(t *testing.T) {
 
 }
 
-func Test_Contract_Check_Assumption_Error(t *testing.T) {
+func Test_Contract_Check_Assumption_Wrong_Role(t *testing.T) {
 
 	plainContract :=
 		`
@@ -155,8 +154,9 @@ func Test_Contract_Check_Assumption_Error(t *testing.T) {
 	_, err := contract.CheckAssumptions(worldState)
 	expectErr := xerrors.Errorf("invalid grammar. Expecting [smartAccount], get: finisher")
 	require.EqualError(t, err, expectErr.Error())
+}
 
-	//----------------- second--------------------
+func Test_Contract_Check_Assumption_Wrong_Number_Attribute(t *testing.T) {
 
 	plainContract2 :=
 		`
@@ -179,8 +179,9 @@ func Test_Contract_Check_Assumption_Error(t *testing.T) {
 	_, err2 := contract2.CheckAssumptions(worldState2)
 	expectErr2 := xerrors.Errorf("Condition field unknown. Can only have one attribute")
 	require.EqualError(t, err2, expectErr2.Error())
+}
 
-	//----------------- third--------------------
+func Test_Contract_Check_Assumption_No_Such_Account(t *testing.T) {
 
 	plainContract3 :=
 		`
@@ -203,8 +204,9 @@ func Test_Contract_Check_Assumption_Error(t *testing.T) {
 	_, err3 := contract3.CheckAssumptions(worldState3)
 	expectErr3 := xerrors.Errorf("account doesn't exists or account state is corrupted")
 	require.EqualError(t, err3, expectErr3.Error())
+}
 
-	//-----------------  4th -------------------
+func Test_Contract_Check_Assumption_Wrong_Attribute(t *testing.T) {
 
 	plainContract4 :=
 		`
@@ -228,8 +230,9 @@ func Test_Contract_Check_Assumption_Error(t *testing.T) {
 	expectErr4 := xerrors.Errorf("invalid grammar. Expecting [balance], get: budget")
 	require.EqualError(t, err4, expectErr4.Error())
 
-	//-----------------  5th -------------------
+}
 
+func Test_Contract_Check_Assumption_Left_Right_Type_Inconsistent(t *testing.T) {
 	plainContract5 :=
 		`
 			ASSUME smartAccount.balance > "cbuasinfo"
@@ -302,10 +305,36 @@ func Test_Contract_Get_Task_Hash(t *testing.T) {
 	targetHash3, _ := impl.GetTaskHash(tasks, hash3)
 	require.Equal(t, targetHash3, hash3)
 
+}
+
+func Test_Contract_Get_Task_Hash_Error(t *testing.T) {
+	hash1 := "484f9573380d13c3042d3601b2001b611d02f4ecc88af2235ec3180de7bd962c"
+	pwd1 := "Password"
+	salt1 := "0000"
+
+	hash2 := "6ad18f940ffbd30454e3c2ecf6178c6492deb33cd2fa142dad3b411762a57860"
+	pwd2 := "apple"
+	salt2 := "003c"
+
+	hash3 := "c612f289f5324c73d96a20ca14cf834e95a359a2b28101401e1bd7daa3bac4e2"
+	pwd3 := "banana"
+	salt3 := "002e"
+
+	tasks := map[string][2]string{
+		hash1: {pwd1, salt1},
+		hash2: {pwd2, salt2},
+		hash3: {pwd3, salt3},
+	}
+
 	hashNotExisit := "c612f289f5324c73d96a20ca14cf834e95a359a2b28101401e1bd7daa3bac4e9"
-	_, err3 := impl.GetTaskHash(tasks, hashNotExisit)
-	expectErr3 := xerrors.Errorf("No such hash in the tasks.")
-	require.EqualError(t, err3, expectErr3.Error())
+	_, err := impl.GetTaskHash(tasks, hashNotExisit)
+	expectErr := xerrors.Errorf("No such hash in the tasks.")
+	require.EqualError(t, err, expectErr.Error())
+
+	taskEmpty := make(map[string][2]string)
+	_, err2 := impl.GetTaskHash(taskEmpty, hash2)
+	expectErr2 := xerrors.Errorf("Task list is empty. No such hash.")
+	require.EqualError(t, err2, expectErr2.Error())
 
 }
 

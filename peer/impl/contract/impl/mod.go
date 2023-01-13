@@ -211,7 +211,7 @@ func CompareTwoString(leftVal string, rightVal string, operator string) (bool, e
 	case "!=":
 		return (leftVal != rightVal), nil
 	}
-	return false, xerrors.Errorf("comparator not supported on string: %v", operator)
+	return false, xerrors.Errorf("operator not supported on string: %v", operator)
 }
 
 // This function compares two values given the operator
@@ -230,7 +230,7 @@ func CompareTwoNumber(leftVal int64, rightVal int64, operator string) (bool, err
 	case "!=":
 		return (leftVal != rightVal), nil
 	}
-	return false, xerrors.Errorf("comparator not supported on number: %v", operator)
+	return false, xerrors.Errorf("operator not supported on number: %v", operator)
 }
 
 // Contract.String() outputs the info of contract including plain contract code
@@ -494,7 +494,7 @@ func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, oper
 // The return value is then used for password carcking correctness verification
 func GetTaskHash(tasks map[string][2]string, targetHash string) (string, error) {
 	if len(tasks) == 0 {
-		fmt.Println("The task list is empty!!!!")
+		return "", xerrors.Errorf("Task list is empty. No such hash.")
 	}
 	v, ok := tasks[targetHash]
 	if !ok {

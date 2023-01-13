@@ -1,55 +1,60 @@
 package project
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/stretchr/testify/require"
 	"go.dedis.ch/cs438/peer/impl/contract/parser"
+	"golang.org/x/xerrors"
 )
 
-func GetParser(grammar interface{}) *participle.Parser {
-	return participle.MustBuild(grammar,
+// Test parsing Value of String type
+func Test_Parse_Value_String(t *testing.T) {
+	str1 := `"Qiyuan Liang"`
+	str2 := `"Yanni Zhang"`
+	str3 := `"Qiyuan Dong"`
+	testStr := []string{str1, str2, str3}
+	expectedStr := []string{`Qiyuan Liang`, `Yanni Zhang`, `Qiyuan Dong`}
+	var parsedStr []string
+
+	var ValParser = participle.MustBuild(&parser.Value{},
 		participle.Lexer(parser.ContractLexer),
 		participle.Unquote("String"),
 	)
-}
 
-// Test parsing Value of String type
-func Test_Parser_Value_String(t *testing.T) {
-	testString := []string{`"Qiyuan Liang"`, `"Yanni Zhang"`, `"Qiyuan Dong"`}
-	expectedStrings := []string{`Qiyuan Liang`, `Yanni Zhang`, `Qiyuan Dong`}
-	var parsedStrings []string
-
-	var ValParser = GetParser(&parser.Value{})
-	for _, s := range testString {
+	for _, s := range testStr {
 		valAST := &parser.Value{}
 		err := ValParser.ParseString("", s, valAST)
 		require.NoError(t, err)
-		parsedStrings = append(parsedStrings, *valAST.String)
+		parsedStr = append(parsedStr, *valAST.String)
 	}
-	require.Equal(t, expectedStrings, parsedStrings)
+	require.Equal(t, expectedStr, parsedStr)
 
 }
 
-// Test parsing Value of Float type
-func Test_Parser_Value_Float(t *testing.T) {
-	testFloats := []string{"0", "666", "1234", "1"}
-	expectedFloats := []int64{0, 666, 1234, 1}
-	var parsedFloats []int64
+// Test parsing Value of Int type
+func Test_Parse_Value_Int64(t *testing.T) {
+	test := []string{"0", "666", "1234", "1"}
+	expected := []int64{0, 666, 1234, 1}
+	var parsed []int64
 
-	var ValParser = GetParser(&parser.Value{})
-	for _, s := range testFloats {
+	var ValParser = participle.MustBuild(&parser.Value{},
+		participle.Lexer(parser.ContractLexer),
+		participle.Unquote("String"),
+	)
+	for _, s := range test {
 		valAST := &parser.Value{}
 		err := ValParser.ParseString("", s, valAST)
 		require.NoError(t, err)
-		parsedFloats = append(parsedFloats, *valAST.Number)
+		parsed = append(parsed, *valAST.Number)
 	}
-	require.Equal(t, expectedFloats, parsedFloats)
+	require.Equal(t, expected, parsed)
 }
 
 // Test parsing Object
-func Test_Parser_Object(t *testing.T) {
+func Test_Parse_Object(t *testing.T) {
 
 	objPlain := []string{
 		`publisher.budget`,
@@ -79,7 +84,10 @@ func Test_Parser_Object(t *testing.T) {
 		},
 	}
 
-	var ObjectParser = GetParser(&parser.Object{})
+	var ObjectParser = participle.MustBuild(&parser.Object{},
+		participle.Lexer(parser.ContractLexer),
+		participle.Unquote("String"),
+	)
 
 	for _, obj := range objPlain {
 		objAST := &parser.Object{}
@@ -91,7 +99,34 @@ func Test_Parser_Object(t *testing.T) {
 
 }
 
-func Test_Parser_Object_Multi_Attribute(t *testing.T) {
+func Test_Parse_Object_Error(t *testing.T) {
+
+	objPlain := []string{
+		`a.budget`,
+		`b.key35`,
+		`c.attribute`,
+	}
+	var parsedObjs []*parser.Object
+
+	var ObjectParser = participle.MustBuild(&parser.Object{},
+		participle.Lexer(parser.ContractLexer),
+		participle.Unquote("String"),
+	)
+
+	unexpectedToken := []string{`"a"`, `"b"`, `"c"`}
+	for i, obj := range objPlain {
+		objAST := &parser.Object{}
+		err := ObjectParser.ParseString("", obj, objAST)
+
+		expectedErrMsg := fmt.Sprintf(`1:1: unexpected token %s`, unexpectedToken[i])
+		expectedErr := xerrors.Errorf(expectedErrMsg)
+		require.EqualError(t, err, expectedErr.Error())
+		parsedObjs = append(parsedObjs, objAST)
+	}
+
+}
+
+func Test_Parse_Object_Multi_Attribute(t *testing.T) {
 
 	objPlain := []string{
 		`publisher.budget.blah`,
@@ -125,7 +160,10 @@ func Test_Parser_Object_Multi_Attribute(t *testing.T) {
 		},
 	}
 
-	var ObjectParser = GetParser(&parser.Object{})
+	var ObjectParser = participle.MustBuild(&parser.Object{},
+		participle.Lexer(parser.ContractLexer),
+		participle.Unquote("String"),
+	)
 
 	for _, obj := range objPlain {
 		objAST := &parser.Object{}
@@ -138,15 +176,17 @@ func Test_Parser_Object_Multi_Attribute(t *testing.T) {
 }
 
 // Test parsing Condition
-func Test_Parser_Condition(t *testing.T) {
+func Test_Parse_Condition(t *testing.T) {
 	conditionStrings := []string{
 		`publisher.budget > 3`,
 		`finisher.key24.verified > 0`,
 		`smartAccount.attribute.attribute == "yeah"`,
+		`smartAccount.a.b.c.d != "hahaha"`,
 	}
 	expectedValue1 := int64(3)
 	expectedValue2 := int64(0)
 	expectedValue3 := "yeah"
+	expectedValue4 := "hahaha"
 
 	var parsedConditions []*parser.Condition
 
@@ -192,9 +232,28 @@ func Test_Parser_Condition(t *testing.T) {
 				Number: nil,
 			},
 		},
+		{
+			Object: parser.Object{
+				Role: "smartAccount",
+				Fields: []*parser.Field{
+					{Name: "a"},
+					{Name: "b"},
+					{Name: "c"},
+					{Name: "d"},
+				},
+			},
+			Operator: "!=",
+			Value: parser.Value{
+				String: &expectedValue4,
+				Number: nil,
+			},
+		},
 	}
 
-	var ConditionParser = GetParser(&parser.Condition{})
+	var ConditionParser = participle.MustBuild(&parser.Condition{},
+		participle.Lexer(parser.ContractLexer),
+		participle.Unquote("String"),
+	)
 
 	for _, c := range conditionStrings {
 		condAST := &parser.Condition{}
@@ -208,7 +267,7 @@ func Test_Parser_Condition(t *testing.T) {
 
 // Test parsing ConditionObjObj
 // this is the comparison between obj and obj
-func Test_Parser_ConditionObjObj(t *testing.T) {
+func Test_Parse_ConditionObjObj(t *testing.T) {
 
 	conditionStrings := []string{
 		`publisher.budget > publisher.account`,
@@ -269,7 +328,10 @@ func Test_Parser_ConditionObjObj(t *testing.T) {
 		},
 	}
 
-	var ConditionParser = GetParser(&parser.ConditionObjObj{})
+	var ConditionParser = participle.MustBuild(&parser.ConditionObjObj{},
+		participle.Lexer(parser.ContractLexer),
+		participle.Unquote("String"),
+	)
 
 	for _, c := range conditionStrings {
 		condAST := &parser.ConditionObjObj{}
@@ -281,52 +343,8 @@ func Test_Parser_ConditionObjObj(t *testing.T) {
 
 }
 
-// Test parsing Action with multiple attribute
-func Test_Parser_Action(t *testing.T) {
-	actionStrings := []string{
-		`smartAccount.transfer("finisher_ID", 46)`,
-		`smartAccount.transfer("finisher_ID", "crackedKey")`,
-	}
-	expectedValue11 := "finisher_ID"
-	expectedValue12 := int64(46)
-	expectedValue21 := "finisher_ID"
-	expectedValue22 := "crackedKey"
-
-	var parsedActions []*parser.Action
-
-	expectedActions := []*parser.Action{
-		{
-			Role:   "smartAccount",
-			Action: "transfer",
-			Params: []*parser.Value{
-				{String: &expectedValue11, Number: nil},
-				{String: nil, Number: &expectedValue12},
-			},
-		},
-		{
-			Role:   "smartAccount",
-			Action: "transfer",
-			Params: []*parser.Value{
-				{String: &expectedValue21, Number: nil},
-				{String: &expectedValue22, Number: nil},
-			},
-		},
-	}
-
-	var ActionParser = GetParser(&parser.Action{})
-
-	for _, s := range actionStrings {
-		actionAST := &parser.Action{}
-		err := ActionParser.ParseString("", s, actionAST)
-		require.NoError(t, err)
-		parsedActions = append(parsedActions, actionAST)
-	}
-	require.Equal(t, expectedActions, parsedActions)
-
-}
-
 // test contract code that has one assumption
-func Test_Parser_Assumption(t *testing.T) {
+func Test_Parse_Assumption(t *testing.T) {
 	assumeStrings := []string{
 		`ASSUME publisher.budget > 49`,
 		`ASSUME publisher.attribute.attribute == "yeah"`,
@@ -388,7 +406,10 @@ func Test_Parser_Assumption(t *testing.T) {
 		},
 	}
 
-	var AssumeParser = GetParser(&parser.Assumption{})
+	var AssumeParser = participle.MustBuild(&parser.Assumption{},
+		participle.Lexer(parser.ContractLexer),
+		participle.Unquote("String"),
+	)
 	for _, s := range assumeStrings {
 		assumeAST := &parser.Assumption{}
 		err := AssumeParser.ParseString("", s, assumeAST)
@@ -399,8 +420,23 @@ func Test_Parser_Assumption(t *testing.T) {
 
 }
 
+func Test_Parse_Assumption_Error(t *testing.T) {
+	// should use ASSUME
+	assumeString := `ASSUMPTION publisher.budget > 49`
+	var AssumeParser = participle.MustBuild(&parser.Assumption{},
+		participle.Lexer(parser.ContractLexer),
+		participle.Unquote("String"),
+	)
+	assumeAST := &parser.Assumption{}
+	err := AssumeParser.ParseString("", assumeString, assumeAST)
+	expectedErrMsg := fmt.Sprintf(`1:1: unexpected token "ASSUMPTION"`)
+	expectedErr := xerrors.Errorf(expectedErrMsg)
+	require.EqualError(t, err, expectedErr.Error())
+
+}
+
 // test id clause
-func Test_Parser_Ifclause(t *testing.T) {
+func Test_Parse_Ifclause(t *testing.T) {
 	ifStrings := []string{
 		`IF finisher.key67.hash == "inowrogionjde" THEN
 			smartAccount.transfer("finisher_ID", 46)
@@ -430,14 +466,6 @@ func Test_Parser_Ifclause(t *testing.T) {
 				},
 			},
 			Actions: []*parser.Action{
-				// {
-				// 	Role:   "finisher",
-				// 	Action: "submit",
-				// 	Params: []*parser.Value{
-				// 		{String: &expectedValue2, Number: nil},
-				// 		{String: &expectedValue3, Number: nil},
-				// 	},
-				// },
 				{
 					Role:   "smartAccount",
 					Action: "transfer",
@@ -450,7 +478,10 @@ func Test_Parser_Ifclause(t *testing.T) {
 		},
 	}
 
-	var IfParser = GetParser(&parser.IfClause{})
+	var IfParser = participle.MustBuild(&parser.IfClause{},
+		participle.Lexer(parser.ContractLexer),
+		participle.Unquote("String"),
+	)
 
 	for _, s := range ifStrings {
 		ifAST := &parser.IfClause{}
@@ -462,16 +493,96 @@ func Test_Parser_Ifclause(t *testing.T) {
 
 }
 
+func Test_Parse_Ifclause_Error(t *testing.T) {
+	// lack THEN
+	ifString := `IF finisher.key67.hash == "inowrogionjde"
+			smartAccount.transfer("finisher_ID", 46)
+		`
+	var IfParser = participle.MustBuild(&parser.IfClause{},
+		participle.Lexer(parser.ContractLexer),
+		participle.Unquote("String"),
+	)
+	ifAST := &parser.IfClause{}
+	err := IfParser.ParseString("", ifString, ifAST)
+	expectedErrMsg := fmt.Sprintf(`2:4: unexpected token "smartAccount" (expected ("THEN" Action+))`)
+	expectedErr := xerrors.Errorf(expectedErrMsg)
+	require.EqualError(t, err, expectedErr.Error())
+
+}
+
+// Test parsing Action with multiple attribute
+func Test_Parse_Action(t *testing.T) {
+	actionStrings := []string{
+		`smartAccount.transfer("finisher_ID", 46)`,
+		`smartAccount.transfer("finisher_ID", "crackedKey")`,
+	}
+	expectedValue11 := "finisher_ID"
+	expectedValue12 := int64(46)
+	expectedValue21 := "finisher_ID"
+	expectedValue22 := "crackedKey"
+
+	var parsedActions []*parser.Action
+
+	expectedActions := []*parser.Action{
+		{
+			Role:   "smartAccount",
+			Action: "transfer",
+			Params: []*parser.Value{
+				{String: &expectedValue11, Number: nil},
+				{String: nil, Number: &expectedValue12},
+			},
+		},
+		{
+			Role:   "smartAccount",
+			Action: "transfer",
+			Params: []*parser.Value{
+				{String: &expectedValue21, Number: nil},
+				{String: &expectedValue22, Number: nil},
+			},
+		},
+	}
+
+	var ActionParser = participle.MustBuild(&parser.Action{},
+		participle.Lexer(parser.ContractLexer),
+		participle.Unquote("String"),
+	)
+
+	for _, s := range actionStrings {
+		actionAST := &parser.Action{}
+		err := ActionParser.ParseString("", s, actionAST)
+		require.NoError(t, err)
+		parsedActions = append(parsedActions, actionAST)
+	}
+	require.Equal(t, expectedActions, parsedActions)
+
+}
+
+func Test_Parse_Action_Error(t *testing.T) {
+	actionStrings := []string{
+		`smartAccount.abc("finisher_ID", 46)`,
+		`smartAccount.def("finisher_ID", "crackedKey")`,
+	}
+
+	var parsedActions []*parser.Action
+
+	var ActionParser = participle.MustBuild(&parser.Action{},
+		participle.Lexer(parser.ContractLexer),
+		participle.Unquote("String"),
+	)
+
+	unexpectedToken := []string{`"abc"`, `"def"`}
+	for i, s := range actionStrings {
+		actionAST := &parser.Action{}
+		err := ActionParser.ParseString("", s, actionAST)
+		expectedErrMsg := fmt.Sprintf(`1:14: unexpected token %s (expected "transfer")`, unexpectedToken[i])
+		expectedErr := xerrors.Errorf(expectedErrMsg)
+		require.EqualError(t, err, expectedErr.Error())
+		parsedActions = append(parsedActions, actionAST)
+	}
+}
+
 // test the functionality of parsing entire contract
-func Test_Parser_Contract(t *testing.T) {
-	// codeStrings := []string{
-	// 	`
-	// 	ASSUME publisher.budget > 0
-	// 	IF finisher.key98.hash == finisher.hash98 THEN
-	// 		finisher.submit("publisher_ID", "crackedKey")
-	// 		publisher.transfer("finisher_ID", 46.967)
-	// 	`,
-	// }
+func Test_Parse_Contract(t *testing.T) {
 	codeStrings := []string{
 		`
 		ASSUME publisher.budget > 0
@@ -523,14 +634,6 @@ func Test_Parser_Contract(t *testing.T) {
 						},
 					},
 					Actions: []*parser.Action{
-						// {
-						// 	Role:   "finisher",
-						// 	Action: "submit",
-						// 	Params: []*parser.Value{
-						// 		{String: &expectedValue3, Number: nil},
-						// 		{String: &expectedValue4, Number: nil},
-						// 	},
-						// },
 						{
 							Role:   "smartAccount",
 							Action: "transfer",
