@@ -4,6 +4,10 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"os"
+	"sync"
+	"time"
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"go.dedis.ch/cs438/peer"
@@ -16,9 +20,6 @@ import (
 	"go.dedis.ch/cs438/peer/impl/message"
 	"go.dedis.ch/cs438/storage"
 	"go.dedis.ch/cs438/types"
-	"os"
-	"sync"
-	"time"
 )
 
 type Blockchain struct {
@@ -183,12 +184,15 @@ func (a *Blockchain) TransferMoney(dst common.Address, amount int64, timeout tim
 }
 
 func (a *Blockchain) ProposeContract(hash string, salt string, reward int64, recipient string, timeout time.Duration) error {
-	plainContract := fmt.Sprintf(
-		`
-		ASSUME publisher.balance > 5
-		IF finisher.crackedPwd.hash == "%s" THEN
-		smartAccount.transfer("finisher_ID", %d)
-	`, hash, reward)
+	// plainContract := fmt.Sprintf(
+	// 	`
+	// 	ASSUME publisher.balance > 5
+	// 	IF finisher.crackedPwd.hash == "%s" THEN
+	// 	smartAccount.transfer("finisher_ID", %d)
+	// `, hash, reward)
+	plainContract := impl.BuildPlainContract(hash, recipient, reward)
+
+	fmt.Println(plainContract)
 
 	// Create a contract instance
 	a.numContract++

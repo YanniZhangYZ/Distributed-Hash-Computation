@@ -34,9 +34,9 @@ func Test_Parser_Value_String(t *testing.T) {
 
 // Test parsing Value of Float type
 func Test_Parser_Value_Float(t *testing.T) {
-	testFloats := []string{"0", "666", "1234", "1.125"}
-	expectedFloats := []float64{0, 666, 1234, 1.125}
-	var parsedFloats []float64
+	testFloats := []string{"0", "666", "1234", "1"}
+	expectedFloats := []int64{0, 666, 1234, 1}
+	var parsedFloats []int64
 
 	var ValParser = GetParser(&parser.Value{})
 	for _, s := range testFloats {
@@ -140,12 +140,12 @@ func Test_Parser_Object_Multi_Attribute(t *testing.T) {
 // Test parsing Condition
 func Test_Parser_Condition(t *testing.T) {
 	conditionStrings := []string{
-		`publisher.budget > 3.246`,
+		`publisher.budget > 3`,
 		`finisher.key24.verified > 0`,
 		`smartAccount.attribute.attribute == "yeah"`,
 	}
-	expectedValue1 := float64(3.246)
-	expectedValue2 := float64(0)
+	expectedValue1 := int64(3)
+	expectedValue2 := int64(0)
 	expectedValue3 := "yeah"
 
 	var parsedConditions []*parser.Condition
@@ -284,11 +284,11 @@ func Test_Parser_ConditionObjObj(t *testing.T) {
 // Test parsing Action with multiple attribute
 func Test_Parser_Action(t *testing.T) {
 	actionStrings := []string{
-		`smartAccount.transfer("finisher_ID", 46.967)`,
+		`smartAccount.transfer("finisher_ID", 46)`,
 		`smartAccount.transfer("finisher_ID", "crackedKey")`,
 	}
 	expectedValue11 := "finisher_ID"
-	expectedValue12 := float64(46.967)
+	expectedValue12 := int64(46)
 	expectedValue21 := "finisher_ID"
 	expectedValue22 := "crackedKey"
 
@@ -328,11 +328,11 @@ func Test_Parser_Action(t *testing.T) {
 // test contract code that has one assumption
 func Test_Parser_Assumption(t *testing.T) {
 	assumeStrings := []string{
-		`ASSUME publisher.budget > 49.597`,
+		`ASSUME publisher.budget > 49`,
 		`ASSUME publisher.attribute.attribute == "yeah"`,
 		`ASSUME smartAccount.attribute.attribute != "hahaha"`,
 	}
-	expectedValue1 := float64(49.597)
+	expectedValue1 := int64(49)
 	expectedValue2 := "yeah"
 	expectedValue3 := "hahaha"
 
@@ -403,13 +403,13 @@ func Test_Parser_Assumption(t *testing.T) {
 func Test_Parser_Ifclause(t *testing.T) {
 	ifStrings := []string{
 		`IF finisher.key67.hash == "inowrogionjde" THEN
-			smartAccount.transfer("finisher_ID", 46.967)
+			smartAccount.transfer("finisher_ID", 46)
 		`,
 	}
 	// expectedValue2 := "publisher_ID"
 	expectedValue3 := "inowrogionjde"
 	expectedValue4 := "finisher_ID"
-	expectedValue5 := float64(46.967)
+	expectedValue5 := int64(46)
 
 	var parsedIf []*parser.IfClause
 
@@ -476,15 +476,15 @@ func Test_Parser_Contract(t *testing.T) {
 		`
 		ASSUME publisher.budget > 0
 		IF finisher.key98.hash == "inowrogionjde" THEN
-			smartAccount.transfer("finisher_ID", 46.967)
+			smartAccount.transfer("finisher_ID", 46)
 		`,
 	}
-	expectedValue1 := float64(0)
-	// expectedValue2 := float64(0)
+	expectedValue1 := int64(0)
+	// expectedValue2 := int64(0)
 	// expectedValue3 := "publisher_ID"
 	expectedValue4 := "inowrogionjde"
 	expectedValue5 := "finisher_ID"
-	expectedValue6 := float64(46.967)
+	expectedValue6 := int64(46)
 	var parsedCode []*parser.Code
 
 	expectedCode := []*parser.Code{

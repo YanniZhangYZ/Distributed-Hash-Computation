@@ -2,9 +2,10 @@ package transaction
 
 import (
 	"fmt"
+	"strings"
+
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"go.dedis.ch/cs438/peer/impl/contract/impl"
-	"strings"
 )
 
 // VerifyAndExecuteTransaction verify and execute a transaction on a given world state
@@ -150,6 +151,10 @@ func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldS
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("hello! Here's the plain contract")
+	contract.PrintPlainContract()
+	fmt.Println("hello! End of the plain contract")
 
 	// Check if the contract has enough balance to pay the execution
 	assumptionValid, err2 := contract.CheckAssumptions(worldState)

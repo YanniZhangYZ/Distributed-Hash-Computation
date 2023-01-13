@@ -57,6 +57,20 @@ func NewContract(contractID string,
 	}
 }
 
+func (c *Contract) PrintPlainContract() {
+	fmt.Println(c.codePlain)
+}
+
+func BuildPlainContract(targetHash string, finisherAddr string, reward int64) string {
+	plain := fmt.Sprintf(`
+	ASSUME publisher.balance > 0
+	IF finisher.crackedPwd.hash == "%s" THEN
+		smartAccount.transfer("%s", %d)
+	`, targetHash, finisherAddr, reward)
+
+	return plain
+}
+
 // This function marshals the Contract instance into a byte representation.
 // we need to use marshal and unmarshal to enable contract instance transition in packet
 func (c *Contract) Marshal() ([]byte, error) {
@@ -112,7 +126,6 @@ func (c *Contract) CheckAssumptions(worldState *common.WorldState) (bool, error)
 
 func (c *Contract) GatherActions(worldState *common.WorldState) ([]parser.Action, error) {
 	var actions []parser.Action
-
 	// Here we loop all the if clause in the code AST tree
 	for i, ifclause := range c.codeAST.IfClauses {
 		// we assume the contion in the if clause
@@ -160,7 +173,7 @@ func CompareString(leftVal string, rightVal string, operator string) (bool, erro
 }
 
 // This function compares two values
-func CompareNumber(leftVal float64, rightVal float64, operator string) (bool, error) {
+func CompareNumber(leftVal int64, rightVal int64, operator string) (bool, error) {
 	switch operator {
 	case ">":
 		return (leftVal > rightVal), nil
@@ -307,7 +320,7 @@ func (c *Contract) CheckConditionOneAttribute(condition parser.Condition, worldS
 	}
 
 	if attribute == "balance" {
-		leftVal = float64(state.Balance)
+		leftVal = int64(state.Balance)
 	} else {
 		return false, xerrors.Errorf("invalid grammar. Expecting [balance], get: %v", attribute)
 	}
@@ -395,9 +408,9 @@ func (c *Contract) CheckLeftRightType(left interface{}, right interface{}) bool 
 
 // This function compares the value of left and right data
 func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, operator string) (bool, error) {
-	if reflect.TypeOf(left).String() == "float64" {
-		var leftNum = left.(float64)
-		var rightNum = right.(float64)
+	if reflect.TypeOf(left).String() == "int64" {
+		var leftNum = left.(int64)
+		var rightNum = right.(int64)
 		return CompareNumber(leftNum, rightNum, operator)
 
 	} else if reflect.TypeOf(left).String() == "string" {
@@ -413,23 +426,12 @@ func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, oper
 // It then retrive the cracked passward and salt, and recompute the hash
 func GetTaskHash(tasks map[string][2]string, targetHash string) (string, error) {
 
-	// v, ok := tasks[targetHash]
-	// if ok // !ok
-
-	crackedPwd := ""
-	salt := ""
-	for k, v := range tasks {
-		if k == targetHash {
-			crackedPwd = v[0]
-			salt = v[1]
-
-			break
-		}
-	}
-	if crackedPwd == "" {
+	v, ok := tasks[targetHash]
+	if !ok {
 		return "", xerrors.Errorf("No such hash in the tasks.")
 	}
-
+	crackedPwd := v[0]
+	salt := v[1]
 	saltBytes, _ := hex.DecodeString(salt)
 	hashStr := HashCrackedPassword(crackedPwd, saltBytes)
 	return hashStr, nil

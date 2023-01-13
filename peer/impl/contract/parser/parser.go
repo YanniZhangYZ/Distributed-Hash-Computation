@@ -43,7 +43,7 @@ import (
 
 var ContractLexer = lexer.MustSimple([]lexer.Rule{
 	{Name: `Keyword`, Pattern: `(?i)\b(ASSUME|IF|THEN)\b`, Action: nil}, // not case sensitive
-	{Name: `Float`, Pattern: `\d+(?:\.\d+)?`, Action: nil},
+	{Name: `Int64`, Pattern: `\d+(?:\.\d+)?`, Action: nil},
 	{Name: `String`, Pattern: `"(.*?)"`, Action: nil},           // quoted string tokens
 	{Name: `Operator`, Pattern: `==|!=|>=|<=|>|<`, Action: nil}, // only comparison operator
 	{Name: `Ident`, Pattern: `[a-zA-Z][a-zA-Z0-9_]*`, Action: nil},
@@ -89,8 +89,8 @@ type ConditionObjObj struct {
 // a value can be either a string or a float.
 // The current smart contract only support these two types.
 type Value struct {
-	String *string  `@String`
-	Number *float64 `| @Float`
+	String *string `@String`
+	Number *int64  `| @Int64`
 }
 
 // the object is consist of a role and fields

@@ -19,7 +19,7 @@ func Test_Contract_Marshal(t *testing.T) {
 		`
 		ASSUME publisher.budget > 0
 		IF finisher.key98.hash == "vtiubiijk" THEN
-			smartAccount.transfer("finisher_ID", 46.967)
+			smartAccount.transfer("finisher_ID", 46)
 	`
 
 	// create a contract instance
@@ -48,7 +48,7 @@ func Test_Contract_State_Tree(t *testing.T) {
 		`
 		ASSUME publisher.balance > 0
 		IF finisher.crackedPwd.hash == "yuvubknluykgink" THEN
-			smartAccount.transfer("finisher_ID", 46.967)
+			smartAccount.transfer("finisher_ID", 46)
 	`
 
 	// create a contract instance
@@ -70,21 +70,32 @@ func Test_Contract_State_Tree(t *testing.T) {
 	fmt.Println(impl.GetCodeAST(codeAST))
 }
 
+func Test_Contract_Plain_Text(t *testing.T) {
+	plainContract := impl.BuildPlainContract("yuvubknluykgink", "finisherAddr", 3)
+	expected := `
+	ASSUME publisher.balance > 0
+	IF finisher.crackedPwd.hash == "yuvubknluykgink" THEN
+		smartAccount.transfer("finisherAddr", 3)
+	`
+	require.Equal(t, plainContract, expected)
+
+}
+
 func Test_Contract_Check_Assumption(t *testing.T) {
 
 	plainContract :=
 		`
-		ASSUME publisher.balance > 5
+		ASSUME smartAccount.balance > 5
 		IF finisher.key98.hash == "yuvubknluykgink" THEN
-		smartAccount.transfer("finisher_ID", 46.967)
+		smartAccount.transfer("finisher_ID", 46)
 	`
 
 	// create a contract instance
 	contract := impl.NewContract(
-		"100ixwscds",         // ID
+		"1",                  // smartAccount Addr
 		"crack pwd contract", // name
 		plainContract,        // plain_code
-		"1",                  // publisher
+		"1cqnopfop",          // publisher
 		"f1",                 // finisher
 	)
 
@@ -98,17 +109,17 @@ func Test_Contract_Check_Assumption(t *testing.T) {
 
 	plainContract2 :=
 		`
-		ASSUME publisher.balance > 25
+		ASSUME smartAccount.balance > 25
 		IF finisher.key98.hash == "yuvubknluykgink" THEN
-		smartAccount.transfer("finisher_ID", 46.967)
+		smartAccount.transfer("finisher_ID", 46)
 	`
 
 	// create a contract instance
 	contract2 := impl.NewContract(
-		"100ixwscds",         // ID
+		"3",                  // ID
 		"crack pwd contract", // name
 		plainContract2,       // plain_code
-		"3",                  // publisher
+		"100ixwscds",         // publisher
 		"f1",                 // finisher
 	)
 
@@ -126,7 +137,7 @@ func Test_Contract_Check_Assumption_Error(t *testing.T) {
 		`
 		ASSUME finisher.budget > 5
 		IF finisher.key98.hash == "yuvubknluykgink" THEN
-		smartAccount.transfer("finisher_ID", 46.967)
+		smartAccount.transfer("finisher_ID", 46)
 	`
 	// create a contract instance
 	contract := impl.NewContract(
@@ -140,16 +151,16 @@ func Test_Contract_Check_Assumption_Error(t *testing.T) {
 	worldState := common.QuickWorldState(5, 20)
 
 	_, err := contract.CheckAssumptions(worldState)
-	expectErr := xerrors.Errorf("invalid grammar. Expecting [publisher], get: finisher")
+	expectErr := xerrors.Errorf("invalid grammar. Expecting [smartAccount], get: finisher")
 	require.EqualError(t, err, expectErr.Error())
 
 	//----------------- second--------------------
 
 	plainContract2 :=
 		`
-		ASSUME publisher.attribute.attribute > 25
+		ASSUME smartAccount.attribute.attribute > 25
 		IF finisher.key98.hash == "yuvubknluykgink" THEN
-		smartAccount.transfer("finisher_ID", 46.967)
+		smartAccount.transfer("finisher_ID", 46)
 	`
 
 	// create a contract instance
@@ -171,9 +182,9 @@ func Test_Contract_Check_Assumption_Error(t *testing.T) {
 
 	plainContract3 :=
 		`
-		ASSUME publisher.balance > 25
+		ASSUME smartAccount.balance > 25
 		IF finisher.key98.hash == "yuvubknluykgink" THEN
-		smartAccount.transfer("finisher_ID", 46.967)
+		smartAccount.transfer("finisher_ID", 46)
 	`
 
 	// create a contract instance
@@ -195,17 +206,17 @@ func Test_Contract_Check_Assumption_Error(t *testing.T) {
 
 	plainContract4 :=
 		`
-			ASSUME publisher.budget > 25
+			ASSUME smartAccount.budget > 25
 			IF finisher.key98.hash == "yuvubknluykgink" THEN
-			smartAccount.transfer("finisher_ID", 46.967)
+			smartAccount.transfer("finisher_ID", 46)
 		`
 
 	// create a contract instance
 	contract4 := impl.NewContract(
-		"100ixwscds",         // ID
+		"3",                  // ID
 		"crack pwd contract", // name
 		plainContract4,       // plain_code
-		"3",                  // publisher
+		"100ixwscds",         // publisher
 		"f1",                 // finisher
 	)
 
@@ -219,17 +230,17 @@ func Test_Contract_Check_Assumption_Error(t *testing.T) {
 
 	plainContract5 :=
 		`
-			ASSUME publisher.balance > "cbuasinfo"
+			ASSUME smartAccount.balance > "cbuasinfo"
 			IF finisher.key98.hash == "yuvubknluykgink" THEN
-			smartAccount.transfer("finisher_ID", 46.967)
+			smartAccount.transfer("finisher_ID", 46)
 		`
 
 	// create a contract instance
 	contract5 := impl.NewContract(
-		"100ixwscds",         // ID
+		"3",                  // ID
 		"crack pwd contract", // name
 		plainContract5,       // plain_code
-		"3",                  // publisher
+		"100ixwscds",         // publisher
 		"f1",                 // finisher
 	)
 
@@ -296,13 +307,13 @@ func Test_Contract_Get_Task_Hash(t *testing.T) {
 
 }
 
-func Test_Contract_Gather_Action(t *testing.T) {
+func Test_Contract_Gather_Action_True(t *testing.T) {
 
 	plainContract :=
 		`
 		ASSUME publisher.balance > 5
 		IF finisher.crackedPwd.hash == "6ad18f940ffbd30454e3c2ecf6178c6492deb33cd2fa142dad3b411762a57860" THEN
-		smartAccount.transfer("finisher_ID", 46.967)
+		smartAccount.transfer("finisher_ID", 46)
 	`
 
 	// create a contract instance
@@ -345,7 +356,7 @@ func Test_Contract_Gather_Action(t *testing.T) {
 	actions, err := contract.GatherActions(worldState)
 	require.NoError(t, err)
 	expected1 := "finisher_ID"
-	expected2 := 46.967
+	expected2 := int64(46)
 	expectedActions := []parser.Action{
 		{
 			Role:   "smartAccount",
@@ -394,7 +405,7 @@ func Test_Contract_Gather_Action_Error(t *testing.T) {
 		`
 		ASSUME publisher.balance > 5
 		IF publisher.crackedPwd.hash == "6ad18f940ffbd30454e3c2ecf6178c6492deb33cd2fa142dad3b411762a57860" THEN
-		smartAccount.transfer("finisher_ID", 46.967)
+		smartAccount.transfer("finisher_ID", 46)
 	`
 
 	// create a contract instance
@@ -414,8 +425,8 @@ func Test_Contract_Gather_Action_Error(t *testing.T) {
 	plainContract =
 		`
 		ASSUME publisher.balance > 5
-		IF finisher.crackedPwd.hash == 36.78 THEN
-		smartAccount.transfer("finisher_ID", 46.967)
+		IF finisher.crackedPwd.hash == 36 THEN
+		smartAccount.transfer("finisher_ID", 46)
 	`
 
 	// create a contract instance
@@ -436,7 +447,7 @@ func Test_Contract_Gather_Action_Error(t *testing.T) {
 		`
 		ASSUME publisher.balance > 5
 		IF finisher.crackedPwd.hash.blah == "6ad18f940ffbd30454e3c2ecf6178c6492deb33cd2fa142dad3b411762a57860" THEN
-		smartAccount.transfer("finisher_ID", 46.967)
+		smartAccount.transfer("finisher_ID", 46)
 	`
 
 	// create a contract instance
@@ -457,7 +468,7 @@ func Test_Contract_Gather_Action_Error(t *testing.T) {
 		`
 		ASSUME publisher.balance > 5
 		IF finisher.crackedPwd.hash == "6ad18f940ffbd30454e3c2ecf6178c6492deb33cd2fa142dad3b411762a57860" THEN
-		smartAccount.transfer("finisher_ID", 46.967)
+		smartAccount.transfer("finisher_ID", 46)
 	`
 
 	// create a contract instance
@@ -478,7 +489,7 @@ func Test_Contract_Gather_Action_Error(t *testing.T) {
 		`
 		ASSUME publisher.balance > 5
 		IF finisher.abc.abc == "6ad18f940ffbd30454e3c2ecf6178c6492deb33cd2fa142dad3b411762a57860" THEN
-		smartAccount.transfer("finisher_ID", 46.967)
+		smartAccount.transfer("finisher_ID", 46)
 	`
 
 	// create a contract instance
