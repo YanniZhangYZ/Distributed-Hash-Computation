@@ -1,5 +1,7 @@
 package types
 
+import "go.dedis.ch/cs438/peer/impl/blockchain/common"
+
 // PasswordCrackerRequestMessage request a peer to crack the specified hash + salt
 //
 // - implements types.Message
@@ -10,7 +12,8 @@ type PasswordCrackerRequestMessage struct {
 	// Salt is the salt to compute the hash
 	Salt []byte
 
-	// TODO: probably send the TXN together with the request
+	// ContractAddress is the smart contract account address corresponding to this request
+	ContractAddress common.Address
 }
 
 // PasswordCrackerReplyMessage replies with the answer to the password cracking request

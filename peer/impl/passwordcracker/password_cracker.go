@@ -6,12 +6,16 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"go.dedis.ch/cs438/peer"
+	"go.dedis.ch/cs438/peer/impl/blockchain/blockchain"
+	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"go.dedis.ch/cs438/peer/impl/chord"
 	"go.dedis.ch/cs438/peer/impl/message"
 	"go.dedis.ch/cs438/types"
 	"golang.org/x/xerrors"
 	"math/big"
+	"strings"
 	"sync"
+	"time"
 )
 
 // defaultDict is the default dictionary used for the dictionary attack, it can be replaced by reading a word
@@ -19,15 +23,16 @@ import (
 var defaultDict = [...]string{
 	"apple", "ball", "cat", "doll", "egg"}
 
-func NewPasswordCracker(conf *peer.Configuration, message *message.Message, chord *chord.Chord) *PasswordCracker {
+func NewPasswordCracker(conf *peer.Configuration, message *message.Message, chord *chord.Chord, blockchain *blockchain.Blockchain) *PasswordCracker {
 	var tasks sync.Map
 	passwordCracker := PasswordCracker{
-		address:  conf.Socket.GetAddress(),
-		conf:     conf,
-		message:  message,
-		chord:    chord,
-		hashAlgo: conf.PasswordHashAlgorithm,
-		tasks:    &tasks,
+		address:    conf.Socket.GetAddress(),
+		conf:       conf,
+		message:    message,
+		chord:      chord,
+		blockchain: blockchain,
+		hashAlgo:   conf.PasswordHashAlgorithm,
+		tasks:      &tasks,
 	}
 
 	/* Password Cracker callbacks */
@@ -42,16 +47,17 @@ func NewPasswordCracker(conf *peer.Configuration, message *message.Message, chor
 
 type PasswordCracker struct {
 	address     string
-	conf        *peer.Configuration // The configuration contains Socket and MessageRegistry
-	message     *message.Message    // Messaging used to communicate among nodes
-	chord       *chord.Chord        // chord used for find the correct receptor
-	hashAlgo    crypto.Hash         // The algorithm that is used to compute from the password to hash
-	tasks       *sync.Map           // The tasks that this node have published
-	dictUpdLock sync.Mutex          // The dictionary update lock
+	conf        *peer.Configuration    // The configuration contains Socket and MessageRegistry
+	message     *message.Message       // Messaging used to communicate among nodes
+	chord       *chord.Chord           // chord used for find the correct receptor
+	blockchain  *blockchain.Blockchain // Blockchain used for submit request and execute contract
+	hashAlgo    crypto.Hash            // The algorithm that is used to compute from the password to hash
+	tasks       *sync.Map              // The tasks that this node have published
+	dictUpdLock sync.Mutex             // The dictionary update lock
 }
 
 // SubmitRequest submits the password cracking request to another peer using DHT
-func (p *PasswordCracker) SubmitRequest(hashStr string, saltStr string, reward int) error {
+func (p *PasswordCracker) SubmitRequest(hashStr string, saltStr string, reward int, timeout time.Duration) error {
 	hash, err := hex.DecodeString(hashStr)
 	if err != nil {
 		return err
@@ -68,15 +74,19 @@ func (p *PasswordCracker) SubmitRequest(hashStr string, saltStr string, reward i
 		return err
 	}
 
-	// TODO:
-	//  Blockchain & Broadcast transaction, and wait for the transaction gets committed
-	//  the transaction probably should include in the message sent to the receptor
-	//  Use the reward as input to the smart contract
+	// Propose a password-cracking smart contract to the blockchain
+	// It blocks until the ContractDeployTx has been confirmed
+	receptorBlockchainAddr := strings.Split(receptor, ":")[1]
+	contractAddr, err := p.blockchain.ProposeContract(hashStr, saltStr, int64(reward), receptorBlockchainAddr, timeout)
+	if err != nil {
+		return err
+	}
 
 	// Prepare a password cracking request to the receptor
 	passwordCrackerReqMsg := types.PasswordCrackerRequestMessage{
-		Hash: hash,
-		Salt: salt,
+		Hash:            hash,
+		Salt:            salt,
+		ContractAddress: common.StringToAddress(contractAddr),
 	}
 	passwordCrackerReqMsgTrans, err := p.conf.MessageRegistry.MarshalMessage(passwordCrackerReqMsg)
 	if err != nil {

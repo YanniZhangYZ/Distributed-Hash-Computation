@@ -6,6 +6,7 @@ import (
 	"go.dedis.ch/cs438/transport"
 	"go.dedis.ch/cs438/types"
 	"golang.org/x/xerrors"
+	"time"
 )
 
 // execPasswordCrackerRequestMessage is the callback function to handle PasswordCrackerRequestMessage
@@ -17,9 +18,15 @@ func (p *PasswordCracker) execPasswordCrackerRequestMessage(msg types.Message, p
 	}
 
 	crackPasswordAndReply := func() {
+
 		password := p.crackPassword(passwordCrackerRequestMsg.Hash, passwordCrackerRequestMsg.Salt)
 
-		// TODO: Blockchain finisher TXN
+		// Execute the smart contract to earn the reward
+		_ = p.blockchain.ExecuteContract(password,
+			hex.EncodeToString(passwordCrackerRequestMsg.Hash),
+			hex.EncodeToString(passwordCrackerRequestMsg.Salt),
+			passwordCrackerRequestMsg.ContractAddress.String(),
+			time.Second*600)
 
 		passwordCrackerReplyMsg := types.PasswordCrackerReplyMessage{
 			Hash:     passwordCrackerRequestMsg.Hash,

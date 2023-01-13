@@ -219,7 +219,7 @@ func (a *Blockchain) TransferMoney(dst common.Address, amount int64, timeout tim
 	return nil
 }
 
-func (a *Blockchain) ProposeContract(hash string, salt string, reward int64, recipient string, timeout time.Duration) error {
+func (a *Blockchain) ProposeContract(hash string, salt string, reward int64, recipient string, timeout time.Duration) (string, error) {
 	// plainContract := fmt.Sprintf(
 	// 	`
 	// 	ASSUME publisher.balance > 5
@@ -245,22 +245,22 @@ func (a *Blockchain) ProposeContract(hash string, salt string, reward int64, rec
 	// Sign the transaction
 	signedTx, err := rawTx.Sign(a.privateKey)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Broadcast the transaction to the network
 	err = a.broadcastTransaction(&signedTx)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Wait for the transaction to be included in a block
 	err = a.checkTransaction(&signedTx, timeout)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return contractAddress, nil
 }
 
 func (a *Blockchain) ExecuteContract(password string, hash string, salt string, contractAddr string, timeout time.Duration) error {
