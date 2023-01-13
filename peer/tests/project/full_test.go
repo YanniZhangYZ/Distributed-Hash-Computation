@@ -17,7 +17,7 @@ func Test_Simple_Submit_Execute(t *testing.T) {
 	newNode := func() z.TestNode {
 		return z.NewTestNode(t, peerFac, transp, "127.0.0.1:0",
 			z.WithBlockchainBlockTimeout(time.Second*3),
-			z.WithBlockchainDifficulty(3),
+			z.WithBlockchainDifficulty(2),
 			z.WithBlockchainBlockSize(2),
 			z.WithHeartbeat(time.Second*1),
 			z.WithAntiEntropy(time.Second*1),
@@ -39,7 +39,7 @@ func Test_Simple_Submit_Execute(t *testing.T) {
 	defer node2.Stop()
 	node1.AddPeer(node2.GetAddr())
 	node2.AddPeer(node1.GetAddr())
-	err = node1.JoinChord(node2.GetAddr())
+	err = node2.JoinChord(node1.GetAddr())
 	require.NoError(t, err)
 	err = node2.JoinBlockchain(10, time.Second*600)
 	require.NoError(t, err)
@@ -51,18 +51,18 @@ func Test_Simple_Submit_Execute(t *testing.T) {
 	node2.AddPeer(node3.GetAddr())
 	node3.AddPeer(node1.GetAddr())
 	node3.AddPeer(node2.GetAddr())
-	err = node1.JoinChord(node2.GetAddr())
+	err = node3.JoinChord(node2.GetAddr())
 	require.NoError(t, err)
 	err = node3.JoinBlockchain(10, time.Second*600)
 	require.NoError(t, err)
 
 	// Wait for dictionary construction
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 
 	// Node1 submits a request
 	// Password is apple
-	hashStr := "1cfcd196cf51b7a1d44159875452ba2dca8898d675f3d33d610ab9cb0031d7b2"
-	saltStr := "3c"
+	hashStr := "a9bed160d86d2570e494cc39c095649d4816e76c1d31a183d3b63c205a25230c"
+	saltStr := "ff"
 
 	err = node1.PasswordSubmitRequest(hashStr, saltStr, 3, time.Second*600)
 	require.NoError(t, err)
