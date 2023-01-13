@@ -14,6 +14,7 @@ import (
 	"go.dedis.ch/cs438/types"
 	"os"
 	"sync"
+	"time"
 )
 
 type Miner struct {
@@ -83,11 +84,10 @@ func (m *Miner) Start() {
 	m.logger.Debug().Msg("starting miner")
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 
+	time.Sleep(m.conf.AntiEntropyInterval * 5)
 	m.wg.Add(1)
 	go m.txProcessingDaemon()
 
-	//m.wg.Add(1)
-	//go m.blockProcessingDaemon()
 	m.logger.Debug().Msg("started miner")
 }
 

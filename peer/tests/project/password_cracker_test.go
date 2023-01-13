@@ -51,7 +51,7 @@ func Test_Password_Cracker_Simple(t *testing.T) {
 		// TEST 1, node 1 submit a password request, it has a corresponding password inside the dictionary
 		hashStr := "1cfcd196cf51b7a1d44159875452ba2dca8898d675f3d33d610ab9cb0031d7b2"
 		saltStr := "3c"
-		err = node1.PasswordSubmitRequest(hashStr, saltStr, 0)
+		err = node1.PasswordSubmitRequest(hashStr, saltStr, 0, time.Second*600)
 		require.NoError(t, err)
 		time.Sleep(time.Second)
 		require.Equal(t, "apple", node1.PasswordReceiveResult(hashStr, saltStr))
@@ -59,7 +59,7 @@ func Test_Password_Cracker_Simple(t *testing.T) {
 		// TEST 2, node 2 submit a password request, it has a corresponding password inside the dictionary
 		hashStr = "49c13df5ec8821b2ec6973a83e077b5ca35ed93a55dc398aa3cb614ebae33d0f"
 		saltStr = "dd"
-		err = node2.PasswordSubmitRequest(hashStr, saltStr, 0)
+		err = node2.PasswordSubmitRequest(hashStr, saltStr, 0, time.Second*600)
 		require.NoError(t, err)
 		time.Sleep(time.Second)
 		require.Equal(t, "egg", node2.PasswordReceiveResult(hashStr, saltStr))
@@ -67,7 +67,7 @@ func Test_Password_Cracker_Simple(t *testing.T) {
 		// TEST 3, node 2 submit a password request, it is not inside the dictionary
 		hashStr = "349e4662785588a6cd0ebbd9dbb6cea0bbdbc71159d78901e33f758fafaf6a88"
 		saltStr = "7f"
-		err = node2.PasswordSubmitRequest(hashStr, saltStr, 0)
+		err = node2.PasswordSubmitRequest(hashStr, saltStr, 0, time.Second*600)
 		require.NoError(t, err)
 		time.Sleep(time.Second)
 		require.Equal(t, "", node2.PasswordReceiveResult(hashStr, saltStr))
@@ -143,7 +143,7 @@ func Test_Password_Cracker_Multiple_Without_Leave(t *testing.T) {
 
 	for i := 0; i < len(hashStrs); i++ {
 		randomIdx := rand.Intn(len(nodes))
-		err := nodes[randomIdx].PasswordSubmitRequest(hashStrs[i], saltStrs[i], 0)
+		err := nodes[randomIdx].PasswordSubmitRequest(hashStrs[i], saltStrs[i], 0, time.Second*600)
 		require.NoError(t, err)
 		time.Sleep(time.Second)
 		require.Equal(t, "apple", nodes[randomIdx].PasswordReceiveResult(hashStrs[i], saltStrs[i]))
@@ -224,7 +224,7 @@ func Test_Password_Cracker_Multiple_With_Leave(t *testing.T) {
 
 	for i := 0; i < len(hashStrs); i++ {
 		randomIdx := rand.Intn(len(nodes))
-		err := nodes[randomIdx].PasswordSubmitRequest(hashStrs[i], saltStrs[i], 0)
+		err := nodes[randomIdx].PasswordSubmitRequest(hashStrs[i], saltStrs[i], 0, time.Second*600)
 		require.NoError(t, err)
 		time.Sleep(time.Second)
 		require.Equal(t, "apple", nodes[randomIdx].PasswordReceiveResult(hashStrs[i], saltStrs[i]))

@@ -42,7 +42,7 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 	consensusMod := consensus.NewConsensus(&conf, messageMod)
 	chordMod := chord.NewChord(&conf, messageMod)
 	blockchainMod := blockchain.NewBlockchain(&conf, messageMod, consensusMod, conf.Storage)
-	passwordCracker := passwordcracker.NewPasswordCracker(&conf, messageMod, chordMod)
+	passwordCracker := passwordcracker.NewPasswordCracker(&conf, messageMod, chordMod, blockchainMod)
 
 	n := node{
 		address:         conf.Socket.GetAddress(),
@@ -199,7 +199,8 @@ func (n *node) TransferMoney(dst common.Address, amount int64, timeout time.Dura
 
 // ProposeContract implements peer.IBlockchain
 func (n *node) ProposeContract(hash string, salt string, reward int64, recipient string, timeout time.Duration) error {
-	return n.Blockchain.ProposeContract(hash, salt, reward, recipient, timeout)
+	_, err := n.Blockchain.ProposeContract(hash, salt, reward, recipient, timeout)
+	return err
 }
 
 // ExecuteContract implements peer.IBlockchain
@@ -223,8 +224,8 @@ func (n *node) GetChain() *block.Chain {
 }
 
 // PasswordSubmitRequest implements peer.PasswordCracker
-func (n *node) PasswordSubmitRequest(hashStr string, saltStr string, reward int) error {
-	return n.passwordCracker.SubmitRequest(hashStr, saltStr, reward)
+func (n *node) PasswordSubmitRequest(hashStr string, saltStr string, reward int, timeout time.Duration) error {
+	return n.passwordCracker.SubmitRequest(hashStr, saltStr, reward, timeout)
 }
 
 // PasswordReceiveResult implements peer.PasswordCracker
