@@ -8,11 +8,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 	z "go.dedis.ch/cs438/internal/testing"
+	"golang.org/x/xerrors"
 )
 
 // Test_Simple_Submit_Execute tests a simple scenario where one node submit a password cracking request
 // and another node executes the request to earn the reward
-func Test_Simple_Submit_Execute(t *testing.T) {
+func Test_Full_Simple_Submit_Execute(t *testing.T) {
 	transp := channelFac()
 
 	newNode := func() z.TestNode {
@@ -111,7 +112,7 @@ func Test_Simple_Submit_Execute(t *testing.T) {
 
 }
 
-func Test_Full_3Nodes_2BytesSalt_2Contracts(t *testing.T) {
+func Test_Full_2BytesSalt_2Tasks(t *testing.T) {
 	transp := channelFac()
 
 	newNode := func() z.TestNode {
@@ -159,6 +160,8 @@ func Test_Full_3Nodes_2BytesSalt_2Contracts(t *testing.T) {
 	// Wait for dictionary construction
 	time.Sleep(time.Second * 5) // neccessary to compute dictionary
 
+	//------------ first task, proposed by node 1---------------------
+
 	// Password is apple
 	hashStr := "6ad18f940ffbd30454e3c2ecf6178c6492deb33cd2fa142dad3b411762a57860"
 	saltStr := "003c"
@@ -177,6 +180,7 @@ func Test_Full_3Nodes_2BytesSalt_2Contracts(t *testing.T) {
 	}
 	require.Equal(t, "apple", password)
 
+	//------------ second task, proposed by node 1---------------------
 	// Password is egg
 	hashStr2 := "f857023981c0a3e223a45d37e129c6a3ddbbfe944075895243f72e83354e1008"
 	saltStr2 := "002e"
@@ -201,6 +205,9 @@ func Test_Full_3Nodes_2BytesSalt_2Contracts(t *testing.T) {
 	fmt.Fprint(os.Stdout, node3.GetChain().PrintChain())
 
 	// Check the blockchain
+	// Node registration ->3
+	// proposer to smartAccount -> 2
+	// smartAccount to finisher ->2
 	require.Equal(t, 7, node1.GetChain().GetTransactionCount())
 	require.Equal(t, 7, node2.GetChain().GetTransactionCount())
 	require.Equal(t, 7, node3.GetChain().GetTransactionCount())
@@ -208,6 +215,8 @@ func Test_Full_3Nodes_2BytesSalt_2Contracts(t *testing.T) {
 	require.Equal(t, node1.GetChain().GetBlockCount(), node2.GetChain().GetBlockCount())
 	require.Equal(t, node1.GetChain().GetBlockCount(), node3.GetChain().GetBlockCount())
 
+	// 3 block for the node themselves
+	// 1_1 and 1_2 are two blocks for smartAccount correspond to the 2 tasks
 	require.Equal(t, 5, node1.GetChain().GetLastBlock().State.Len())
 	require.Equal(t, 5, node2.GetChain().GetLastBlock().State.Len())
 	require.Equal(t, 5, node3.GetChain().GetLastBlock().State.Len())
@@ -222,10 +231,133 @@ func Test_Full_3Nodes_2BytesSalt_2Contracts(t *testing.T) {
 	// The contract account should transfer node1's deposit to node2
 	// Check the balance
 	require.EqualValues(t, 30, node1.GetBalance()+node2.GetBalance()+node3.GetBalance())
+	// The first cracking task is correct,
+	// smartAccount should transfer money to finisher
 	contractState, _ := node1.GetChain().GetLastBlock().State.Get("1_1")
 	require.EqualValues(t, 0, contractState.Balance)
 
+	// The second cracking task is correct,
+	// smartAccount should transfer money to finisher
 	contractState2, _ := node1.GetChain().GetLastBlock().State.Get("1_2")
 	require.EqualValues(t, 0, contractState2.Balance)
+
+}
+
+func Test_Full_2BytesSalt_2Tasks_No_Enough_Balance(t *testing.T) {
+	transp := channelFac()
+
+	newNode := func() z.TestNode {
+		return z.NewTestNode(t, peerFac, transp, "127.0.0.1:0",
+			z.WithBlockchainBlockTimeout(time.Second*3),
+			z.WithBlockchainDifficulty(2),
+			z.WithBlockchainBlockSize(2),
+			z.WithHeartbeat(time.Second*1),
+			z.WithAntiEntropy(time.Second*1),
+			z.WithChordBytes(2), // correspond to salt length
+			z.WithChordStabilizeInterval(time.Millisecond*200),
+			z.WithChordFixFingerInterval(time.Millisecond*200))
+	}
+
+	// Create three nodes and let them join the blockchain
+
+	// Node 1
+	node1 := newNode()
+	defer node1.Stop()
+	err := node1.JoinBlockchain(10, time.Second*600)
+	require.NoError(t, err)
+
+	// Node 2
+	node2 := newNode()
+	defer node2.Stop()
+	node1.AddPeer(node2.GetAddr())
+	node2.AddPeer(node1.GetAddr())
+	err = node2.JoinChord(node1.GetAddr())
+	require.NoError(t, err)
+	err = node2.JoinBlockchain(10, time.Second*600)
+	require.NoError(t, err)
+
+	// Node 3
+	node3 := newNode()
+	defer node3.Stop()
+	node1.AddPeer(node3.GetAddr())
+	node2.AddPeer(node3.GetAddr())
+	node3.AddPeer(node1.GetAddr())
+	node3.AddPeer(node2.GetAddr())
+	err = node3.JoinChord(node2.GetAddr())
+	require.NoError(t, err)
+	err = node3.JoinBlockchain(10, time.Second*600)
+	require.NoError(t, err)
+
+	// Wait for dictionary construction
+	time.Sleep(time.Second * 5) // neccessary to compute dictionary
+
+	//------------ first task, node 1 propose, reward 5 --------------------------
+	// Password is apple
+	hashStr := "6ad18f940ffbd30454e3c2ecf6178c6492deb33cd2fa142dad3b411762a57860"
+	saltStr := "003c"
+
+	// Node1 propose a task, reward is 5
+	err = node1.PasswordSubmitRequest(hashStr, saltStr, 5, time.Second*600)
+	require.NoError(t, err)
+
+	// Wait for the node to crack the password and earn the reward
+	password := ""
+	for {
+		password = node1.PasswordReceiveResult(hashStr, saltStr)
+		if password != "" {
+			break
+		}
+		time.Sleep(time.Second * 5)
+	}
+	require.Equal(t, "apple", password)
+
+	//------------ second task, node 1 propose, reward 100, no enough balance --------------------------
+	// Password is egg
+	hashStr2 := "f857023981c0a3e223a45d37e129c6a3ddbbfe944075895243f72e83354e1008"
+	saltStr2 := "002e"
+
+	// Node1 propose a task again, reward is 100. No engough balance
+	err = node1.PasswordSubmitRequest(hashStr2, saltStr2, 100, time.Second*600)
+	expectErr := xerrors.Errorf("ProposeContract failed : don't have enough balance")
+	require.EqualError(t, err, expectErr.Error())
+
+	// Print the blockchain of each miner
+	fmt.Fprint(os.Stdout, node1.GetChain().PrintChain())
+	fmt.Fprint(os.Stdout, node2.GetChain().PrintChain())
+	fmt.Fprint(os.Stdout, node3.GetChain().PrintChain())
+
+	// Check the blockchain
+	// Node registration ->3
+	// proposer to smartAccount -> 1
+	// smartAccount to finisher ->1
+	// The second task has no enough balance, therefore no transcation happened
+	require.Equal(t, 5, node1.GetChain().GetTransactionCount())
+	require.Equal(t, 5, node2.GetChain().GetTransactionCount())
+	require.Equal(t, 5, node3.GetChain().GetTransactionCount())
+
+	require.Equal(t, node1.GetChain().GetBlockCount(), node2.GetChain().GetBlockCount())
+	require.Equal(t, node1.GetChain().GetBlockCount(), node3.GetChain().GetBlockCount())
+
+	// 3 block for the node themselves
+	// 1_1 is the block for smartAccount correspond to the first task
+	// The second task has no enough balance, therefore no block 1_2 established
+	require.Equal(t, 4, node1.GetChain().GetLastBlock().State.Len())
+	require.Equal(t, 4, node2.GetChain().GetLastBlock().State.Len())
+	require.Equal(t, 4, node3.GetChain().GetLastBlock().State.Len())
+
+	require.Equal(t, node1.GetChain().GetLastBlock().BlockHash, node2.GetChain().GetLastBlock().BlockHash)
+	require.Equal(t, node1.GetChain().GetLastBlock().BlockHash, node3.GetChain().GetLastBlock().BlockHash)
+
+	require.NoError(t, node1.GetChain().ValidateChain())
+	require.NoError(t, node2.GetChain().ValidateChain())
+	require.NoError(t, node3.GetChain().ValidateChain())
+
+	// Check the balance
+	require.EqualValues(t, 30, node1.GetBalance()+node2.GetBalance()+node3.GetBalance())
+	// The first cracking task is correct,
+	// smartAccount should transfer money to finisher
+	contractState, _ := node1.GetChain().GetLastBlock().State.Get("1_1")
+	require.EqualValues(t, 0, contractState.Balance)
+	// The second task has no enough balance, therefore no block 1_2 established
 
 }
