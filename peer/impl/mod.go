@@ -1,7 +1,10 @@
 package impl
 
 import (
-	"github.com/rs/zerolog"
+	"io"
+	"regexp"
+	"time"
+
 	"go.dedis.ch/cs438/peer"
 	"go.dedis.ch/cs438/peer/impl/blockchain/block"
 	"go.dedis.ch/cs438/peer/impl/blockchain/blockchain"
@@ -13,9 +16,6 @@ import (
 	"go.dedis.ch/cs438/peer/impl/message"
 	"go.dedis.ch/cs438/peer/impl/passwordcracker"
 	"go.dedis.ch/cs438/transport"
-	"io"
-	"regexp"
-	"time"
 )
 
 // node implements a peer to build a Peerster system
@@ -62,7 +62,7 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 
 // Start implements peer.Service
 func (n *node) Start() error {
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	// zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	n.chord.StartDaemon()
 	n.Blockchain.Start()

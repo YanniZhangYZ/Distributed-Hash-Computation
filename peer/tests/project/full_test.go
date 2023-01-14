@@ -3,17 +3,19 @@ package project
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	z "go.dedis.ch/cs438/internal/testing"
+	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"golang.org/x/xerrors"
 )
 
 // Test_Simple_Submit_Execute tests a simple scenario where one node submit a password cracking request
 // and another node executes the request to earn the reward
-func Test_Full_Simple_Submit_Execute(t *testing.T) {
+func Test_Full_Three_Nodes_One_Task_1B_Salt(t *testing.T) {
 	transp := channelFac()
 
 	newNode := func() z.TestNode {
@@ -112,7 +114,7 @@ func Test_Full_Simple_Submit_Execute(t *testing.T) {
 
 }
 
-func Test_Full_2BytesSalt_2Tasks(t *testing.T) {
+func Test_Full_Three_Nodes_Two_Tasks_2B_Salt(t *testing.T) {
 	transp := channelFac()
 
 	newNode := func() z.TestNode {
@@ -243,7 +245,7 @@ func Test_Full_2BytesSalt_2Tasks(t *testing.T) {
 
 }
 
-func Test_Full_2BytesSalt_2Tasks_No_Enough_Balance(t *testing.T) {
+func Test_Full_Three_Nodes_Two_Tasks_2B_Salt_No_Enough_Balance(t *testing.T) {
 	transp := channelFac()
 
 	newNode := func() z.TestNode {
@@ -359,5 +361,89 @@ func Test_Full_2BytesSalt_2Tasks_No_Enough_Balance(t *testing.T) {
 	contractState, _ := node1.GetChain().GetLastBlock().State.Get("1_1")
 	require.EqualValues(t, 0, contractState.Balance)
 	// The second task has no enough balance, therefore no block 1_2 established
+
+}
+
+func Test_Full_Many_Nodes_One_Task(t *testing.T) {
+	transp := channelFac()
+	nodeNum := 15
+
+	worldState := common.QuickWorldState(nodeNum, 10)
+
+	newNode := func(address string) z.TestNode {
+		fullAddr := fmt.Sprintf("127.0.0.1:%s", address)
+		return z.NewTestNode(t, peerFac, transp, fullAddr,
+			z.WithBlockchainBlockTimeout(time.Second*3),
+			z.WithBlockchainDifficulty(2),
+			z.WithBlockchainBlockSize(2),
+			z.WithHeartbeat(time.Second*1),
+			z.WithAntiEntropy(time.Second*1),
+			z.WithChordBytes(1), // correspond to salt length
+			z.WithChordStabilizeInterval(time.Millisecond*200),
+			z.WithChordFixFingerInterval(time.Millisecond*200),
+			z.WithBlockchainInitialState(worldState.GetSimpleMap()),
+			z.WithBlockchainAccountAddress(address))
+
+	}
+
+	testNode := make([]z.TestNode, nodeNum)
+
+	for i := 0; i < nodeNum; i++ {
+		testNode[i] = newNode(strconv.Itoa(i + 1))
+		defer testNode[i].Stop()
+	}
+	fmt.Println(" ")
+	fmt.Println("Finish creating node")
+
+	for i := 0; i < nodeNum; i++ {
+		for j := 0; j < nodeNum; j++ {
+			if i == j {
+				continue
+			}
+			testNode[i].AddPeer(testNode[j].GetAddr())
+		}
+	}
+	fmt.Println("Finish adding peer")
+
+	// Wait for dictionary construction
+	time.Sleep(time.Second * 5)
+
+	hashStrs := []string{
+		"1bd15226960ce500e8dbaabbd523b9356ec69ff1bdf2aeef6c5dbe272971986a",
+		"2ea455a6c36bf264a0d933c2e9fa75e9962ceec80a55e118340d62c5b92cd930",
+		"2ae367b9a8585e19e96f301bb3cb020941cd29a3925bb05c9dd12ac47c5757d6",
+		"24a77708057aab975813079ab86b9b84ae300fd738f13fd6b425df0f8895b907",
+		"a4ac87eb7080ed009b324a931235b27439f6e8f4ba51e2ed5c3c47f6962064d4",
+		"4b446b30d876ca954a6d0a24f9d96db7b6a652465b28599d974f15033e87893f",
+		"10d962ff38d51f366f7a0ffc2ab2f6497898230fb4b1c85bf1e03ff3226bfffa",
+		"25b8005ff00096894f3d0dd7287efebef4f3d4ec45a19cc04159197368fa6ce1",
+		"96e3f8a2bd177aa8d72f4bee847421b9555567c88bd940ee2b5cb7e25e022340",
+		"865e185881d538d3e6f8158a5d7c2c58ca2a6523fa78e8916727682b83e9b13e",
+		"86254408237a295b6aaa7b61b253689a50b635ab8b59a363e98ea2507d3d8e48",
+		"67d5158c080528d5b50ad13426c6d6b56815fc2ade087f05bd39e4d0539bae34",
+		"713da404459008f10a661b458fcc811f166f15579dfde8fd3c0d08de50fe8f03",
+		"e7eabf2627703a7386b9433bf47734e7c6497dfb30712153e4f452074b0fa7ce",
+		"38d9a74454af41571b5b20d9b26b7943dc191b3daadff8336dfe691e93b7a204",
+		"a9bed160d86d2570e494cc39c095649d4816e76c1d31a183d3b63c205a25230c",
+	}
+	saltStrs := []string{"0f", "1f", "2f", "3f", "4f", "5f", "6f", "7f",
+		"8f", "9f", "af", "bf", "cf", "df", "ef", "ff"}
+
+	err := testNode[0].PasswordSubmitRequest(hashStrs[15], saltStrs[15], 1, time.Second*600)
+	require.NoError(t, err)
+
+	fmt.Println(" submit the task")
+
+	// Wait for the node to crack the password and earn the reward
+	password := ""
+	for {
+		password = testNode[0].PasswordReceiveResult(hashStrs[15], saltStrs[15])
+		if password != "" {
+			break
+		}
+		fmt.Println("receive nothing")
+		time.Sleep(time.Second * 5)
+	}
+	require.Equal(t, "apple", password)
 
 }

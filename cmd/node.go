@@ -3,6 +3,9 @@ package cmd
 import (
 	"crypto"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/fatih/color"
 	"go.dedis.ch/cs438/peer"
@@ -11,8 +14,6 @@ import (
 	"go.dedis.ch/cs438/storage/inmemory"
 	"go.dedis.ch/cs438/transport"
 	"golang.org/x/xerrors"
-	"log"
-	"time"
 )
 
 func nodeDefaultConf(trans transport.Transport, addr string) peer.Configuration {
@@ -157,7 +158,7 @@ func crackPassword(node peer.Peer) error {
 	if err != nil {
 		return xerrors.Errorf("failed to get the answer: %v", err)
 	}
-	return node.PasswordSubmitRequest(hash, salt, reward)
+	return node.PasswordSubmitRequest(hash, salt, reward, time.Second*600)
 }
 
 func receivePassword(node peer.Peer) error {
