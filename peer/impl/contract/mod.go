@@ -32,6 +32,10 @@ type SmartContract interface {
 	// e.g. IF finisher.crackedPwd.hash == "someHash" THEN
 	GatherActions(*common.WorldState) (bool, []parser.Action, error)
 
+	// This function generate the string version of
+	// the contract basic info including
+	// contract name, ID, the address of the publisher,and the address of the finisher
+	// as well as the execution state of the contract state tree
 	PrintContractExecutionState()
 
 	// This function gets the publisher of this contract
