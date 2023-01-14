@@ -9,7 +9,7 @@ import (
 )
 
 // VerifyAndExecuteTransaction verify and execute a transaction on a given world state
-func VerifyAndExecuteTransaction(tx *SignedTransaction, worldState *common.WorldState) error {
+func VerifyAndExecuteTransaction(tx *SignedTransaction, worldState *common.WorldState, print bool) error {
 	var err error
 	switch tx.TX.Type {
 	case TRANSFER_TX:
@@ -17,7 +17,7 @@ func VerifyAndExecuteTransaction(tx *SignedTransaction, worldState *common.World
 	case CONTRACT_DEPLOYMENT_TX:
 		err = executeContractDeploymentTx(tx, worldState)
 	case CONTRACT_EXECUTION_TX:
-		err = executeContractExecutionTx(tx, worldState)
+		err = executeContractExecutionTx(tx, worldState, print)
 	default:
 		panic("Unknown transaction type")
 	}
@@ -124,7 +124,7 @@ func executeContractDeploymentTx(tx *SignedTransaction, worldState *common.World
 	return nil
 }
 
-func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldState) error {
+func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldState, print bool) error {
 	contractAddr := tx.TX.Dst.String()
 	contractState, ok := worldState.Get(contractAddr)
 	if !ok {
@@ -163,7 +163,9 @@ func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldS
 
 	// Execute the contract
 	ifThenValid, actions, err3 := contract.GatherActions(worldState)
-	contract.PrintContractExecutionState()
+	if print {
+		contract.PrintContractExecutionState()
+	}
 	if err3 != nil {
 		return err3
 	}
@@ -186,7 +188,6 @@ func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldS
 	}
 
 	// Transfer the money
-	// TODO : Maybe send another independent TransferTx to issue the reward
 	receiverState, ok2 := worldState.Get(receiver)
 	if !ok2 {
 		return fmt.Errorf("reward receiver account not found in the world state")

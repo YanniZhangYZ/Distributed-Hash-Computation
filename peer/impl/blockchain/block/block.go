@@ -237,7 +237,7 @@ func (b *Block) ValidateBlock(prevWorldState *common.WorldState) error {
 	// Replay transactions
 	tmpWorldState := (*prevWorldState).Copy()
 	for _, tx := range b.TXs {
-		err := transaction.VerifyAndExecuteTransaction(tx, tmpWorldState)
+		err := transaction.VerifyAndExecuteTransaction(tx, tmpWorldState, false)
 		if err != nil {
 			return err
 		}

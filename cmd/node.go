@@ -52,7 +52,7 @@ func nodeDefaultConf(trans transport.Transport, addr string) peer.Configuration 
 
 	config.BlockchainAccountAddress = ""
 	config.BlockchainDifficulty = 2
-	config.BlockchainBlockSize = 5
+	config.BlockchainBlockSize = 2
 	config.BlockchainBlockTimeout = time.Second * 5
 	config.BlockchainInitialState = make(map[string]common.State)
 	config.PasswordHashAlgorithm = crypto.SHA256

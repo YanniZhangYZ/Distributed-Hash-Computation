@@ -108,7 +108,7 @@ func (m *Miner) processOneTx() {
 	}
 
 	tx := m.txPending.Dequeue()
-	err := transaction.VerifyAndExecuteTransaction(tx, &(m.tmpWorldState))
+	err := transaction.VerifyAndExecuteTransaction(tx, &(m.tmpWorldState), true)
 
 	if err == nil {
 		// Update peer.conf.TotalPeers when nodes join or leave so that paxos can be informed accordingly
