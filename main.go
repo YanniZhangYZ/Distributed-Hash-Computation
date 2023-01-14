@@ -1,8 +1,34 @@
 package main
 
-import "go.dedis.ch/cs438/cmd"
+import (
+	"go.dedis.ch/cs438/cmd"
+	"log"
+	"os"
+	"strconv"
+)
 
 func main() {
 	// Enters the command line interface
-	cmd.UserInterface()
+	argsWithoutProg := os.Args[1:]
+
+	if len(argsWithoutProg) == 0 {
+		// Normal node, just initiate one node
+		cmd.UserInterface()
+	} else if argsWithoutProg[0] == "simu" {
+		// Run in simulation mode
+		if len(argsWithoutProg) > 1 {
+			nbNodes, err := strconv.Atoi(argsWithoutProg[1])
+			if err != nil {
+				log.Fatalf("Run the program as `go run .` for normal mode or `go run . simu " +
+					"$num_of_nodes` for simulation mode")
+			}
+			cmd.SimuUserInterface(nbNodes)
+		} else {
+			defaultNbNodes := 4
+			cmd.SimuUserInterface(defaultNbNodes)
+		}
+	} else {
+		log.Fatalf("Run the program as `go run .` for normal mode or `go run . simu " +
+			"$num_of_nodes` for simulation mode")
+	}
 }

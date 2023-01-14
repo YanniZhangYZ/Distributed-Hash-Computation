@@ -91,6 +91,11 @@ func (n *node) SetRoutingEntry(origin, relayAddr string) {
 	n.message.SetRoutingEntry(origin, relayAddr)
 }
 
+// GetAddr implements peer.Messaging
+func (n *node) GetAddr() string {
+	return n.address
+}
+
 // Unicast implements peer.Messaging
 func (n *node) Unicast(dest string, msg transport.Message) error {
 	return n.message.Unicast(dest, msg)
