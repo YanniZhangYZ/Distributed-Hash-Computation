@@ -22,7 +22,7 @@ func (p *PasswordCracker) execPasswordCrackerRequestMessage(msg types.Message, p
 		password := p.crackPassword(passwordCrackerRequestMsg.Hash, passwordCrackerRequestMsg.Salt)
 
 		// Execute the smart contract to earn the reward
-		if passwordCrackerRequestMsg.ContractAddress.String() != "" {
+		if passwordCrackerRequestMsg.ContractAddress.String() != "" && password != "" {
 			_ = p.blockchain.ExecuteContract(password,
 				hex.EncodeToString(passwordCrackerRequestMsg.Hash),
 				hex.EncodeToString(passwordCrackerRequestMsg.Salt),
