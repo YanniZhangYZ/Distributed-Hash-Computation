@@ -13,7 +13,7 @@ var peerFac peer.Factory = impl.NewPeer
 var channelFac transport.Factory = channel.NewTransport
 var udpFac transport.Factory = udp.NewUDP
 
-// UserInterface provides a command line interface of the program
+// UserInterface provides a command line interface of the program, in the normal mode
 func UserInterface() {
 	config := nodeDefaultConf(udpFac(), "127.0.0.1:0")
 	node := nodeCreateWithConf(peerFac, config)

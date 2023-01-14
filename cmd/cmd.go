@@ -59,13 +59,15 @@ func preJoin(node peer.Peer) bool {
 	}
 }
 
+// postJoin is the actions allowed after a node joins the Chord ring, it should be able to
+// propose new password cracking tasks
 func postJoin(node peer.Peer) bool {
 	prompt := &survey.Select{
 		Message: "What do you want to do ?",
 		Options: []string{
 			"👫 add peer, used for broadcast",
 			"🪐 show predecessor, successor, and finger table",
-			"🔒 submit password cracking task",
+			"🔒 propose password cracking task",
 			"🔐 receive password cracking result",
 			"🕓 leave Chord",
 			"👋 exit"},
@@ -89,7 +91,7 @@ func postJoin(node peer.Peer) bool {
 			if err != nil {
 				log.Fatalf("failed to show Chord info: %v", err)
 			}
-		case "🔒 submit password cracking task":
+		case "🔒 propose password cracking task":
 			err = crackPassword(node)
 			if err != nil {
 				log.Fatalf("failed to submit password cracking result: %v", err)

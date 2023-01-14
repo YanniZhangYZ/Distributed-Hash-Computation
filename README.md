@@ -11,6 +11,8 @@ Run `go run .` to initiate a single node instance.
 
 The node is assigned a random UDP address for communication purposes. You are expected to run multiple instances of nodes, e.g., at different command line tabs. After running `go run .`, the node's information is displayed on the screen, with the UDP address, and its own Chord ID. To allow users to submit tasks to crack passwords, you should at least join a Chord ring. You should specify one peer address that is inside the Chord ring. After you have joined the Chord ring, you could submit tasks, and receive the task results. Please follow the command line instructions. When you are done, you could either leave Chord, which will bring you back to the initial user interface, or exit directly.
 
+Or run `go run . simu` to initiate multiple nodes at a time. The default number of nodes is 4. You could specify the number by running `go run . simu $NUM_NODES`. Only one node is exposed for external interactions.
+
 ## Motivation
 
 We want to crack a list of password hashes, they are salted. We want to distribute a portion of the list to one peer, the peer could compute the pre-image of the hash and return the result back to us.
