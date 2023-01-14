@@ -20,6 +20,8 @@ func nodeDefaultConf(trans transport.Transport, addr string) peer.Configuration 
 	if err != nil {
 		panic(err)
 	}
+
+	var config peer.Configuration
 	config.Socket = socket
 	config.MessageRegistry = standard.NewRegistry()
 	config.AntiEntropyInterval = 0
@@ -47,7 +49,7 @@ func nodeDefaultConf(trans transport.Transport, addr string) peer.Configuration 
 	config.ChordPingInterval = time.Second * 60
 
 	config.BlockchainAccountAddress = ""
-	config.BlockchainDifficulty = 3
+	config.BlockchainDifficulty = 2
 	config.BlockchainBlockSize = 5
 	config.BlockchainBlockTimeout = time.Second * 5
 	config.BlockchainInitialState = make(map[string]common.State)
@@ -55,7 +57,7 @@ func nodeDefaultConf(trans transport.Transport, addr string) peer.Configuration 
 	return config
 }
 
-func nodeCreateWithConf(f peer.Factory) peer.Peer {
+func nodeCreateWithConf(f peer.Factory, config peer.Configuration) peer.Peer {
 	return f(config)
 }
 
@@ -100,12 +102,12 @@ func showChordInfo(node peer.Peer) error {
 		"=======  Predecessor     := %s with Chord ID %d\n"+
 		"=======  Successor       := %s with Chord ID %d\n"+
 		"=======  Finger Table\n",
-		config.Socket.GetAddress(), node.GetChordID(),
+		node.GetAddr(), node.GetChordID(),
 		pred, node.QueryChordID(pred),
 		succ, node.QueryChordID(succ))
 
 	fingerStr := ""
-	for i := 0; i < config.ChordBytes*8; i++ {
+	for i := 0; i < len(finger); i++ {
 		if finger[i] != "" {
 			fingerStr +=
 				fmt.Sprintf("           Entry %d: %s with Chord ID %d\n",
@@ -157,7 +159,7 @@ func crackPassword(node peer.Peer) error {
 	if err != nil {
 		return xerrors.Errorf("failed to get the answer: %v", err)
 	}
-	return node.PasswordSubmitRequest(hash, salt, reward)
+	return node.PasswordSubmitRequest(hash, salt, reward, time.Second*600)
 }
 
 func receivePassword(node peer.Peer) error {
