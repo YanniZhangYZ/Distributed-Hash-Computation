@@ -366,7 +366,7 @@ func Test_Full_Three_Nodes_Two_Tasks_2B_Salt_No_Enough_Balance(t *testing.T) {
 
 func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 	transp := channelFac()
-	nodeNum := 5
+	nodeNum := 8
 
 	worldState := common.QuickWorldState(nodeNum, 10)
 
@@ -455,5 +455,23 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 		time.Sleep(time.Second * 5)
 	}
 	require.Equal(t, "apple", password)
+
+	var totalBalance int64
+
+	for i := 0; i < nodeNum; i++ {
+		require.Equal(t, 2, testNode[i].GetChain().GetTransactionCount())
+		require.Equal(t, nodeNum+1, testNode[i].GetChain().GetLastBlock().State.Len())
+		require.NoError(t, testNode[i].GetChain().ValidateChain())
+		if i != 0 {
+			require.Equal(t, testNode[0].GetChain().GetBlockCount(), testNode[i].GetChain().GetBlockCount())
+			require.Equal(t, testNode[0].GetChain().GetLastBlock().BlockHash, testNode[i].GetChain().GetLastBlock().BlockHash)
+		}
+		totalBalance += testNode[i].GetBalance()
+	}
+
+	// Check the balance
+	require.EqualValues(t, nodeNum*10, totalBalance)
+	contractState, _ := testNode[0].GetChain().GetLastBlock().State.Get("1_1")
+	require.EqualValues(t, 0, contractState.Balance)
 
 }
