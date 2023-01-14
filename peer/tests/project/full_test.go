@@ -364,7 +364,7 @@ func Test_Full_Three_Nodes_Two_Tasks_2B_Salt_No_Enough_Balance(t *testing.T) {
 
 }
 
-func Test_Full_Many_Nodes_One_Task_1B_Salt(t *testing.T) {
+func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 	transp := channelFac()
 	nodeNum := 5
 
@@ -378,7 +378,7 @@ func Test_Full_Many_Nodes_One_Task_1B_Salt(t *testing.T) {
 			z.WithBlockchainBlockSize(2),
 			z.WithHeartbeat(time.Second*1),
 			z.WithAntiEntropy(time.Second*1),
-			z.WithChordBytes(1), // correspond to salt length
+			z.WithChordBytes(2), // correspond to salt length
 			z.WithChordStabilizeInterval(time.Millisecond*200),
 			z.WithChordFixFingerInterval(time.Millisecond*200),
 			z.WithBlockchainInitialState(worldState.GetSimpleMap()),
