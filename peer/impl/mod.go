@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"github.com/rs/zerolog"
 	"go.dedis.ch/cs438/peer"
 	"go.dedis.ch/cs438/peer/impl/blockchain/block"
 	"go.dedis.ch/cs438/peer/impl/blockchain/blockchain"
@@ -61,6 +62,8 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 
 // Start implements peer.Service
 func (n *node) Start() error {
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
 	n.chord.StartDaemon()
 	n.Blockchain.Start()
 	return n.daemon.Start()
