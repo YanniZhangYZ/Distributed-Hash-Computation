@@ -220,6 +220,14 @@ func (a *Blockchain) TransferMoney(dst common.Address, amount int64, timeout tim
 }
 
 func (a *Blockchain) ProposeContract(hash string, salt string, reward int64, recipient string, timeout time.Duration) (string, error) {
+	// First check if the publisher has enough balance
+	balance := a.GetBalance()
+	if balance < reward {
+		a.logger.Debug().Int64("balance", balance).Int64("reward", reward).
+			Msg("no enough balance for ProposeContract")
+		return "", fmt.Errorf("ProposeContract failed : don't have enough balance")
+	}
+
 	// plainContract := fmt.Sprintf(
 	// 	`
 	// 	ASSUME publisher.balance > 5
