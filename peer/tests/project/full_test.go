@@ -392,6 +392,7 @@ func Test_Full_Many_Nodes_One_Task(t *testing.T) {
 		testNode[i] = newNode(strconv.Itoa(i + 1))
 		defer testNode[i].Stop()
 	}
+
 	fmt.Println(" ")
 	fmt.Println("Finish creating node")
 
@@ -405,8 +406,13 @@ func Test_Full_Many_Nodes_One_Task(t *testing.T) {
 	}
 	fmt.Println("Finish adding peer")
 
+	for i := 1; i < nodeNum; i++ {
+		_ = testNode[i].JoinChord(testNode[i-1].GetAddr())
+	}
+	fmt.Println("Finish joining Chord")
+
 	// Wait for dictionary construction
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 10)
 
 	hashStrs := []string{
 		"1bd15226960ce500e8dbaabbd523b9356ec69ff1bdf2aeef6c5dbe272971986a",

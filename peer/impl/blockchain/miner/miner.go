@@ -84,7 +84,7 @@ func (m *Miner) Start() {
 	m.logger.Debug().Msg("starting miner")
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 
-	time.Sleep(m.conf.AntiEntropyInterval * 5)
+	time.Sleep(m.conf.AntiEntropyInterval * 3)
 	m.wg.Add(1)
 	go m.txProcessingDaemon()
 
