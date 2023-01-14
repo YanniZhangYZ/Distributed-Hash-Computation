@@ -537,3 +537,77 @@ func Test_Contract_Gather_Action_Error(t *testing.T) {
 	require.EqualError(t, err, expectErr.Error())
 
 }
+
+func Test_Contract_All_True(t *testing.T) {
+
+	plainContract :=
+		`
+		ASSUME smartAccount.balance > 5
+		IF finisher.crackedPwd.hash == "6ad18f940ffbd30454e3c2ecf6178c6492deb33cd2fa142dad3b411762a57860" THEN
+		smartAccount.transfer("finisher_ID", 46)
+	`
+
+	// create a contract instance
+	contract := impl.NewContract(
+		"2",                  // ID
+		"crack pwd contract", // name
+		plainContract,        // plain_code
+		"nowqnpfe",           // publisher
+		"1",                  // finisher
+	)
+
+	hash1 := "484f9573380d13c3042d3601b2001b611d02f4ecc88af2235ec3180de7bd962c"
+	pwd1 := "Password"
+	salt1 := "0000"
+
+	hash2 := "6ad18f940ffbd30454e3c2ecf6178c6492deb33cd2fa142dad3b411762a57860"
+	pwd2 := "apple"
+	salt2 := "003c"
+
+	hash3 := "c612f289f5324c73d96a20ca14cf834e95a359a2b28101401e1bd7daa3bac4e2"
+	pwd3 := "banana"
+	salt3 := "002e"
+
+	tasks := map[string][2]string{
+		hash1: {pwd1, salt1},
+		hash2: {pwd2, salt2},
+		hash3: {pwd3, salt3},
+	}
+
+	worldState := common.QuickWorldState(5, 20)
+	state1 := common.State{
+		Nonce:       0,
+		Balance:     20,
+		CodeHash:    "",
+		StorageRoot: "",
+		Tasks:       tasks,
+	}
+	worldState.Set("1", state1)
+
+	isValid, err := contract.CheckAssumptions(worldState)
+	require.NoError(t, err)
+	require.Equal(t, isValid, true)
+
+	fmt.Println("------------after assumption check----------------")
+	contract.PrintContractExecutionState()
+
+	_, actions, err := contract.GatherActions(worldState)
+	require.NoError(t, err)
+	expected1 := "finisher_ID"
+	expected2 := int64(46)
+	expectedActions := []parser.Action{
+		{
+			Role:   "smartAccount",
+			Action: "transfer",
+			Params: []*parser.Value{
+				{String: &expected1, Number: nil},
+				{String: nil, Number: &expected2},
+			},
+		},
+	}
+	require.Equal(t, actions, expectedActions)
+
+	fmt.Println("------------after assumption check----------------")
+	contract.PrintContractExecutionState()
+
+}
