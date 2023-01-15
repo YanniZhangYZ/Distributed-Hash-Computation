@@ -23,7 +23,8 @@ import (
 var defaultDict = [...]string{
 	"apple", "ball", "cat", "doll", "egg"}
 
-func NewPasswordCracker(conf *peer.Configuration, message *message.Message, chord *chord.Chord, blockchain *blockchain.Blockchain) *PasswordCracker {
+func NewPasswordCracker(conf *peer.Configuration, message *message.Message,
+	chord *chord.Chord, blockchain *blockchain.Blockchain) *PasswordCracker {
 	var tasks sync.Map
 	passwordCracker := PasswordCracker{
 		address:    conf.Socket.GetAddress(),

@@ -1,6 +1,8 @@
 package consensus
 
 import (
+	"fmt"
+	"github.com/rs/zerolog/log"
 	"go.dedis.ch/cs438/transport"
 	"go.dedis.ch/cs438/types"
 	"golang.org/x/xerrors"
@@ -19,11 +21,11 @@ func (c *Consensus) execPaxosPrepareMessage(msg types.Message, pkt transport.Pac
 	defer c.Unlock()
 	if paxosPrepareMsg.Step != c.tlcStep || paxosPrepareMsg.ID <= c.paxos.maxID {
 		if paxosPrepareMsg.Step != c.tlcStep {
-			//log.Printf("dropping Prepare because Step does not match %d vs %d: %s addr=%s",
-			//	paxosPrepareMsg.Step, c.tlcStep, paxosPrepareMsg, c.address)
+			log.Debug().Msg(fmt.Sprintf("dropping Prepare because Step does not match %d vs %d: %s addr=%s",
+				paxosPrepareMsg.Step, c.tlcStep, paxosPrepareMsg, c.address))
 		} else {
-			//log.Printf("dropping Prepare because ID is too low %d <= %d: %s addr=%s",
-			//	paxosPrepareMsg.ID, c.paxos.maxID, paxosPrepareMsg, c.address)
+			log.Debug().Msg(fmt.Sprintf("dropping Prepare because ID is too low %d <= %d: %s addr=%s",
+				paxosPrepareMsg.ID, c.paxos.maxID, paxosPrepareMsg, c.address))
 		}
 		return nil
 	}
@@ -65,23 +67,23 @@ func (c *Consensus) execPaxosPromiseMessage(msg types.Message, pkt transport.Pac
 	defer c.Unlock()
 
 	if paxosPromiseMsg.Step != c.tlcStep {
-		//log.Printf("dropping Promise because Step does not match %d vs %d: %s addr=%s",
-		//	paxosPromiseMsg.Step, c.tlcStep, paxosPromiseMsg, c.address)
+		log.Debug().Msg(fmt.Sprintf("dropping Promise because Step does not match %d vs %d: %s addr=%s",
+			paxosPromiseMsg.Step, c.tlcStep, paxosPromiseMsg, c.address))
 		return nil
 	}
 
 	if c.paxos.phase == 2 {
-		//log.Printf("dropping Promise because we are proposer but in Phase %d: %s addr=%s",
-		//	c.paxos.phase, paxosPromiseMsg, c.address)
+		log.Debug().Msg(fmt.Sprintf("dropping Promise because we are proposer but in Phase %d: %s addr=%s",
+			c.paxos.phase, paxosPromiseMsg, c.address))
 		return nil
 	}
 
 	fromPreviousPropose := c.paxos.phase == 1 && paxosPromiseMsg.ID < c.paxos.proposeID &&
 		(c.paxos.proposeID-paxosPromiseMsg.ID)%c.totalPeers == 0
 	if fromPreviousPropose {
-		//log.Printf("dropping Promise because we are proposer but the promise is from the "+
-		//	"previous round with ID %d < %d: %s addr=%s",
-		//	paxosPromiseMsg.ID, c.paxos.proposeID, paxosPromiseMsg, c.address)
+		log.Debug().Msg(fmt.Sprintf("dropping Promise because we are proposer but the promise is from the "+
+			"previous round with ID %d < %d: %s addr=%s",
+			paxosPromiseMsg.ID, c.paxos.proposeID, paxosPromiseMsg, c.address))
 		return nil
 	}
 
@@ -117,11 +119,11 @@ func (c *Consensus) execPaxosProposeMessage(msg types.Message, pkt transport.Pac
 	defer c.Unlock()
 	if paxosProposeMsg.Step != c.tlcStep || paxosProposeMsg.ID != c.paxos.maxID {
 		if paxosProposeMsg.Step != c.tlcStep {
-			//log.Printf("dropping Propose because Step does not match %d vs %d: %s addr=%s",
-			//	paxosProposeMsg.Step, c.tlcStep, paxosProposeMsg, c.address)
+			log.Debug().Msg(fmt.Sprintf("dropping Propose because Step does not match %d vs %d: %s addr=%s",
+				paxosProposeMsg.Step, c.tlcStep, paxosProposeMsg, c.address))
 		} else {
-			//log.Printf("dropping Propose because ID does not match %d vs %d: %s addr=%s",
-			//	paxosProposeMsg.ID, c.paxos.maxID, paxosProposeMsg, c.address)
+			log.Debug().Msg(fmt.Sprintf("dropping Propose because ID does not match %d vs %d: %s addr=%s",
+				paxosProposeMsg.ID, c.paxos.maxID, paxosProposeMsg, c.address))
 		}
 		return nil
 	}
@@ -156,11 +158,12 @@ func (c *Consensus) execPaxosAcceptMessage(msg types.Message, pkt transport.Pack
 			paxosAcceptMsg.ID < c.paxos.proposeID &&
 			(c.paxos.proposeID-paxosAcceptMsg.ID)%c.totalPeers == 0) {
 		if paxosAcceptMsg.Step != c.tlcStep {
-			//log.Printf("dropping Accept because Step does not match %d vs %d: %s addr=%s",
-			//	paxosAcceptMsg.Step, c.tlcStep, paxosAcceptMsg, c.address)
+			log.Debug().Msg(fmt.Sprintf("dropping Accept because Step does not match %d vs %d: %s addr=%s",
+				paxosAcceptMsg.Step, c.tlcStep, paxosAcceptMsg, c.address))
 		} else {
-			//log.Printf("dropping Accept because we are proposer but the propose ID is too low %d <= %d: %s addr=%s",
-			//	paxosAcceptMsg.ID, c.paxos.proposeID, paxosAcceptMsg, c.address)
+			log.Debug().Msg(fmt.Sprintf(
+				"dropping Accept because we are proposer but the propose ID is too low %d <= %d: %s addr=%s",
+				paxosAcceptMsg.ID, c.paxos.proposeID, paxosAcceptMsg, c.address))
 		}
 		return nil
 	}
@@ -204,8 +207,8 @@ func (c *Consensus) execTLCMessage(msg types.Message, pkt transport.Packet) erro
 	c.Lock()
 	defer c.Unlock()
 	if tlcMsg.Step < c.tlcStep {
-		//log.Printf("dropping TLC Message because Step is too low %d <= %d: %s addr=%s",
-		//	tlcMsg.Step, c.tlcStep, tlcMsg, c.address)
+		log.Debug().Msg(fmt.Sprintf("dropping TLC Message because Step is too low %d <= %d: %s addr=%s",
+			tlcMsg.Step, c.tlcStep, tlcMsg, c.address))
 
 		return nil
 	}
