@@ -179,3 +179,21 @@ func (m *WorldState) Print() string {
 	return str
 
 }
+
+func (m *WorldState) GetUserAccountNumber() int {
+
+	keys := make([]string, 0, len(m.m))
+	for k := range m.m {
+		keys = append(keys, k)
+	}
+
+	cnt := 0
+	for _, k := range keys {
+		state, _ := m.m[k]
+		if len(state.Contract) == 0 {
+			cnt++
+		}
+	}
+
+	return cnt
+}

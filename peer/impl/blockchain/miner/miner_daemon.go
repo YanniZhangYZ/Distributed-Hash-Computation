@@ -322,6 +322,10 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 				Int("#conflictBlocks", len(blocks)).
 				Msg("next block is not decided, propose mine")
 
+			// Update the conf.TotalPeer in case of joining of new peers
+			//b, _ := m.blockBuffer[nextID][nextBlockProposal]
+			//m.conf.TotalPeers = uint(b.State.GetUserAccountNumber())
+
 			err := m.consensus.Tag(fmt.Sprintf("%d", nextID), nextBlockProposal)
 			if err != nil {
 				// Maybe another next block is chosen

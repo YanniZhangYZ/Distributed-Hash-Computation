@@ -57,6 +57,14 @@ func (m *Message) AddPeer(addr ...string) {
 	for _, a := range addr {
 		m.originTable.Store(a, originInfoEntry{a, 0, []types.Rumor{}})
 	}
+
+	// Update the conf.TotalPeers according to the number of entries in originTable
+	var i uint
+	m.originTable.Range(func(k, v interface{}) bool {
+		i++
+		return true
+	})
+	m.conf.TotalPeers = i
 }
 
 func (m *Message) GetRoutingTable() peer.RoutingTable {
