@@ -43,6 +43,15 @@ The Chord is responsible for the efficient lookup of a key value. In our case, t
 
 ### Blockchain
 
+The implementation could be found at `/peer/impl/blockchain`.
+
+Our design of the blockchain mainly refers to Ethereum and borrows one of its main features, which is to model the system as a transaction-based state machine.
+As the middle layer, blockchain exposes several interfaces to Password Cracker to provide necessary functions, including _GetBalance_, _ProposeContract_, and _ExecuteContract_. The interface provided by the smart contract is called by the blockchain to implement the functions of contract deployment and contract execution. Internally, the blockchain uses _TransactionProcessDaemon_ and _execBlockMessage_ to process transactions and control the generation and appending of new blocks. In our project, we assume that any node takes on the role of miner.
+
+1. _ProposeContract_ can be called by the password cracker to create and submit a new transaction of type _ContractDeployTx_. According to the provided hash, salt, reward and the successor obtained from DHT, _ProposeContract_ will call an method provided by the smart contract module to generate a piece of smart contract code and smart contract instance, and include it in the transaction. This transaction is then broadcast to all miners in the network. The call to _ProposeContract_ will block until the transaction is confirmed.
+2. _ExecuteContract_ can be called by password cracker after cracking the password to create and submit a new transaction of type _ContractExecuteTx_ to receive claimed rewards. The _data_ field of this transaction contains the password hash, salt and the cracked password. The receiving address of the transaction is set to be the address of the smart contract account corresponding to this task, which is sent to it along with the task by the publisher through Unicast. 
+3. _GetBalance_ is the method to query the balance of the node itself. Since each node also assumes the role of a miner, it queries the world state in the latest block of its current local blockchain to obtain its own account state, thereby querying its own balance. Information about all blockchain accounts can be queried in a similar manner.
+
 ### Smart Contract
 
 The implementation could be found at `/peer/impl/contract`.
