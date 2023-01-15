@@ -145,3 +145,37 @@ func QuickWorldState(accounts int, balance int64) *WorldState {
 	}
 	return &worldState
 }
+
+func (m *WorldState) Print() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	keys := make([]string, 0, len(m.m))
+	for k := range m.m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	str := ""
+	for _, k := range keys {
+		state := m.m[k]
+		str += fmt.Sprintf("Account address  := %s\n", k)
+		str += fmt.Sprintf("\tBalance  := %d\n", state.Balance)
+		str += fmt.Sprintf("\tNonce    := %d\n", state.Nonce)
+		if len(state.Contract) == 0 {
+			str += fmt.Sprintf("\tCodeHash := \n")
+		} else {
+			h := sha256.New()
+			h.Write(state.Contract)
+			str += fmt.Sprintf("\tCodeHash := %s\n", hex.EncodeToString(h.Sum(nil)))
+		}
+		str += fmt.Sprintf("\tTasks    := \n")
+		for hash, v := range state.Tasks {
+			str += fmt.Sprintf("\t\t\tHash: %s, Salt: %s, Password: %s\n", hash[:8], v[1], v[0])
+		}
+		str += "----------------------------\n"
+	}
+
+	return str
+
+}

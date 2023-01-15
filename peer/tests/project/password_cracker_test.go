@@ -11,6 +11,38 @@ import (
 	"time"
 )
 
+// Test_Password_Cracker_Invalid tests a node submits an invalid task
+func Test_Password_Cracker_Invalid(t *testing.T) {
+	transp := udpFac()
+	node1 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(1),
+		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
+	defer node1.Stop()
+
+	node2 := z.NewTestNode(t, peerFac, transp, "127.0.0.1:0", z.WithChordBytes(1),
+		z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
+	defer node2.Stop()
+
+	node1.AddPeer(node2.GetAddr())
+	node2.AddPeer(node1.GetAddr())
+
+	err := node1.JoinChord(node2.GetAddr())
+	require.NoError(t, err)
+
+	time.Sleep(time.Second * 2)
+
+	// TEST 1, node 1 submit an invalid hash str, it should trigger an error
+	hashStr := "---------"
+	saltStr := "3c"
+	err = node1.PasswordSubmitRequest(hashStr, saltStr, 0, 0)
+	require.Error(t, err)
+
+	// TEST 2, node 2 submit an invalid salt str, it should trigger an error
+	hashStr = "49c13df5ec8821b2ec6973a83e077b5ca35ed93a55dc398aa3cb614ebae33d0f"
+	saltStr = "--"
+	err = node2.PasswordSubmitRequest(hashStr, saltStr, 0, 0)
+	require.Error(t, err)
+}
+
 // Test_Password_Cracker_Simple tests a Chord ring formed by 2 nodes, each node should have the dictionary
 // corresponding to its duty range
 func Test_Password_Cracker_Simple(t *testing.T) {

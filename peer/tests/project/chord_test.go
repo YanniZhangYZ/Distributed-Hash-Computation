@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/require"
 	z "go.dedis.ch/cs438/internal/testing"
 	"math"
+	"math/rand"
 	"sort"
 	"testing"
 	"time"
@@ -311,11 +312,12 @@ func Test_Chord_Join_Three_Node(t *testing.T) {
 // nodes should be equal to the total number of nodes
 func Test_Chord_Join_Multiple_Node(t *testing.T) {
 	numNodes := 16
+	chordBytes := 1
 	transp := channelFac()
 
 	nodes := make([]z.TestNode, numNodes)
 	for i := range nodes {
-		node := z.NewTestNode(t, peerFac, transp, fmt.Sprintf("127.0.0.1:%d", i+1), z.WithChordBytes(1),
+		node := z.NewTestNode(t, peerFac, transp, fmt.Sprintf("127.0.0.1:%d", i+1), z.WithChordBytes(chordBytes),
 			z.WithChordStabilizeInterval(time.Millisecond*200), z.WithChordFixFingerInterval(time.Millisecond*200))
 		defer node.Stop()
 		nodes[i] = node
@@ -351,7 +353,7 @@ func Test_Chord_Join_Multiple_Node(t *testing.T) {
 		require.Equal(t, nodes[i].GetPredecessor(), nodes[(i-1+numNodes)%numNodes].GetAddr())
 		require.Equal(t, nodes[i].GetSuccessor(), nodes[(i+1)%numNodes].GetAddr())
 		fingers := nodes[i].GetFingerTable()
-		for j := 0; j < 8; j++ {
+		for j := 0; j < chordBytes*8; j++ {
 			fingerStart := nodes[i].GetChordID() + uint(math.Pow(2, float64(j)))
 
 			// Try to find the node that has a ChordID larger than the fingerStart, i.e., it should
@@ -364,7 +366,7 @@ func Test_Chord_Join_Multiple_Node(t *testing.T) {
 			}
 
 			for k := 0; k <= i && fingerIdx == -1; k++ {
-				if nodes[k].GetChordID()+uint(math.Pow(2, 8)) >= fingerStart {
+				if nodes[k].GetChordID()+uint(math.Pow(2, float64(chordBytes)*8)) >= fingerStart {
 					fingerIdx = k
 				}
 			}
@@ -509,11 +511,12 @@ func Test_Chord_Leave_Simple(t *testing.T) {
 // correct information after the leave is done. Now, there would be multiple nodes inside the system.
 func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 	numNodes := 16
+	chordBytes := 1
 	transp := channelFac()
 
 	nodes := make([]z.TestNode, numNodes)
 	for i := range nodes {
-		node := z.NewTestNode(t, peerFac, transp, fmt.Sprintf("127.0.0.1:%d", i+1), z.WithChordBytes(1),
+		node := z.NewTestNode(t, peerFac, transp, fmt.Sprintf("127.0.0.1:%d", i+1), z.WithChordBytes(chordBytes),
 			z.WithChordStabilizeInterval(time.Millisecond*500), z.WithChordFixFingerInterval(time.Millisecond*500),
 			z.WithChordPingInterval(time.Second*5))
 		defer node.Stop()
@@ -556,7 +559,7 @@ func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 				require.Equal(t, nodes[i].GetPredecessor(), nodes[(i-1+numNodes)%numNodes].GetAddr())
 				require.Equal(t, nodes[i].GetSuccessor(), nodes[(i+1)%numNodes].GetAddr())
 				fingers := nodes[i].GetFingerTable()
-				for j := 0; j < 8; j++ {
+				for j := 0; j < chordBytes*8; j++ {
 					fingerStart := nodes[i].GetChordID() + uint(math.Pow(2, float64(j)))
 
 					// Try to find the node that has a ChordID larger than the fingerStart, i.e., it should
@@ -569,7 +572,7 @@ func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 					}
 
 					for k := 0; k <= i && fingerIdx == -1; k++ {
-						if nodes[k].GetChordID()+uint(math.Pow(2, 8)) >= fingerStart {
+						if nodes[k].GetChordID()+uint(math.Pow(2, float64(chordBytes)*8)) >= fingerStart {
 							fingerIdx = k
 						}
 					}
@@ -579,5 +582,67 @@ func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 			}
 		}
 		t.Run(fmt.Sprintf("%d node(s) leave from %d nodes", sumLeave, sumLeave+numNodes-1), leaveTest)
+	}
+}
+
+// Test_Chord_Stress tests the Chord functions under stressful environment
+func Test_Chord_Stress(t *testing.T) {
+	numNodes := 128
+	chordBytes := 2
+	transp := channelFac()
+
+	nodes := make([]z.TestNode, numNodes)
+	for i := range nodes {
+		node := z.NewTestNode(t, peerFac, transp, fmt.Sprintf("127.0.0.1:%d", i+1), z.WithChordBytes(chordBytes),
+			z.WithChordStabilizeInterval(time.Second),
+			z.WithChordFixFingerInterval(time.Second))
+		defer node.Stop()
+		nodes[i] = node
+	}
+
+	for _, n1 := range nodes {
+		for _, n2 := range nodes {
+			n1.AddPeer(n2.GetAddr())
+		}
+	}
+
+	for i := 1; i < numNodes; i++ {
+		err := nodes[i].JoinChord(nodes[i-1].GetAddr())
+		require.NoError(t, err)
+		time.Sleep(time.Millisecond * time.Duration(1000+rand.Intn(1000)))
+	}
+
+	time.Sleep(time.Second * 60)
+
+	// After every node gets stabilized, we check, for every node, its predecessor, successor, and finger table.
+	// First, we sort the nodes based on ChordID
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].GetChordID() < nodes[j].GetChordID()
+	})
+
+	for i := 0; i < numNodes; i++ {
+		require.Equal(t, nodes[i].GetPredecessor(), nodes[(i-1+numNodes)%numNodes].GetAddr())
+		require.Equal(t, nodes[i].GetSuccessor(), nodes[(i+1)%numNodes].GetAddr())
+		fingers := nodes[i].GetFingerTable()
+		for j := 0; j < chordBytes*8; j++ {
+			fingerStart := nodes[i].GetChordID() + uint(math.Pow(2, float64(j)))
+
+			// Try to find the node that has a ChordID larger than the fingerStart, i.e., it should
+			// be the node that goes into the finger table
+			fingerIdx := -1
+			for k := i + 1; k < numNodes && fingerIdx == -1; k++ {
+				if nodes[k].GetChordID() >= fingerStart {
+					fingerIdx = k
+				}
+			}
+
+			for k := 0; k <= i && fingerIdx == -1; k++ {
+				if nodes[k].GetChordID()+uint(math.Pow(2, float64(chordBytes)*8)) >= fingerStart {
+					fingerIdx = k
+				}
+			}
+
+			require.Equal(t, nodes[fingerIdx].GetAddr(), fingers[j])
+		}
 	}
 }

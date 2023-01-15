@@ -46,7 +46,8 @@ func SimuUserInterface(nbNodes int) {
 		"=======  Node started!                   =======\n"+
 		"=======  UDP Address := %s  =======\n"+
 		"=======  Chord ID    := %03d              =======\n"+
+		"=======  Balance     := %03d              =======\n"+
 		"================================================\n",
-		node.GetAddr(), node.GetChordID())
+		node.GetAddr(), node.GetChordID(), node.GetBalance())
 	postJoin(node)
 }
