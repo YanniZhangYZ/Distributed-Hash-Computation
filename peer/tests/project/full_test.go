@@ -375,7 +375,7 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 		return z.NewTestNode(t, peerFac, transp, fullAddr,
 			z.WithBlockchainBlockTimeout(time.Second*3),
 			z.WithBlockchainDifficulty(2),
-			z.WithBlockchainBlockSize(2),
+			z.WithBlockchainBlockSize(1),
 			z.WithHeartbeat(time.Second*1),
 			z.WithAntiEntropy(time.Second*1),
 			z.WithChordBytes(2), // correspond to salt length
@@ -455,7 +455,7 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 
 func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 	transp := channelFac()
-	nodeNum := 8
+	nodeNum := 16
 
 	worldState := common.QuickWorldState(nodeNum, 20)
 
@@ -468,8 +468,8 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 			z.WithHeartbeat(time.Second*1),
 			z.WithAntiEntropy(time.Second*1),
 			z.WithChordBytes(2), // correspond to salt length
-			z.WithChordStabilizeInterval(time.Millisecond*200),
-			z.WithChordFixFingerInterval(time.Millisecond*200),
+			z.WithChordStabilizeInterval(time.Second),
+			z.WithChordFixFingerInterval(time.Second),
 			z.WithBlockchainInitialState(worldState.GetSimpleMap()),
 			z.WithBlockchainAccountAddress(address))
 
@@ -501,7 +501,7 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 	fmt.Println("Finish joining Chord")
 
 	// Wait for dictionary construction
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 60)
 
 	hashStrs := []string{
 		"14ffb81ab8f435a96400880c8bf34dba05a7ef8b63710f136e87297e601d7881",
@@ -541,7 +541,7 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 				break
 			}
 			fmt.Println("receive nothing")
-			time.Sleep(time.Second * 5)
+			time.Sleep(time.Second * 3)
 		}
 		require.Equal(t, "apple", password)
 
