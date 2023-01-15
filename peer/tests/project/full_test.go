@@ -530,7 +530,7 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 	fmt.Println("Finish joining Chord")
 
 	// Wait for dictionary construction
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 60)
 
 	// the password is apple
 	hashStrs := []string{

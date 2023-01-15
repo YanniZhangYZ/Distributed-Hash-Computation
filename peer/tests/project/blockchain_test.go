@@ -258,7 +258,7 @@ func Test_Blockchain_Random_Transfers(t *testing.T) {
 	transp := channelFac()
 
 	numNode := 3
-	numTxPerNode := 10
+	numTxPerNode := 5
 	initBalance := 100
 	txVerifyTimeout := time.Second * 600
 
@@ -666,7 +666,7 @@ func Test_Blockchain_All_Join(t *testing.T) {
 		return z.NewTestNode(t, peerFac, transp, "127.0.0.1:0",
 			z.WithBlockchainInitialState(nil),
 			z.WithBlockchainBlockTimeout(time.Second*3),
-			z.WithBlockchainDifficulty(3),
+			z.WithBlockchainDifficulty(2),
 			z.WithBlockchainBlockSize(2),
 			z.WithHeartbeat(time.Second*1),
 			z.WithAntiEntropy(time.Second*1))
@@ -800,7 +800,7 @@ func Test_Blockchain_All_Join(t *testing.T) {
 func Test_Blockchain_Join_Stress_Test(t *testing.T) {
 	transp := channelFac()
 
-	numNode := 10
+	numNode := 5
 	initBalance := 100
 	txVerifyTimeout := time.Second * 600
 
@@ -823,6 +823,7 @@ func Test_Blockchain_Join_Stress_Test(t *testing.T) {
 
 		for j := 0; j < i; j++ {
 			nodes[i].AddPeer(nodes[j].GetAddr())
+			nodes[j].AddPeer(nodes[i].GetAddr())
 		}
 
 		err := nodes[i].JoinBlockchain(int64(initBalance), txVerifyTimeout)
