@@ -1,7 +1,6 @@
-# Distributed Hash Computation
+# Decentralized Password Cracker
 
 Authors: [Qiyuan Liang](https://github.com/IYuan505), [Qiyuan Dong](https://github.com/akaqyd), [Yanni Zhang](https://github.com/YanniZhangYZ)<br>
-Overleaf Link: [Link](https://www.overleaf.com/project/639f1a97a9ac119914c1a0e3)
 
 ## To run the program
 
