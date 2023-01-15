@@ -27,7 +27,7 @@ func main() {
 			}
 			cmd.SimuUserInterface(nbNodes)
 		} else {
-			defaultNbNodes := 6
+			defaultNbNodes := 4
 			cmd.SimuUserInterface(defaultNbNodes)
 		}
 		return
