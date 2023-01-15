@@ -6,7 +6,7 @@ import (
 	"golang.org/x/xerrors"
 )
 
-func (m *Miner) execTransactionMessage(msg types.Message, pkt transport.Packet) error {
+func (m *Miner) execTransactionMessage(msg types.Message, _ transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	txMsg, ok := msg.(*types.TransactionMessage)
 	if !ok {
@@ -14,8 +14,6 @@ func (m *Miner) execTransactionMessage(msg types.Message, pkt transport.Packet) 
 	}
 
 	// Verify the signature upon receiving the signed TransactionMessage
-
-	// TODO: verify the signature
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -25,7 +23,7 @@ func (m *Miner) execTransactionMessage(msg types.Message, pkt transport.Packet) 
 	return nil
 }
 
-func (m *Miner) execBlockMessage(msg types.Message, pkt transport.Packet) error {
+func (m *Miner) execBlockMessage(msg types.Message, _ transport.Packet) error {
 	/* cast the message to its actual type. You assume it is the right type. */
 	blockMsg, ok := msg.(*types.BlockMessage)
 	if !ok {

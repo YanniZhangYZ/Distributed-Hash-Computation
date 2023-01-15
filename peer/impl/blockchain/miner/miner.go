@@ -52,7 +52,8 @@ type Miner struct {
 	wg     sync.WaitGroup
 }
 
-func NewMiner(conf *peer.Configuration, message *message.Message, consensus *consensus.Consensus, storage storage.Storage) *Miner {
+func NewMiner(conf *peer.Configuration, message *message.Message,
+	consensus *consensus.Consensus, storage storage.Storage) *Miner {
 	m := Miner{}
 	m.conf = conf
 	m.message = message

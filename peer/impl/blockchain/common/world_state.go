@@ -38,14 +38,12 @@ func (m *WorldState) Set(key string, value State) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.m[key] = value
-	return
 }
 
 func (m *WorldState) Delete(key string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.m, key)
-	return
 }
 
 func (m *WorldState) Copy() *WorldState {
@@ -66,7 +64,7 @@ func (m *WorldState) Hash() []byte {
 
 	// Sort the keys
 	keys := make([]string, 0, len(m.m))
-	for k, _ := range m.m {
+	for k := range m.m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)

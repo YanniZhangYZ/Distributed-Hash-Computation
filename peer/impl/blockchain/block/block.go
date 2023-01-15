@@ -119,9 +119,8 @@ func (b *Block) ProofOfWork(zeros uint, ctx *context.Context, notifyCh chan stru
 
 				if i == zeros {
 					return nil
-				} else {
-					continue
 				}
+				continue
 			}
 		}
 	}
@@ -237,7 +236,7 @@ func (b *Block) ValidateBlock(prevWorldState *common.WorldState) error {
 	// Replay transactions
 	tmpWorldState := (*prevWorldState).Copy()
 	for _, tx := range b.TXs {
-		err := transaction.VerifyAndExecuteTransaction(tx, tmpWorldState, false)
+		err := transaction.VerifyAndExecuteTransaction(tx, tmpWorldState)
 		if err != nil {
 			return err
 		}
@@ -245,7 +244,6 @@ func (b *Block) ValidateBlock(prevWorldState *common.WorldState) error {
 
 	if !tmpWorldState.Equal(&b.State) {
 		return fmt.Errorf("prev state after txs replay does not match block's state")
-	} else {
-		return nil
 	}
+	return nil
 }

@@ -27,10 +27,6 @@ type State struct {
 
 	// StorageRoot – Sometimes known as a storage hash.
 	// StorageRoot is DISABLED for Externally owned account (EOA). This field is set to an empty string for EOAs.
-	// A 256-bit hash of the root node of a Merkle Patricia trie (or a simple KVStore) that
-	// encodes the storage contents of the account (a mapping between 256-bit integer values),
-	// encoded into the trie as a mapping from the Keccak 256-bit hash of the 256-bit integer keys to the RLP-encoded 256-bit integer values.
-	// This trie encodes the hash of the storage contents of this account, and is empty by default.
 	StorageRoot string
 
 	// Tasks – The map that keeps record of all password-cracking tasks that have been executed by this account.

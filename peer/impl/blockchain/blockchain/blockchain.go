@@ -49,7 +49,8 @@ type Blockchain struct {
 	publicKey  *ecdsa.PublicKey
 }
 
-func NewBlockchain(conf *peer.Configuration, message *message.Message, consensus *consensus.Consensus, storage storage.Storage) *Blockchain {
+func NewBlockchain(conf *peer.Configuration, message *message.Message,
+	consensus *consensus.Consensus, storage storage.Storage) *Blockchain {
 	d := Blockchain{}
 	d.message = message
 	d.peerConf = message.GetConf()
@@ -62,7 +63,9 @@ func NewBlockchain(conf *peer.Configuration, message *message.Message, consensus
 	}
 	d.address = common.Address{HexString: socketAddr[1]}
 	if len(d.peerConf.BlockchainAccountAddress) != 0 && d.peerConf.BlockchainAccountAddress != socketAddr[1] {
-		panic(fmt.Errorf("BlockchainAccountAddress is given but doesn't match the port number of the socket address: %s and %s",
+		panic(fmt.Errorf(
+			"BlockchainAccountAddress is given but doesn't match the port number of the socket address: "+
+				"%s and %s",
 			d.peerConf.BlockchainAccountAddress,
 			conf.Socket.GetAddress()))
 	}
@@ -126,7 +129,7 @@ func (a *Blockchain) checkTransaction(signedTx *transaction.SignedTransaction, t
 
 	start := time.Now()
 	for {
-		if time.Now().Sub(start) > timeout {
+		if time.Since(start) > timeout {
 			a.logger.Debug().
 				Int("type", signedTx.TX.Type).
 				Str("src", signedTx.TX.Src.String()).
@@ -216,7 +219,8 @@ func (a *Blockchain) TransferMoney(dst common.Address, amount int64, timeout tim
 	return nil
 }
 
-func (a *Blockchain) ProposeContract(hash string, salt string, reward int64, recipient string, timeout time.Duration) (string, error) {
+func (a *Blockchain) ProposeContract(hash string, _ string,
+	reward int64, recipient string, timeout time.Duration) (string, error) {
 	// First check if the publisher has enough balance
 	balance := a.GetBalance()
 	if balance < reward {
@@ -245,7 +249,8 @@ func (a *Blockchain) ProposeContract(hash string, salt string, reward int64, rec
 	)
 
 	a.nonce++
-	rawTx := transaction.NewContractDeploymentTX(a.address, common.StringToAddress(contractAddress), reward, contract, a.nonce)
+	rawTx := transaction.NewContractDeploymentTX(a.address,
+		common.StringToAddress(contractAddress), reward, contract, a.nonce)
 
 	// Sign the transaction
 	signedTx, err := rawTx.Sign(a.privateKey)
@@ -268,9 +273,11 @@ func (a *Blockchain) ProposeContract(hash string, salt string, reward int64, rec
 	return contractAddress, nil
 }
 
-func (a *Blockchain) ExecuteContract(password string, hash string, salt string, contractAddr string, timeout time.Duration) error {
+func (a *Blockchain) ExecuteContract(password string, hash string, salt string,
+	contractAddr string, timeout time.Duration) error {
 	a.nonce++
-	rawTx := transaction.NewContractExecutionTX(a.address, common.StringToAddress(contractAddr), password, hash, salt, a.nonce)
+	rawTx := transaction.NewContractExecutionTX(a.address,
+		common.StringToAddress(contractAddr), password, hash, salt, a.nonce)
 
 	// Sign the transaction
 	signedTx, err := rawTx.Sign(a.privateKey)

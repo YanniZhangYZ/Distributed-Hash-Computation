@@ -9,7 +9,7 @@ import (
 )
 
 // VerifyAndExecuteTransaction verify and execute a transaction on a given world state
-func VerifyAndExecuteTransaction(tx *SignedTransaction, worldState *common.WorldState, print bool) error {
+func VerifyAndExecuteTransaction(tx *SignedTransaction, worldState *common.WorldState) error {
 	var err error
 	switch tx.TX.Type {
 	case TRANSFER_TX:
@@ -17,7 +17,7 @@ func VerifyAndExecuteTransaction(tx *SignedTransaction, worldState *common.World
 	case CONTRACT_DEPLOYMENT_TX:
 		err = executeContractDeploymentTx(tx, worldState)
 	case CONTRACT_EXECUTION_TX:
-		err = executeContractExecutionTx(tx, worldState, print)
+		err = executeContractExecutionTx(tx, worldState)
 	default:
 		panic("Unknown transaction type")
 	}
@@ -98,7 +98,9 @@ func executeContractDeploymentTx(tx *SignedTransaction, worldState *common.World
 
 	}
 	if srcState.Balance < tx.TX.Value {
-		return fmt.Errorf("insufficient balance, publisher has %d but tries to publish a contract with %d reward", srcState.Balance, tx.TX.Value)
+		return fmt.Errorf(
+			"insufficient balance, publisher has %d but tries to publish a contract with %d reward",
+			srcState.Balance, tx.TX.Value)
 	}
 
 	// Create the contract instance
@@ -124,7 +126,7 @@ func executeContractDeploymentTx(tx *SignedTransaction, worldState *common.World
 	return nil
 }
 
-func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldState, print bool) error {
+func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldState) error {
 	contractAddr := tx.TX.Dst.String()
 	contractState, ok := worldState.Get(contractAddr)
 	if !ok {
@@ -163,9 +165,6 @@ func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldS
 
 	// Execute the contract
 	ifThenValid, actions, err3 := contract.GatherActions(worldState)
-	if print {
-		contract.PrintContractExecutionState()
-	}
 
 	// Update the contract instance after executing the contract
 	contractState.Contract, _ = contract.Marshal()
