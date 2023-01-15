@@ -33,7 +33,7 @@ func addressValidator(ans interface{}) error {
 
 func hashValidator(ans interface{}) error {
 	hash, _ := ans.(string)
-	config := nodeDefaultConf(udpFac(), "127.0.0.1:0")
+	config := nodeDefaultConf(udpFac())
 
 	_, err := hex.DecodeString(hash)
 	if err != nil {
@@ -59,7 +59,7 @@ func saltValidator(ans interface{}) error {
 		return xerrors.Errorf("Please enter a valid Salt value in hex decimal string, e.g., 1122...ff")
 	}
 
-	config := nodeDefaultConf(udpFac(), "127.0.0.1:0")
+	config := nodeDefaultConf(udpFac())
 	if len(salt) != config.ChordBytes*2 {
 		return xerrors.Errorf(
 			fmt.Sprintf("Please enter a valid Salt value, it should have %d bytes",

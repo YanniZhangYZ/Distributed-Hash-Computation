@@ -19,8 +19,8 @@ import (
 )
 
 // nodeDefaultConf returns the default configuration of a node
-func nodeDefaultConf(trans transport.Transport, addr string) peer.Configuration {
-	socket, err := trans.CreateSocket(addr)
+func nodeDefaultConf(trans transport.Transport) peer.Configuration {
+	socket, err := trans.CreateSocket("127.0.0.1:0")
 	if err != nil {
 		panic(err)
 	}
@@ -101,7 +101,7 @@ func leaveChord(node peer.Peer) error {
 }
 
 // showChordInfo shows all fields for a Chord node
-func showChordInfo(node peer.Peer) error {
+func showChordInfo(node peer.Peer) {
 	pred := node.GetPredecessor()
 	succ := node.GetSuccessor()
 	finger := node.GetFingerTable()
@@ -128,8 +128,6 @@ func showChordInfo(node peer.Peer) error {
 		}
 	}
 	color.Yellow("%s\n", fingerStr)
-
-	return nil
 }
 
 // askHashSalt asks users for hash and salt
@@ -174,7 +172,7 @@ func crackPassword(node peer.Peer) error {
 }
 
 // receivePassword receives results for previous tasks
-func receivePassword(node peer.Peer) error {
+func receivePassword(node peer.Peer) {
 	hash, salt := askHashSalt()
 	result := node.PasswordReceiveResult(hash, salt)
 	if result == "" {
@@ -185,17 +183,15 @@ func receivePassword(node peer.Peer) error {
 			"=======  Salt     := %s\n", hash, salt)
 		color.Red("=======  Password := %s\n\n\n", result)
 	}
-	return nil
 }
 
 // showWorldState displays the balance
-func showWorldState(node peer.Peer) error {
+func showWorldState(node peer.Peer) {
 	color.HiYellow("\n"+
 		"=======  World State ======= \n\n"+
 		"%s\n",
 		node.GetChain().GetLastBlock().State.Print(),
 	)
-	return nil
 }
 
 // printContractStatus print the contract status of a specific smart contract

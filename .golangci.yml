@@ -237,7 +237,7 @@ issues:
         - noctx
         - unparam
         - wrapcheck
-    - path: "polypus"
+    - path: "polypus|cmd"
       linters:
         - forbidigo # need to use fmt.Print, as this is an interactive CLI
     - linters:

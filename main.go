@@ -14,7 +14,10 @@ func main() {
 	if len(argsWithoutProg) == 0 {
 		// Normal node, just initiate one node
 		cmd.UserInterface()
-	} else if argsWithoutProg[0] == "simu" {
+		return
+	}
+	
+	if argsWithoutProg[0] == "simu" {
 		// Run in simulation mode
 		if len(argsWithoutProg) > 1 {
 			nbNodes, err := strconv.Atoi(argsWithoutProg[1])
@@ -27,8 +30,9 @@ func main() {
 			defaultNbNodes := 4
 			cmd.SimuUserInterface(defaultNbNodes)
 		}
-	} else {
-		log.Fatalf("Run the program as `go run .` for normal mode or `go run . simu " +
-			"$num_of_nodes` for simulation mode")
+		return
 	}
+
+	log.Fatalf("Run the program as `go run .` for normal mode or `go run . simu " +
+		"$num_of_nodes` for simulation mode")
 }

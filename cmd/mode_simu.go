@@ -13,10 +13,18 @@ func SimuUserInterface(nbNodes int) {
 	configs := make([]peer.Configuration, nbNodes)
 	nodes := make([]peer.Peer, nbNodes)
 	for i := 0; i < nbNodes; i++ {
-		configs[i] = nodeDefaultConf(udpFac(), "127.0.0.1:0")
+		configs[i] = nodeDefaultConf(udpFac())
 		node := nodeCreateWithConf(peerFac, configs[i])
-		node.Start()
-		defer node.Stop()
+		err := node.Start()
+		if err != nil {
+			log.Fatalf("failed to start node: %v", err)
+		}
+		defer func() {
+			err = node.Stop()
+			if err != nil {
+				log.Fatalf("failed to stop node: %v", err)
+			}
+		}()
 		nodes[i] = node
 	}
 

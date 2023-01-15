@@ -89,20 +89,14 @@ func postJoin(node peer.Peer) bool {
 				log.Fatalf("failed to add peer: %v", err)
 			}
 		case "🪐 show predecessor, successor, and finger table":
-			err = showChordInfo(node)
-			if err != nil {
-				log.Fatalf("failed to show Chord info: %v", err)
-			}
+			showChordInfo(node)
 		case "🔒 propose password cracking task":
 			err = crackPassword(node)
 			if err != nil {
 				log.Fatalf("failed to submit password cracking result: %v", err)
 			}
 		case "🔐 receive password cracking result":
-			err = receivePassword(node)
-			if err != nil {
-				log.Fatalf("failed to receive password cracking task: %v", err)
-			}
+			receivePassword(node)
 		case "🕓 leave Chord":
 			err = leaveChord(node)
 			if err != nil {
@@ -110,10 +104,7 @@ func postJoin(node peer.Peer) bool {
 			}
 			return true
 		case "📖 show world state":
-			err = showWorldState(node)
-			if err != nil {
-				log.Fatalf("failed to receive password cracking task: %v", err)
-			}
+			showWorldState(node)
 		case "📜 print contract status":
 			err = printContractStatus(node)
 			if err != nil {

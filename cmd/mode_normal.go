@@ -5,20 +5,27 @@ import (
 	"go.dedis.ch/cs438/peer"
 	"go.dedis.ch/cs438/peer/impl"
 	"go.dedis.ch/cs438/transport"
-	"go.dedis.ch/cs438/transport/channel"
 	"go.dedis.ch/cs438/transport/udp"
+	"log"
 )
 
 var peerFac peer.Factory = impl.NewPeer
-var channelFac transport.Factory = channel.NewTransport
 var udpFac transport.Factory = udp.NewUDP
 
 // UserInterface provides a command line interface of the program, in the normal mode
 func UserInterface() {
-	config := nodeDefaultConf(udpFac(), "127.0.0.1:0")
+	config := nodeDefaultConf(udpFac())
 	node := nodeCreateWithConf(peerFac, config)
-	node.Start()
-	defer node.Stop()
+	err := node.Start()
+	if err != nil {
+		log.Fatalf("failed to start node: %v", err)
+	}
+	defer func() {
+		err = node.Stop()
+		if err != nil {
+			log.Fatalf("failed to stop node: %v", err)
+		}
+	}()
 
 	color.HiYellow("================================================\n"+
 		"=======  Node started!                   =======\n"+
