@@ -7,6 +7,7 @@ import (
 	"go.dedis.ch/cs438/peer/impl/blockchain/common"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -788,6 +789,95 @@ func Test_Blockchain_All_Join(t *testing.T) {
 	require.NoError(t, node1.GetChain().ValidateChain())
 	require.NoError(t, node2.GetChain().ValidateChain())
 	require.NoError(t, node3.GetChain().ValidateChain())
+}
+
+// Test_Blockchain_Stress_Test creates many nodes and a lot of random transactions among them.
+// The difficulty of POW is very low to produce frequent block mining conflicts.
+// It tests, after all these transactions, if the blockchain of each account is the same
+// and if the total balance is the same as before.
+// Each node is executing in its own thread and submits its transactions independently.
+// This test may take VERY long time. Be patient :)
+func Test_Blockchain_Join_Stress_Test(t *testing.T) {
+	transp := channelFac()
+
+	numNode := 10
+	initBalance := 100
+	txVerifyTimeout := time.Second * 600
+
+	newNode := func(address string) z.TestNode {
+		fullAddr := fmt.Sprintf("127.0.0.1:%s", address)
+		return z.NewTestNode(t, peerFac, transp, fullAddr,
+			z.WithBlockchainBlockTimeout(time.Second*3),
+			z.WithBlockchainDifficulty(2),
+			z.WithBlockchainBlockSize(2),
+			z.WithHeartbeat(time.Second*1),
+			z.WithAntiEntropy(time.Second*1),
+			z.WithBlockchainAccountAddress(address))
+	}
+
+	// Create nodes
+	nodes := make([]z.TestNode, 0)
+	for i := 0; i < numNode; i++ {
+		nodes = append(nodes, newNode(strconv.Itoa(i+1)))
+		defer nodes[len(nodes)-1].Stop()
+
+		for j := 0; j < i; j++ {
+			nodes[i].AddPeer(nodes[j].GetAddr())
+		}
+
+		err := nodes[i].JoinBlockchain(int64(initBalance), txVerifyTimeout)
+		require.NoError(t, err)
+	}
+
+	// Add each other as peers
+	for i := 0; i < numNode; i++ {
+		for j := 0; j < numNode; j++ {
+			if j == i {
+				continue
+			}
+			//nodes[i].AddPeer(nodes[j].GetAddr())
+		}
+	}
+	//
+	//for n := 0; n < numNode; n++ {
+	//	err := nodes[n].JoinBlockchain(int64(initBalance), txVerifyTimeout)
+	//	require.NoError(t, err)
+	//}
+
+	// Print each node's blockchain
+	for i := 0; i < numNode; i++ {
+		fmt.Fprint(os.Stdout, nodes[i].GetChain().PrintChain())
+	}
+
+	// Check sum of balances
+	balanceSum := int64(0)
+	for i := 0; i < numNode; i++ {
+		balanceSum += nodes[i].GetBalance()
+	}
+	require.EqualValues(t, initBalance*numNode, balanceSum)
+
+	// Check blockchain
+	blockCnt := nodes[0].GetChain().GetBlockCount()
+	txCnt := nodes[0].GetChain().GetTransactionCount()
+	lastBlockHash := nodes[0].GetChain().GetLastBlock().BlockHash
+	for n := 0; n < numNode; n++ {
+		require.Equal(t, nodes[n].GetChain().GetBlockCount(), blockCnt)
+		require.Equal(t, nodes[n].GetChain().GetTransactionCount(), txCnt)
+		require.Equal(t, nodes[n].GetChain().GetLastBlock().BlockHash, lastBlockHash)
+	}
+
+	// Check state
+	numAccount := nodes[0].GetChain().GetLastBlock().State.Len()
+	for n := 1; n < numAccount; n++ {
+		require.Equal(t, numAccount,
+			nodes[n].GetChain().GetLastBlock().State.Len())
+	}
+
+	// Full validation each node's blockchain
+	for i := 0; i < numNode; i++ {
+		err := nodes[i].GetChain().ValidateChain()
+		require.NoError(t, err)
+	}
 }
 
 // Test_Blockchain_Deploy_Contract tests if a node could publish a smart contract to the blockchain
