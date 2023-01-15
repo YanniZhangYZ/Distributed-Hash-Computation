@@ -410,8 +410,8 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 		defer testNode[i].Stop()
 	}
 
-	fmt.Println(" ")
-	fmt.Println("Finish creating node")
+	// fmt.Println(" ")
+	// fmt.Println("Finish creating node")
 
 	for i := 0; i < nodeNum; i++ {
 		for j := 0; j < nodeNum; j++ {
@@ -421,13 +421,14 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 			testNode[i].AddPeer(testNode[j].GetAddr())
 		}
 	}
-	fmt.Println("Finish adding peer")
+	// fmt.Println("Finish adding peer")
 
 	// add them all to chord
 	for i := 1; i < nodeNum; i++ {
 		_ = testNode[i].JoinChord(testNode[i-1].GetAddr())
+		time.Sleep(time.Second)
 	}
-	fmt.Println("Finish joining Chord")
+	// fmt.Println("Finish joining Chord")
 
 	// Wait for dictionary construction
 	time.Sleep(time.Second * 10)
@@ -438,7 +439,7 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 	err := testNode[0].PasswordSubmitRequest(hashStr, saltStr, 1, time.Second*600)
 	require.NoError(t, err)
 
-	fmt.Println(" submit the task")
+	// fmt.Println(" submit the task")
 
 	// Wait for the node to crack the password and earn the reward
 	password := ""
@@ -447,7 +448,7 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 		if password != "" {
 			break
 		}
-		fmt.Println("receive nothing")
+		// fmt.Println("receive nothing")
 		time.Sleep(time.Second * 5)
 	}
 	require.Equal(t, "apple", password)
@@ -512,14 +513,14 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 		defer testNode[i].Stop()
 	}
 
-	fmt.Println("Finish creating node")
+	// fmt.Println("Finish creating node")
 
 	for i := 0; i < nodeNum; i++ {
 		for j := 0; j < nodeNum; j++ {
 			testNode[i].AddPeer(testNode[j].GetAddr())
 		}
 	}
-	fmt.Println("Finish adding peer")
+	// fmt.Println("Finish adding peer")
 
 	// add them all to chord
 	for i := 1; i < nodeNum; i++ {
@@ -527,7 +528,7 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 		require.NoError(t, err)
 		time.Sleep(time.Second)
 	}
-	fmt.Println("Finish joining Chord")
+	// fmt.Println("Finish joining Chord")
 
 	// Wait for dictionary construction
 	time.Sleep(time.Second * 60)
@@ -559,7 +560,7 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 		err := testNode[i].PasswordSubmitRequest(hashStrs[i], saltStrs[i], 1, time.Second*600)
 		require.NoError(t, err)
 
-		fmt.Println(" submit the task")
+		// fmt.Println(" submit the task")
 
 		// Wait for the node to crack the password and earn the reward
 		password := ""
@@ -571,8 +572,8 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 			time.Sleep(time.Second * 3)
 		}
 		require.Equal(t, "apple", password)
-		msg := "successfully receive one: " + hashStrs[i]
-		fmt.Println(msg)
+		// msg := "successfully receive one: " + hashStrs[i]
+		// fmt.Println(msg)
 
 	}
 
