@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"github.com/rs/zerolog"
 	"io"
 	"regexp"
 	"time"
@@ -62,7 +63,7 @@ func NewPeer(conf peer.Configuration) peer.Peer {
 
 // Start implements peer.Service
 func (n *node) Start() error {
-	//zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	n.chord.StartDaemon()
 	n.Blockchain.Start()

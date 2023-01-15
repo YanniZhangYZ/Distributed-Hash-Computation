@@ -791,11 +791,11 @@ func Test_Blockchain_All_Join(t *testing.T) {
 	require.NoError(t, node3.GetChain().ValidateChain())
 }
 
-// Test_Blockchain_Stress_Test creates many nodes and a lot of random transactions among them.
+// Test_Blockchain_Stress_Test creates many nodes with an empty initial state.
+// Each node joins by calling JoinBlockchain
 // The difficulty of POW is very low to produce frequent block mining conflicts.
-// It tests, after all these transactions, if the blockchain of each account is the same
+// It tests, after all these joining, if the blockchain of each account is the same
 // and if the total balance is the same as before.
-// Each node is executing in its own thread and submits its transactions independently.
 // This test may take VERY long time. Be patient :)
 func Test_Blockchain_Join_Stress_Test(t *testing.T) {
 	transp := channelFac()
