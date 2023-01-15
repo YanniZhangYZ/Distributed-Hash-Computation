@@ -106,8 +106,6 @@ func Test_Parse_Object_Error(t *testing.T) {
 		`b.key35`,
 		`c.attribute`,
 	}
-	var parsedObjs []*parser.Object
-
 	var ObjectParser = participle.MustBuild(&parser.Object{},
 		participle.Lexer(parser.ContractLexer),
 		participle.Unquote("String"),
@@ -121,7 +119,6 @@ func Test_Parse_Object_Error(t *testing.T) {
 		expectedErrMsg := fmt.Sprintf(`1:1: unexpected token %s`, unexpectedToken[i])
 		expectedErr := xerrors.Errorf(expectedErrMsg)
 		require.EqualError(t, err, expectedErr.Error())
-		parsedObjs = append(parsedObjs, objAST)
 	}
 
 }
@@ -429,7 +426,7 @@ func Test_Parse_Assumption_Error(t *testing.T) {
 	)
 	assumeAST := &parser.Assumption{}
 	err := AssumeParser.ParseString("", assumeString, assumeAST)
-	expectedErrMsg := fmt.Sprintf(`1:1: unexpected token "ASSUMPTION"`)
+	expectedErrMsg := `1:1: unexpected token "ASSUMPTION"`
 	expectedErr := xerrors.Errorf(expectedErrMsg)
 	require.EqualError(t, err, expectedErr.Error())
 
@@ -504,7 +501,7 @@ func Test_Parse_Ifclause_Error(t *testing.T) {
 	)
 	ifAST := &parser.IfClause{}
 	err := IfParser.ParseString("", ifString, ifAST)
-	expectedErrMsg := fmt.Sprintf(`2:4: unexpected token "smartAccount" (expected ("THEN" Action+))`)
+	expectedErrMsg := `2:4: unexpected token "smartAccount" (expected ("THEN" Action+))`
 	expectedErr := xerrors.Errorf(expectedErrMsg)
 	require.EqualError(t, err, expectedErr.Error())
 
@@ -563,8 +560,6 @@ func Test_Parse_Action_Error(t *testing.T) {
 		`smartAccount.def("finisher_ID", "crackedKey")`,
 	}
 
-	var parsedActions []*parser.Action
-
 	var ActionParser = participle.MustBuild(&parser.Action{},
 		participle.Lexer(parser.ContractLexer),
 		participle.Unquote("String"),
@@ -577,7 +572,6 @@ func Test_Parse_Action_Error(t *testing.T) {
 		expectedErrMsg := fmt.Sprintf(`1:14: unexpected token %s (expected "transfer")`, unexpectedToken[i])
 		expectedErr := xerrors.Errorf(expectedErrMsg)
 		require.EqualError(t, err, expectedErr.Error())
-		parsedActions = append(parsedActions, actionAST)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+
 	"github.com/fatih/color"
 
 	"fmt"
@@ -504,7 +505,7 @@ func (c *Contract) CompareLeftRightVal(left interface{}, right interface{}, oper
 // The return value is then used for password carcking correctness verification
 func GetTaskHash(tasks map[string][2]string, targetHash string) (string, error) {
 	if len(tasks) == 0 {
-		fmt.Printf("Task list is empty. No such hash.")
+		// fmt.Printf("Task list is empty. No such hash.")
 		return "", xerrors.Errorf("Task list is empty. No such hash.")
 	}
 	v, ok := tasks[targetHash]

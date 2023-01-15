@@ -2,7 +2,6 @@ package project
 
 import (
 	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -51,23 +50,31 @@ func Test_Contract_State_Tree(t *testing.T) {
 			smartAccount.transfer("finisher_ID", 46)
 	`
 
-	// create a contract instance
-	contract := impl.NewContract(
-		"1",                  // ID
-		"crack pwd contract", // name
-		plainContract,        // plain_code
-		"p1",                 // publisher
-		"f1",                 // finisher
-	)
-
 	codeAST, err := parser.BuildCodeAST(plainContract)
 	stateAST := impl.BuildStateTree(&codeAST)
 
 	require.NoError(t, err)
 
-	fmt.Println(contract.ToString())
-	fmt.Println(impl.PrintStateAST(codeAST, stateAST))
-	fmt.Println(impl.PrintCodeAST(codeAST))
+	// expectedStateAST:=""
+	// expectedCodeAST:=""
+
+	expectedStateAST := `📝📝📝 Contract Execution State
+└── Assumption
+│   ├── 1: [Condition] publisher.balance > 0 [Executed❎] [Valid❎]
+└── If Clause
+    └── 4: [Condition] finisher.crackedPwd.hash == yuvubknluykgink [Executed❎] [Valid❎]
+    └── 5: [Action] smartAccount transfer ( finisher_ID 46 ) [Executed❎]
+`
+	require.Equal(t, expectedStateAST, impl.PrintStateAST(codeAST, stateAST))
+
+	expectedCodeAST := `CodeAST
+└── Assumption
+│   ├── [Condition] publisher.balance > 0
+└── If Clause
+    └── [Condition] finisher.crackedPwd.hash == yuvubknluykgink
+    └── [Action] smartAccount transfer ( finisher_ID 46 )
+`
+	require.Equal(t, expectedCodeAST, impl.PrintCodeAST(codeAST))
 }
 
 func Test_Contract_Build_Plain_Text(t *testing.T) {
@@ -617,7 +624,7 @@ func Test_Contract_All_True(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, isValid, true)
 
-	fmt.Println("------------after assumption check----------------")
+	// fmt.Println("------------after assumption check----------------")
 	contract.PrintContractExecutionState()
 
 	_, actions, err := contract.GatherActions(worldState)
@@ -636,7 +643,7 @@ func Test_Contract_All_True(t *testing.T) {
 	}
 	require.Equal(t, actions, expectedActions)
 
-	fmt.Println("------------after assumption check----------------")
+	// fmt.Println("------------after assumption check----------------")
 	contract.PrintContractExecutionState()
 
 }
