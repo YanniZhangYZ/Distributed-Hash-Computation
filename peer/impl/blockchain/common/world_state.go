@@ -159,7 +159,7 @@ func (m *WorldState) Print() string {
 		state := m.m[k]
 		str += fmt.Sprintf("Account address  := %s\n", k)
 		str += fmt.Sprintf("\tBalance  := %d\n", state.Balance)
-		str += fmt.Sprintf("\tNonce    := %d\n", state.Nonce)
+		//str += fmt.Sprintf("\tNonce    := %d\n", state.Nonce)
 		if len(state.Contract) == 0 {
 			str += fmt.Sprintf("\tCodeHash := \n")
 		} else {

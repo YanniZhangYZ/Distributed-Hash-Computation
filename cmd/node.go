@@ -182,11 +182,26 @@ func receivePassword(node peer.Peer) {
 
 // showWorldState displays the balance
 func showWorldState(node peer.Peer) {
-	color.HiYellow("\n"+
-		"=======  World State ======= \n\n"+
-		"%s\n",
-		node.GetChain().GetLastBlock().State.Print(),
-	)
+	color.HiYellow("\n" +
+		"=======  World State ======= \n")
+	worldState := node.GetChain().GetLastBlock().State.Copy()
+	addr := node.GetAccountAddress()
+
+	accounts := worldState.Keys()
+	for _, acc := range accounts {
+		if acc == addr {
+			continue
+		}
+		state, _ := worldState.Get(acc)
+		color.HiYellow("%s----------------------------\n",
+			state.Print(acc))
+	}
+
+	// Print the state of itself
+	state, _ := worldState.Get(addr)
+	//color.HiRed("%s----------------------------\n", state.Print(addr))
+	color.HiRed("%s%s\n", state.Print(addr), color.HiYellowString("----------------------------"))
+	color.HiYellow("")
 }
 
 // printContractStatus print the contract status of a specific smart contract

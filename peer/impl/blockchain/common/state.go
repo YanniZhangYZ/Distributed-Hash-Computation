@@ -115,3 +115,26 @@ func (a *State) Copy() State {
 	}
 	return cpy
 }
+
+func (a *State) Print(address string) string {
+	str := ""
+	state := a
+	str += fmt.Sprintf("Account address  := %s\n", address)
+	str += fmt.Sprintf("\tBalance  := %d\n", state.Balance)
+	//str += fmt.Sprintf("\tNonce    := %d\n", state.Nonce)
+	if len(state.Contract) > 0 {
+		h := sha256.New()
+		h.Write(state.Contract)
+		str += fmt.Sprintf("\tCodeHash := %s\n", hex.EncodeToString(h.Sum(nil)))
+	}
+	if len(state.Tasks) > 0 {
+		str += fmt.Sprintf("\tTasks    := ")
+		for hash, v := range state.Tasks {
+			str += fmt.Sprintf("Hash: %s, Salt: %s, Password: %s\t", hash[:8], v[1], v[0])
+		}
+		str += "\n"
+	}
+
+	return str
+
+}
