@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"crypto"
+	"encoding/json"
 	"fmt"
+	"go.dedis.ch/cs438/peer/impl/contract/impl"
 	"log"
 	"time"
 
@@ -193,5 +195,32 @@ func showWorldState(node peer.Peer) error {
 		"%s\n",
 		node.GetChain().GetLastBlock().State.Print(),
 	)
+	return nil
+}
+
+// printContractStatus print the contract status of a specific smart contract
+func printContractStatus(node peer.Peer) error {
+	var contractAddr string
+	err := survey.AskOne(
+		&survey.Input{Message: "Enter contract account's address: "},
+		&contractAddr)
+
+	if err != nil {
+		return xerrors.Errorf("failed to get the answer: %v", err)
+	}
+
+	contractState, ok := node.GetChain().GetLastBlock().State.Get(contractAddr)
+	if !ok {
+		return xerrors.Errorf("no such contract account address in the world state: %s", contractAddr)
+	}
+
+	contractInst := impl.Contract{}
+	err = json.Unmarshal(contractState.Contract, &contractInst)
+	if err != nil {
+		return xerrors.Errorf("failed to unmarshal contract state: %v", err)
+	}
+
+	contractInst.PrintContractExecutionState()
+
 	return nil
 }

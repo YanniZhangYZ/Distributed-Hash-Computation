@@ -166,6 +166,10 @@ func executeContractExecutionTx(tx *SignedTransaction, worldState *common.WorldS
 	if print {
 		contract.PrintContractExecutionState()
 	}
+
+	// Update the contract instance after executing the contract
+	contractState.Contract, _ = contract.Marshal()
+
 	if err3 != nil {
 		return err3
 	}

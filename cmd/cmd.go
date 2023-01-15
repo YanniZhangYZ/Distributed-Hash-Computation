@@ -71,6 +71,7 @@ func postJoin(node peer.Peer) bool {
 			"🔐 receive password cracking result",
 			"🕓 leave Chord",
 			"📖 show world state",
+			"📜 print contract status",
 			"👋 exit"},
 	}
 	var action string
@@ -110,6 +111,11 @@ func postJoin(node peer.Peer) bool {
 			return true
 		case "📖 show world state":
 			err = showWorldState(node)
+			if err != nil {
+				log.Fatalf("failed to receive password cracking task: %v", err)
+			}
+		case "📜 print contract status":
+			err = printContractStatus(node)
 			if err != nil {
 				log.Fatalf("failed to receive password cracking task: %v", err)
 			}
