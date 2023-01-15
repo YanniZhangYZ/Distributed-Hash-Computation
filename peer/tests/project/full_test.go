@@ -13,8 +13,10 @@ import (
 	"golang.org/x/xerrors"
 )
 
-// Test_Simple_Submit_Execute tests a simple scenario where one node submit a password cracking request
+// Test_Full_Three_Nodes_One_Task_1B_Salt tests a simple scenario
+// where one node submit a password cracking request
 // and another node executes the request to earn the reward
+// use 1 byte salt
 func Test_Full_Three_Nodes_One_Task_1B_Salt(t *testing.T) {
 	transp := channelFac()
 
@@ -114,6 +116,10 @@ func Test_Full_Three_Nodes_One_Task_1B_Salt(t *testing.T) {
 
 }
 
+// Test_Full_Three_Nodes_Two_Tasks_2B_Salt tests a scenario
+// where there are three node, two of the ndoes submit password cracking request
+// there should be two nodes execute the request to earn the reward
+// use 2 byte salt
 func Test_Full_Three_Nodes_Two_Tasks_2B_Salt(t *testing.T) {
 	transp := channelFac()
 
@@ -245,6 +251,12 @@ func Test_Full_Three_Nodes_Two_Tasks_2B_Salt(t *testing.T) {
 
 }
 
+// Test_Full_Three_Nodes_Two_Tasks_2B_Salt_No_Enough_Balance tests a scenario
+// where there are three node, one of the ndoes submit two password cracking requests
+// when submiting the second task, the node has no enough balance
+// therefore only the first task is successfully published
+// there should be one node execute the the request to earn the reward
+// use 2 byte salt
 func Test_Full_Three_Nodes_Two_Tasks_2B_Salt_No_Enough_Balance(t *testing.T) {
 	transp := channelFac()
 
@@ -364,6 +376,10 @@ func Test_Full_Three_Nodes_Two_Tasks_2B_Salt_No_Enough_Balance(t *testing.T) {
 
 }
 
+// Test_Full_Many_Nodes_One_Task_2B_Salt tests a scenario
+// where there are eight nodes, one of the ndoes submit a password cracking request
+// there should be one node execute the the request to earn the reward
+// use 2 byte salt
 func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 	transp := channelFac()
 	nodeNum := 8
@@ -388,6 +404,7 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 
 	testNode := make([]z.TestNode, nodeNum)
 
+	// creating 8 nodes
 	for i := 0; i < nodeNum; i++ {
 		testNode[i] = newNode(strconv.Itoa(i + 1))
 		defer testNode[i].Stop()
@@ -406,6 +423,7 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 	}
 	fmt.Println("Finish adding peer")
 
+	// add them all to chord
 	for i := 1; i < nodeNum; i++ {
 		_ = testNode[i].JoinChord(testNode[i-1].GetAddr())
 	}
@@ -414,6 +432,7 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 	// Wait for dictionary construction
 	time.Sleep(time.Second * 10)
 
+	// submit one task. The passward is apple
 	hashStr := "14ffb81ab8f435a96400880c8bf34dba05a7ef8b63710f136e87297e601d7881"
 	saltStr := "0000"
 	err := testNode[0].PasswordSubmitRequest(hashStr, saltStr, 1, time.Second*600)
@@ -436,7 +455,12 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 	var totalBalance int64
 
 	for i := 0; i < nodeNum; i++ {
+		// there should be two transactions:
+		// publisher -> smartaccount 1
+		// smart account -> finisher 1
 		require.Equal(t, 2, testNode[i].GetChain().GetTransactionCount())
+
+		// one smart account is built
 		require.Equal(t, nodeNum+1, testNode[i].GetChain().GetLastBlock().State.Len())
 		require.NoError(t, testNode[i].GetChain().ValidateChain())
 		if i != 0 {
@@ -448,11 +472,17 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 
 	// Check the balance
 	require.EqualValues(t, nodeNum*10, totalBalance)
+	// The cracking task is correct,
+	// smartAccount should transfer money to finisher
 	contractState, _ := testNode[0].GetChain().GetLastBlock().State.Get("1_1")
 	require.EqualValues(t, 0, contractState.Balance)
 
 }
 
+// Test_Full_Many_Nodes_Many_Task_2B_Salt tests a scenario
+// where there are sixteen nodes, each of the ndoes submit a password cracking request
+// there should be sixteen nodes execute the the request to earn the reward
+// use 2 byte salt
 func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 	transp := channelFac()
 	nodeNum := 16
@@ -477,6 +507,7 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 
 	testNode := make([]z.TestNode, nodeNum)
 
+	// create 16 nodes
 	for i := 0; i < nodeNum; i++ {
 		testNode[i] = newNode(strconv.Itoa(i + 1))
 		defer testNode[i].Stop()
@@ -491,6 +522,7 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 	}
 	fmt.Println("Finish adding peer")
 
+	// add them all to chord
 	for i := 1; i < nodeNum; i++ {
 		err := testNode[i].JoinChord(testNode[i-1].GetAddr())
 		require.NoError(t, err)
@@ -501,6 +533,7 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 	// Wait for dictionary construction
 	time.Sleep(time.Second * 60)
 
+	// the password is apple
 	hashStrs := []string{
 		"62f789df3b04f99ae8e43f3933005148a17b20d44e1758341cee12ac67ce4f6d",
 		"4dd05f0d43d885d43d329722cb447f004b63f3ec001de7625b79ce1865f320b8",
@@ -522,6 +555,7 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 	saltStrs := []string{"0fff", "1fff", "2fff", "3fff", "4fff", "5fff", "6fff", "7fff",
 		"8fff", "9fff", "afff", "bfff", "cfff", "dfff", "efff", "ffff"}
 
+	// submit the task request
 	for i := 0; i < nodeNum; i++ {
 		err := testNode[i].PasswordSubmitRequest(hashStrs[i], saltStrs[i], 1, time.Second*600)
 		require.NoError(t, err)
@@ -535,10 +569,11 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 			if password != "" {
 				break
 			}
-			fmt.Println("receive nothing")
 			time.Sleep(time.Second * 3)
 		}
 		require.Equal(t, "apple", password)
+		msg := "successfully receive one: " + hashStrs[i]
+		fmt.Println(msg)
 
 	}
 
@@ -554,6 +589,8 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 		}
 		totalBalance += testNode[i].GetBalance()
 
+		// The cracking task is correct,
+		// smartAccount should transfer money to finisher
 		blockNum := fmt.Sprintf("%d_1", i)
 		contractState, _ := testNode[i].GetChain().GetLastBlock().State.Get(blockNum)
 		require.EqualValues(t, 0, contractState.Balance)
