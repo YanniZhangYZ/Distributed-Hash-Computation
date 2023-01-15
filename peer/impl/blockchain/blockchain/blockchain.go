@@ -45,7 +45,6 @@ type Blockchain struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
-	// TODO : keys not used
 	privateKey *ecdsa.PrivateKey
 	publicKey  *ecdsa.PublicKey
 }
@@ -124,8 +123,6 @@ func (a *Blockchain) broadcastTransaction(signedTx *transaction.SignedTransactio
 
 func (a *Blockchain) checkTransaction(signedTx *transaction.SignedTransaction, timeout time.Duration) error {
 	// Now it check if the transaction is confirmed by only querying the blockchain of itself.
-	// TODO : Use channel
-	// TODO : Send TransactionVerifyMessage to the network to verify the transaction.
 
 	start := time.Now()
 	for {

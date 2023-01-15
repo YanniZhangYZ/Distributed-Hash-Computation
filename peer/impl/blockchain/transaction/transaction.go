@@ -127,7 +127,6 @@ func (tx *SignedTransaction) String() string {
 }
 
 func (tx *Transaction) Sign(privateKey *ecdsa.PrivateKey) (SignedTransaction, error) {
-	//TODO : Implement signature
 	return SignedTransaction{
 		TX:        *tx,
 		Signature: nil,
