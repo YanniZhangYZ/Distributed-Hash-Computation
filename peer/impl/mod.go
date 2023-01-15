@@ -213,8 +213,8 @@ func (n *node) ProposeContract(hash string, salt string, reward int64, recipient
 }
 
 // ExecuteContract implements peer.IBlockchain
-func (n *node) ExecuteContract(password string, hash string, salt string, contractAddr string, timeout time.Duration) error {
-	return n.Blockchain.ExecuteContract(password, hash, salt, contractAddr, timeout)
+func (n *node) ExecuteContract(p string, hash string, salt string, contractAddr string, timeout time.Duration) error {
+	return n.Blockchain.ExecuteContract(p, hash, salt, contractAddr, timeout)
 }
 
 // GetAccountAddress implements peer.IBlockchain

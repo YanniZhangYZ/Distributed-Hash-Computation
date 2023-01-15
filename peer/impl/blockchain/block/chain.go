@@ -179,8 +179,9 @@ func (c *Chain) ValidateChain() error {
 	}
 
 	if validated != blockCnt {
-		return fmt.Errorf("all blocks do not form a single chain, %d blocks in total but %d blocks on the chain", blockCnt, validated)
-	} else {
-		return nil
+		return fmt.Errorf(
+			"all blocks do not form a single chain, "+
+				"%d blocks in total but %d blocks on the chain", blockCnt, validated)
 	}
+	return nil
 }

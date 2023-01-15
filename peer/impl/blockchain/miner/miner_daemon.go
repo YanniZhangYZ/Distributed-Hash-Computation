@@ -46,7 +46,7 @@ func (m *Miner) txProcessingDaemon() {
 			m.logger.Debug().
 				Uint32("blockID", preparingBlockID).
 				Str("blockHash", b.BlockHash[:10]).
-				Msgf("Proof of Work finished in %f seconds", time.Now().Sub(start).Seconds())
+				Msgf("Proof of Work finished in %f seconds", time.Since(start).Seconds())
 
 			// 5. check the new block and broadcast it if valid
 			err = m.chain.CheckNewBlock(b)
@@ -86,7 +86,7 @@ func (m *Miner) processTxs(notifyCh chan struct{}) {
 	// process transactions until
 	// 1. BlockSize is reached  2. timeout is reached
 	for m.txProcessed.Len() < m.message.GetConf().BlockchainBlockSize &&
-		time.Now().Sub(start) < m.message.GetConf().BlockchainBlockTimeout {
+		time.Since(start) < m.message.GetConf().BlockchainBlockTimeout {
 		select {
 		case <-m.ctx.Done():
 			return
@@ -108,7 +108,7 @@ func (m *Miner) processOneTx() {
 	}
 
 	tx := m.txPending.Dequeue()
-	err := transaction.VerifyAndExecuteTransaction(tx, &(m.tmpWorldState), false)
+	err := transaction.VerifyAndExecuteTransaction(tx, &(m.tmpWorldState))
 
 	if err == nil {
 		// Update peer.conf.TotalPeers when nodes join or leave so that paxos can be informed accordingly
@@ -148,7 +148,6 @@ func (m *Miner) processOneTx() {
 			Str("data", tx.TX.Data).
 			Msg("discard an invalid transaction")
 	}
-	return
 }
 
 func (m *Miner) formBlock(preparingBlockID uint32) *block.Block {
@@ -201,9 +200,8 @@ func (m *Miner) cleanTxPool() {
 	sort.Slice(cleaned, func(i, j int) bool {
 		if cleaned[i].TX.Src.String() == cleaned[j].TX.Src.String() {
 			return cleaned[i].TX.Nonce < cleaned[j].TX.Nonce
-		} else {
-			return cleaned[i].TX.Timestamp < cleaned[j].TX.Timestamp
 		}
+		return cleaned[i].TX.Timestamp < cleaned[j].TX.Timestamp
 	})
 
 	// Put all cleaned txs back to txPending
@@ -235,7 +233,7 @@ func (m *Miner) IsBlockBuffered(nextID uint32) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for k, _ := range m.blockBuffer {
+	for k := range m.blockBuffer {
 		if k >= nextID {
 			return true
 		}
@@ -268,7 +266,7 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 
 	// Append blocks as much as possible
 	for {
-		var nextBlock *block.Block = nil
+		var nextBlock *block.Block
 
 		// Try to retrieve the next block from the buffer
 		nextID := m.chain.Tail.ID + 1
@@ -293,24 +291,23 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 					Str("decidedNextBlockHash", nextBlockHash[:10]).
 					Msg("next block is decided but not yet received, keep waiting")
 				return
-			} else {
-				// Decided next block received, append it to the blockchain
-				nextBlock = b
-				m.logger.Debug().
-					Uint32("nextID", nextID).
-					Str("decidedNextBlockHash", nextBlockHash[:10]).
-					Uint32("blockID", nextBlock.ID).
-					Str("creator", nextBlock.Creator.String()).
-					Str("blockHash", nextBlock.BlockHash[:10]).
-					Str("prevHash", nextBlock.PrevHash[:10]).
-					Uint64("timestamp", nextBlock.Timestamp).
-					Int("#tx", len(nextBlock.TXs)).
-					Msg("next block is decided and received, try to append it")
 			}
+			// Decided next block received, append it to the blockchain
+			nextBlock = b
+			m.logger.Debug().
+				Uint32("nextID", nextID).
+				Str("decidedNextBlockHash", nextBlockHash[:10]).
+				Uint32("blockID", nextBlock.ID).
+				Str("creator", nextBlock.Creator.String()).
+				Str("blockHash", nextBlock.BlockHash[:10]).
+				Str("prevHash", nextBlock.PrevHash[:10]).
+				Uint64("timestamp", nextBlock.Timestamp).
+				Int("#tx", len(nextBlock.TXs)).
+				Msg("next block is decided and received, try to append it")
 		} else {
 			// Next block has not been decided yet, propose mine
 			blocks := make([]string, 0)
-			for h, _ := range m.blockBuffer[nextID] {
+			for h := range m.blockBuffer[nextID] {
 				blocks = append(blocks, h)
 			}
 			sort.Strings(blocks)
@@ -352,11 +349,6 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 			}
 
 			continue
-		}
-
-		// DEBUG
-		if nextBlock == nil {
-			panic("next block should be decided")
 		}
 
 		// Try to append the next block

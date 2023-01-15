@@ -25,7 +25,8 @@ const (
 	CONTRACT_DEPLOYMENT_TX = iota
 
 	// CONTRACT_EXECUTION_TX is the type of execution of a contract
-	// A transaction that interacts with a deployed smart contract. In this case, 'dest' address is the smart contract address
+	// A transaction that interacts with a deployed smart contract.
+	// In this case, 'dest' address is the smart contract address
 	CONTRACT_EXECUTION_TX = iota
 )
 
@@ -58,7 +59,8 @@ type Transaction struct {
 	Contract []byte
 
 	// Signature from the sender
-	// This is generated when the sender's private key signs the transaction and confirms the sender has authorized this transaction
+	// This is generated when the sender's private key signs the transaction
+	// and confirms the sender has authorized this transaction
 	Signature string
 
 	// timestamp given by the sender
@@ -85,7 +87,8 @@ func NewTransferTX(src common.Address, dst common.Address, amount int64, nonce i
 	}
 }
 
-func NewContractDeploymentTX(src common.Address, contractAddr common.Address, reward int64, contract contract.SmartContract, nonce int) Transaction {
+func NewContractDeploymentTX(src common.Address, contractAddr common.Address, reward int64,
+	contract contract.SmartContract, nonce int) Transaction {
 	contractBytes, _ := contract.Marshal()
 	return Transaction{
 		Type:      CONTRACT_DEPLOYMENT_TX,
@@ -98,7 +101,8 @@ func NewContractDeploymentTX(src common.Address, contractAddr common.Address, re
 	}
 }
 
-func NewContractExecutionTX(src common.Address, contractAddr common.Address, password string, hash string, salt string, nonce int) Transaction {
+func NewContractExecutionTX(src common.Address, contractAddr common.Address,
+	password string, hash string, salt string, nonce int) Transaction {
 	return Transaction{
 		Type:      CONTRACT_EXECUTION_TX,
 		Src:       src,
@@ -126,7 +130,7 @@ func (tx *SignedTransaction) String() string {
 	return str
 }
 
-func (tx *Transaction) Sign(privateKey *ecdsa.PrivateKey) (SignedTransaction, error) {
+func (tx *Transaction) Sign(_ *ecdsa.PrivateKey) (SignedTransaction, error) {
 	return SignedTransaction{
 		TX:        *tx,
 		Signature: nil,
