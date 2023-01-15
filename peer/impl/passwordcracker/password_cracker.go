@@ -126,7 +126,5 @@ func (p *PasswordCracker) ReceiveResult(hashStr string, saltStr string) string {
 		return ""
 	}
 	password := taskResult.(map[string]string)["password"]
-	p.tasks.Delete(taskKey)
-
 	return password
 }

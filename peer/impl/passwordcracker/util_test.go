@@ -25,9 +25,10 @@ func Test_Hash_Password(t *testing.T) {
 		0x8c, 0x64, 0x92, 0xde, 0xb3, 0x3c, 0xd2, 0xfa, 0x14, 0x2d, 0xad, 0x3b, 0x41, 0x17, 0x62, 0xa5, 0x78, 0x60}
 	require.Equal(t, passwordHash2, p.hashPassword(password2, salt2))
 
-	//for i := 0x0f; i <= 0xff; i += 0x10 {
-	//	fmt.Println(hex.EncodeToString(p.hashPassword("apple", []byte{byte(i)})))
-	//	fmt.Println(hex.EncodeToString([]byte{byte(i)}))
+	//for i := 0xfff; i <= 0xffff; i += 0x1000 {
+	//	saltBytes := big.NewInt(int64(i)).Bytes()
+	//	fmt.Printf("\"%s\",\n", hex.EncodeToString(p.hashPassword("apple", saltBytes)))
+	//	fmt.Printf("\"%s\",", hex.EncodeToString(saltBytes))
 	//}
 }
 

@@ -482,21 +482,19 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 		defer testNode[i].Stop()
 	}
 
-	fmt.Println(" ")
 	fmt.Println("Finish creating node")
 
 	for i := 0; i < nodeNum; i++ {
 		for j := 0; j < nodeNum; j++ {
-			if i == j {
-				continue
-			}
 			testNode[i].AddPeer(testNode[j].GetAddr())
 		}
 	}
 	fmt.Println("Finish adding peer")
 
 	for i := 1; i < nodeNum; i++ {
-		_ = testNode[i].JoinChord(testNode[i-1].GetAddr())
+		err := testNode[i].JoinChord(testNode[i-1].GetAddr())
+		require.NoError(t, err)
+		time.Sleep(time.Second * 2)
 	}
 	fmt.Println("Finish joining Chord")
 
@@ -504,30 +502,27 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 	time.Sleep(time.Second * 60)
 
 	hashStrs := []string{
-		"14ffb81ab8f435a96400880c8bf34dba05a7ef8b63710f136e87297e601d7881",
-		"deb253c70e2318c3161561307094c14f0637fc9a528884125374c87d8cc9978b",
-		"08cb91740f17c9e2f0dfc492031746b9c5925ec39c78b21f194381603dbf5e37",
-		"c95bd1a106693dedea6570c60b1a24394fecf6f43d5c51b51819b96ccba483aa",
-		"536dde0c6fdc7c5d811dd5e8cf80981c393d45fe84cf3fab7bc59cab5fac9033",
-		"7389fbde2eb57ed20f942bb757854a95ccbf65508d0644e3d0353543b3316913",
-		"cb045966ebe244998d4e4a24c9905ebeb8878248590231624c02ae174e83affc",
-		"4b4b329d70d37f09638e8545bd708bd0e212e7a9c5c6352a3bfdc4b446f57413",
-		"86f76685a10823db81f55fd81523a46cb2eb6a99c27317e0f376999cc741ec44",
-		"c8d430ffe501ad5087fd31a98fbabb834beb0c82e722bd3be0991e2d399a0868",
-		"e873502053f5475ec34f7be7fba48c7030a03820b2e61d2050d9db682587ca17",
-		"1e6d28d2c48a2e9e0d81548a3e99852de7f9244609f6d9cf45e9f0dd35a4132c",
-		"4b26e856e459ff373866707088d202ad7e745b348680fccd93e43bbd411e30c2",
-		"39cef83ff1c135d71776a76439d72265b2ad99b855bbaa0e91a8004230564e7d",
-		"e0371dd92ce8492f78a9be094e65d4e3ed7f8d3a819701e7afffb3922e743251",
-		"83777a16726539e4f592ea8c7ec0afd9dad8e83deb6129ce39dc49f0e687f908",
-		"ec21d75489c5f5a350b56a9175ceb037721a7952ba2e92bdfaf10e99b3ac05c8",
-		"3a72c6e038ce875d3802582e4d436d518a1e21033caf2a84b3ca9c46bd6b20f4",
-		"180e13060acd8a66e95ecdd6bd6eeb56f8fb1400c0cb9360fd9d92090e88709d",
+		"62f789df3b04f99ae8e43f3933005148a17b20d44e1758341cee12ac67ce4f6d",
+		"4dd05f0d43d885d43d329722cb447f004b63f3ec001de7625b79ce1865f320b8",
+		"b499e429dc73357f28e988aceb0a854d6e5cbed570b941dd6d4361ccdc4966a5",
+		"c3f0fa0c8d30f06e39c9d888f9f330c9e03acf6115837f126ce9c5772dd38bad",
+		"df0e048529c42bdd48eefa5296faac2b588769c9e6c5438e64cfa0ea74557b45",
+		"893bced2d172dbf6e8a364b94d2e6a422cf88e0dfca8524b05dcef375cf22208",
+		"856e4e597a5df93747b47afbcb0a20a0e92b276ef7dcc38667b5654ebfc2c546",
+		"0736dacb4e60ee62ca58572a4001647dde67810d3a6b30ca940c58444282bf3f",
+		"61c933f9a03a9ba4fe84c0b5ae0f7791f5a44060d63468cb59469abf60e1961b",
+		"cfbba6a3825444d55214a2057e89c3ba883ce522769f2b272dfb49935195b2db",
+		"9d5d006ed7b3300fb7a6c8fd637edbee13f714459debf22083a6f0776656e462",
+		"667484efcecd8e7bead842a2030ce06a87a213e630e6acc5ce164f5661567517",
+		"a8bc6350efb7ec657eeda8bbc45398cac73dd55a0048abc846526ed6fc645b35",
+		"9f31a16b4ca3ff13de98be2260e5ba02740bab13d243fa4126ee85ea350602f7",
+		"7fad138c9ee75a04f54cdd94f3b248291179c71c08a26486981e2c918e6906ca",
+		"c4ac8d28581033995bec81fa243f527591b6a157a5c200ade13c74cd95697038",
 	}
-	saltStrs := []string{"0000", "0001", "0003", "0004", "0005", "0006", "0007", "0008", "0009",
-		"0100", "0101", "0102", "0103", "0104", "0105", "0106", "0107", "0108", "0109"}
+	saltStrs := []string{"0fff", "1fff", "2fff", "3fff", "4fff", "5fff", "6fff", "7fff",
+		"8fff", "9fff", "afff", "bfff", "cfff", "dfff", "efff", "ffff"}
 
-	for i := 1; i < nodeNum; i++ {
+	for i := 0; i < nodeNum; i++ {
 		err := testNode[i].PasswordSubmitRequest(hashStrs[i], saltStrs[i], 1, time.Second*600)
 		require.NoError(t, err)
 
