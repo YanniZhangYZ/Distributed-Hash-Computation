@@ -189,7 +189,7 @@ func receivePassword(node peer.Peer) error {
 // showWorldState displays the balance
 func showWorldState(node peer.Peer) error {
 	color.HiYellow("\n"+
-		"=======  World State ======= \n"+
+		"=======  World State ======= \n\n"+
 		"%s\n",
 		node.GetChain().GetLastBlock().State.Print(),
 	)
