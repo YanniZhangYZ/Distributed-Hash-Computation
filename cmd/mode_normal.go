@@ -24,8 +24,9 @@ func UserInterface() {
 		"=======  Node started!                   =======\n"+
 		"=======  UDP Address := %s  =======\n"+
 		"=======  Chord ID    := %03d              =======\n"+
+		"=======  Balance     := %d                =======\n"+
 		"================================================\n",
-		config.Socket.GetAddress(), node.GetChordID())
+		config.Socket.GetAddress(), node.GetChordID(), node.GetBalance())
 
 	leave := true
 
