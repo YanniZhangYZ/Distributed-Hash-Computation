@@ -71,7 +71,7 @@ func (m *WorldState) Hash() []byte {
 
 	h := sha256.New()
 	for _, k := range keys {
-		v, _ := m.m[k]
+		v := m.m[k]
 		kv, _ := json.Marshal(v)
 		h.Write([]byte(k))
 		h.Write(kv)
@@ -161,13 +161,13 @@ func (m *WorldState) Print() string {
 		str += fmt.Sprintf("\tBalance  := %d\n", state.Balance)
 		//str += fmt.Sprintf("\tNonce    := %d\n", state.Nonce)
 		if len(state.Contract) == 0 {
-			str += fmt.Sprintf("\tCodeHash := \n")
+			str += "\tCodeHash := \n"
 		} else {
 			h := sha256.New()
 			h.Write(state.Contract)
 			str += fmt.Sprintf("\tCodeHash := %s\n", hex.EncodeToString(h.Sum(nil)))
 		}
-		str += fmt.Sprintf("\tTasks    := \n")
+		str += "\tTasks    := \n"
 		for hash, v := range state.Tasks {
 			str += fmt.Sprintf("\t\t\tHash: %s, Salt: %s, Password: %s\n", hash[:8], v[1], v[0])
 		}
@@ -187,7 +187,7 @@ func (m *WorldState) GetUserAccountNumber() int {
 
 	cnt := 0
 	for _, k := range keys {
-		state, _ := m.m[k]
+		state := m.m[k]
 		if len(state.Contract) == 0 {
 			cnt++
 		}

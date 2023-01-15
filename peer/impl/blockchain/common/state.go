@@ -128,7 +128,7 @@ func (a *State) Print(address string) string {
 		str += fmt.Sprintf("\tCodeHash := %s\n", hex.EncodeToString(h.Sum(nil)))
 	}
 	if len(state.Tasks) > 0 {
-		str += fmt.Sprintf("\tTasks    := ")
+		str += "\tTasks    := "
 		for hash, v := range state.Tasks {
 			str += fmt.Sprintf("Hash: %s, Salt: %s, Password: %s\t", hash[:8], v[1], v[0])
 		}

@@ -54,28 +54,27 @@ func (m *Miner) txProcessingDaemon() {
 				m.logger.Debug().Err(err).Uint32("blockID", b.ID).Msg("discard an invalid mined block")
 				m.revertBlock(b)
 				continue
-			} else {
-				blockMsg := types.BlockMessage{TransBlock: *b.GetTransBlock()}
-				blockTransMsg, err := m.message.GetConf().MessageRegistry.MarshalMessage(blockMsg)
-				if err != nil {
-					m.logger.Error().Err(err).Msg("fail to marshal block message")
-					continue
-				}
-
-				err = m.message.Broadcast(blockTransMsg)
-				if err != nil {
-					m.logger.Error().Err(err).Msg("fail to broadcast block message")
-					continue
-				}
-				m.logger.Debug().
-					Uint32("blockID", b.ID).
-					Str("creator", b.Creator.String()).
-					Str("blockHash", b.BlockHash[:10]).
-					Str("prevHash", b.PrevHash[:10]).
-					Uint64("timestamp", b.Timestamp).
-					Int("#tx", len(b.TXs)).
-					Msg("mined block is valid and broadcast")
 			}
+			blockMsg := types.BlockMessage{TransBlock: *b.GetTransBlock()}
+			blockTransMsg, err := m.message.GetConf().MessageRegistry.MarshalMessage(blockMsg)
+			if err != nil {
+				m.logger.Error().Err(err).Msg("fail to marshal block message")
+				continue
+			}
+
+			err = m.message.Broadcast(blockTransMsg)
+			if err != nil {
+				m.logger.Error().Err(err).Msg("fail to broadcast block message")
+				continue
+			}
+			m.logger.Debug().
+				Uint32("blockID", b.ID).
+				Str("creator", b.Creator.String()).
+				Str("blockHash", b.BlockHash[:10]).
+				Str("prevHash", b.PrevHash[:10]).
+				Uint64("timestamp", b.Timestamp).
+				Int("#tx", len(b.TXs)).
+				Msg("mined block is valid and broadcast")
 		}
 	}
 }
@@ -112,13 +111,13 @@ func (m *Miner) processOneTx() {
 
 	if err == nil {
 		// Update peer.conf.TotalPeers when nodes join or leave so that paxos can be informed accordingly
-		if tx.TX.Src.String() == tx.TX.Dst.String() {
-			if tx.TX.Value >= 0 {
-				m.conf.TotalPeers++
-			}
-			if tx.TX.Value == -1 {
-				m.conf.TotalPeers--
-			}
+		if tx.TX.Src.String() == tx.TX.Dst.String() && tx.TX.Value >= 0 {
+			//m.conf.TotalPeers++
+			m.logger.Debug().Msg("new peer joined")
+		}
+		if tx.TX.Src.String() == tx.TX.Dst.String() && tx.TX.Value == -1 {
+			//m.conf.TotalPeers--
+			m.logger.Debug().Msg("peer leaved")
 		}
 
 		m.txProcessed.Enqueue(tx)
@@ -264,22 +263,22 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 		Int("#tx", len(b.TXs)).
 		Msgf("buffered a received block")
 
+	m.blockAppendingLoop()
+}
+
+func (m *Miner) blockAppendingLoop() {
 	// Append blocks as much as possible
 	for {
 		var nextBlock *block.Block
-
 		// Try to retrieve the next block from the buffer
 		nextID := m.chain.Tail.ID + 1
 		_, ok := m.blockBuffer[nextID]
-
 		// No buffered blocks for the next ID
 		if !ok {
 			return
 		}
-
 		// Check if the consensus for the next block has been reached
 		nextBlockConsensus := m.blockNameStorage.GetNamingStore().Get(fmt.Sprintf("%d", nextID))
-
 		if nextBlockConsensus != nil {
 			// Next block has been decided
 			nextBlockHash := string(nextBlockConsensus)
@@ -312,16 +311,11 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 			}
 			sort.Strings(blocks)
 			nextBlockProposal := blocks[0]
-
 			m.logger.Debug().
 				Uint32("nextID", nextID).
 				Str("proposedNextBlockHash", nextBlockProposal[:10]).
 				Int("#conflictBlocks", len(blocks)).
 				Msg("next block is not decided, propose mine")
-
-			// Update the conf.TotalPeer in case of joining of new peers
-			//b, _ := m.blockBuffer[nextID][nextBlockProposal]
-			//m.conf.TotalPeers = uint(b.State.GetUserAccountNumber())
 
 			err := m.consensus.Tag(fmt.Sprintf("%d", nextID), nextBlockProposal)
 			if err != nil {
@@ -334,11 +328,8 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 					Msg("next block proposal failed")
 			} else {
 				// Proposed block is chosen
-				//nextBlock = m.blockBuffer[nextID][nextBlockProposal]
-
-				nextBlockConsensus = m.blockNameStorage.GetNamingStore().Get(fmt.Sprintf("%d", nextID))
+				_ = m.blockNameStorage.GetNamingStore().Get(fmt.Sprintf("%d", nextID))
 				nextBlockHash := string(nextBlockProposal)
-
 				m.logger.Debug().
 					Uint32("nextID", nextID).
 					Str("proposedNextBlockHash", nextBlockProposal[:10]).
@@ -347,10 +338,8 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 					Msg("next block proposal succeeded")
 				//Msg("next block proposal succeeded, try to append it")
 			}
-
 			continue
 		}
-
 		// Try to append the next block
 		err := m.chain.CheckNewBlock(nextBlock)
 		if err != nil {
@@ -360,31 +349,22 @@ func (m *Miner) processBlock(blockMsg *types.BlockMessage) {
 				Str("blockHash", nextBlock.BlockHash[:10]).
 				Str("prevHash", nextBlock.PrevHash[:10]).
 				Uint64("timestamp", nextBlock.Timestamp).
-				Int("#tx", len(nextBlock.TXs)).
-				Msg("appending block failed")
+				Int("#tx", len(nextBlock.TXs)).Msg("appending block failed")
 			return
 		}
-
 		// Append the new block
 		err = m.chain.AppendBlock(nextBlock)
 		if err != nil {
 			return
 		}
 		m.logger.Debug().
-			Uint32("blockID", nextBlock.ID).
-			Str("creator", nextBlock.Creator.String()).
-			Str("blockHash", nextBlock.BlockHash[:10]).
-			Str("prevHash", nextBlock.PrevHash[:10]).
-			Uint64("timestamp", nextBlock.Timestamp).
-			Int("#tx", len(nextBlock.TXs)).
+			Uint32("blockID", nextBlock.ID).Str("creator", nextBlock.Creator.String()).
+			Str("blockHash", nextBlock.BlockHash[:10]).Str("prevHash", nextBlock.PrevHash[:10]).
+			Uint64("timestamp", nextBlock.Timestamp).Int("#tx", len(nextBlock.TXs)).
 			Msg("new block appended")
-
 		// Notify the completion of this block
 		close(m.blockNotificationCh[int(nextBlock.ID)])
-
 		// Create the channel for the next block
 		m.blockNotificationCh[int(nextBlock.ID+1)] = make(chan struct{})
-
-		//m.cleanTxPool()
 	}
 }

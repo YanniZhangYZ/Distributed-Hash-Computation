@@ -78,6 +78,8 @@ func NewBlockchain(conf *peer.Configuration, message *message.Message,
 	d.submittedTxs = make(map[string]*transaction.SignedTransaction)
 	d.logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).With().Str("account", d.address.String()).Logger()
 	d.miner = miner.NewMiner(conf, message, consensus, storage)
+	d.publicKey = nil
+	d.privateKey = nil
 
 	return &d
 }
@@ -309,9 +311,8 @@ func (a *Blockchain) GetBalance() int64 {
 	state, ok := worldState.Get(a.GetAccountAddress())
 	if !ok {
 		return 0
-	} else {
-		return state.Balance
 	}
+	return state.Balance
 }
 
 func (a *Blockchain) GetMiner() *miner.Miner {

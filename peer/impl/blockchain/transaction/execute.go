@@ -12,11 +12,11 @@ import (
 func VerifyAndExecuteTransaction(tx *SignedTransaction, worldState *common.WorldState) error {
 	var err error
 	switch tx.TX.Type {
-	case TRANSFER_TX:
+	case TransferTx:
 		err = executeTransferTx(tx, worldState)
-	case CONTRACT_DEPLOYMENT_TX:
+	case ContractDeployTx:
 		err = executeContractDeploymentTx(tx, worldState)
-	case CONTRACT_EXECUTION_TX:
+	case ContractExecuteTx:
 		err = executeContractExecutionTx(tx, worldState)
 	default:
 		panic("Unknown transaction type")

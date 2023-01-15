@@ -16,18 +16,18 @@ import (
 // https://ethereum.org/en/developers/docs/transactions/
 
 const (
-	// TRANSFER_TX is the type of regular transactions
+	// TransferTx is the type of regular transactions
 	// A transaction that transfers Cracker from one account to another
-	TRANSFER_TX = iota
+	TransferTx = iota
 
-	// CONTRACT_DEPLOYMENT_TX is the type of contract deployment transactions
+	// ContractDeployTx is the type of contract deployment transactions
 	// A transaction without a 'dest' address, where the data field is used for the contract code
-	CONTRACT_DEPLOYMENT_TX = iota
+	ContractDeployTx = iota
 
-	// CONTRACT_EXECUTION_TX is the type of execution of a contract
+	// ContractExecuteTx is the type of execution of a contract
 	// A transaction that interacts with a deployed smart contract.
 	// In this case, 'dest' address is the smart contract address
-	CONTRACT_EXECUTION_TX = iota
+	ContractExecuteTx = iota
 )
 
 type Transaction struct {
@@ -78,7 +78,7 @@ type SignedTransaction struct {
 
 func NewTransferTX(src common.Address, dst common.Address, amount int64, nonce int) Transaction {
 	return Transaction{
-		Type:      TRANSFER_TX,
+		Type:      TransferTx,
 		Src:       src,
 		Dst:       dst,
 		Value:     amount,
@@ -91,7 +91,7 @@ func NewContractDeploymentTX(src common.Address, contractAddr common.Address, re
 	contract contract.SmartContract, nonce int) Transaction {
 	contractBytes, _ := contract.Marshal()
 	return Transaction{
-		Type:      CONTRACT_DEPLOYMENT_TX,
+		Type:      ContractDeployTx,
 		Src:       src,
 		Dst:       contractAddr,
 		Value:     reward,
@@ -104,7 +104,7 @@ func NewContractDeploymentTX(src common.Address, contractAddr common.Address, re
 func NewContractExecutionTX(src common.Address, contractAddr common.Address,
 	password string, hash string, salt string, nonce int) Transaction {
 	return Transaction{
-		Type:      CONTRACT_EXECUTION_TX,
+		Type:      ContractExecuteTx,
 		Src:       src,
 		Dst:       contractAddr,
 		Value:     0,

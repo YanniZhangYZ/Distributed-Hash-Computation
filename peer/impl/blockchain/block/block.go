@@ -57,7 +57,7 @@ func NewGenesisBlock(initState map[string]common.State) *Block {
 
 	b.State = common.NewWorldState()
 
-	if initState != nil {
+	if len(initState) > 0 {
 		for addr, state := range initState {
 			b.State.Set(addr, state)
 		}

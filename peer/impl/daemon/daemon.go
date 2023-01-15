@@ -7,7 +7,6 @@ import (
 	"go.dedis.ch/cs438/transport"
 	"go.dedis.ch/cs438/types"
 	"log"
-	"sync"
 	"time"
 )
 
@@ -30,7 +29,6 @@ type Daemon struct {
 	stopListenChan      chan bool
 	stopAntiEntropyChan chan bool
 	stopHeartbeatChan   chan bool
-	blockchainWaitGroup sync.WaitGroup
 }
 
 func (d *Daemon) Start() error {
