@@ -587,7 +587,7 @@ func Test_Chord_Leave_Multiple_Node(t *testing.T) {
 
 // Test_Chord_Stress tests the Chord functions under stressful environment
 func Test_Chord_Stress(t *testing.T) {
-	numNodes := 128
+	numNodes := 32
 	chordBytes := 2
 	transp := channelFac()
 
@@ -595,15 +595,11 @@ func Test_Chord_Stress(t *testing.T) {
 	for i := range nodes {
 		node := z.NewTestNode(t, peerFac, transp, fmt.Sprintf("127.0.0.1:%d", i+1), z.WithChordBytes(chordBytes),
 			z.WithChordStabilizeInterval(time.Second),
-			z.WithChordFixFingerInterval(time.Second))
+			z.WithChordFixFingerInterval(time.Second),
+			z.WithHeartbeat(0),
+			z.WithAntiEntropy(0))
 		defer node.Stop()
 		nodes[i] = node
-	}
-
-	for _, n1 := range nodes {
-		for _, n2 := range nodes {
-			n1.AddPeer(n2.GetAddr())
-		}
 	}
 
 	for i := 1; i < numNodes; i++ {

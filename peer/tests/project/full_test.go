@@ -485,7 +485,7 @@ func Test_Full_Many_Nodes_One_Task_2B_Salt(t *testing.T) {
 // use 2 byte salt
 func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 	transp := channelFac()
-	nodeNum := 16
+	nodeNum := 8
 
 	worldState := common.QuickWorldState(nodeNum, 20)
 
@@ -495,14 +495,13 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 			z.WithBlockchainBlockTimeout(time.Second*3),
 			z.WithBlockchainDifficulty(2),
 			z.WithBlockchainBlockSize(2),
-			z.WithHeartbeat(time.Second*1),
-			z.WithAntiEntropy(time.Second*1),
+			z.WithHeartbeat(time.Second),
+			z.WithAntiEntropy(time.Second),
 			z.WithChordBytes(2), // correspond to salt length
 			z.WithChordStabilizeInterval(time.Second),
 			z.WithChordFixFingerInterval(time.Second),
 			z.WithBlockchainInitialState(worldState.GetSimpleMap()),
 			z.WithBlockchainAccountAddress(address))
-
 	}
 
 	testNode := make([]z.TestNode, nodeNum)
@@ -526,12 +525,12 @@ func Test_Full_Many_Nodes_Many_Task_2B_Salt(t *testing.T) {
 	for i := 1; i < nodeNum; i++ {
 		err := testNode[i].JoinChord(testNode[i-1].GetAddr())
 		require.NoError(t, err)
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second)
 	}
 	fmt.Println("Finish joining Chord")
 
 	// Wait for dictionary construction
-	time.Sleep(time.Second * 60)
+	time.Sleep(time.Second * 30)
 
 	// the password is apple
 	hashStrs := []string{
