@@ -19,6 +19,8 @@ We want to crack a list of password hashes, they are salted. We want to distribu
 In such a way, we could crack the list much faster. To allow the mechanism to work, we would like to have some incentives inside. For example, if some peers crack a hash, they will receive some coins inside our system. And to submit a task, the peer should spend some coins. Here, we utilize the help from [Blockchain](https://en.wikipedia.org/wiki/Blockchain) and [smart contracts](https://en.wikipedia.org/wiki/Smart_contract). However, naively distributing the list of hashes to random peers is not very efficient and suboptimal. We notice that dictionary attacks are not frequently seen nowadays because every hash is salted. If we could distribute the hashes according to salt and one peer knows that only some salt values can come to him, then, the corresponding peers could pre-compute a dictionary, which helps to crack the password. Here, we deploy distributed hash table to do this task efficiently. We use [Chord](https://en.wikipedia.org/wiki/Chord_(peer-to-peer)).
 
 ## Design
+### Test
+Tests for different components can be found at `peer/tests/project/`.
 
 ### Password Cracker
 
