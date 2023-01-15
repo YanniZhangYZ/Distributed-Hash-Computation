@@ -95,11 +95,6 @@ func joinChord(node peer.Peer) error {
 	return node.JoinChord(peerAddr)
 }
 
-// leaveChord leaves a joined Chord ring
-func leaveChord(node peer.Peer) error {
-	return node.LeaveChord()
-}
-
 // showChordInfo shows all fields for a Chord node
 func showChordInfo(node peer.Peer) {
 	pred := node.GetPredecessor()
@@ -127,7 +122,7 @@ func showChordInfo(node peer.Peer) {
 					i+1, finger[i])
 		}
 	}
-	color.Yellow("%s\n", fingerStr)
+	color.Yellow("%s\n\n", fingerStr)
 }
 
 // askHashSalt asks users for hash and salt

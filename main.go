@@ -16,7 +16,7 @@ func main() {
 		cmd.UserInterface()
 		return
 	}
-	
+
 	if argsWithoutProg[0] == "simu" {
 		// Run in simulation mode
 		if len(argsWithoutProg) > 1 {
@@ -27,7 +27,7 @@ func main() {
 			}
 			cmd.SimuUserInterface(nbNodes)
 		} else {
-			defaultNbNodes := 4
+			defaultNbNodes := 6
 			cmd.SimuUserInterface(defaultNbNodes)
 		}
 		return

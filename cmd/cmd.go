@@ -65,11 +65,9 @@ func postJoin(node peer.Peer) bool {
 	prompt := &survey.Select{
 		Message: "What do you want to do ?",
 		Options: []string{
-			"👫 add peer, used for broadcast",
-			"🪐 show predecessor, successor, and finger table",
+			"🪐 show Chord predecessor, successor, and finger table",
 			"🔒 propose password cracking task",
 			"🔐 receive password cracking result",
-			"🕓 leave Chord",
 			"📖 show world state",
 			"📜 print contract status",
 			"👋 exit"},
@@ -83,12 +81,7 @@ func postJoin(node peer.Peer) bool {
 		}
 
 		switch action {
-		case "👫 add peer, used for broadcast":
-			err = addPeer(node)
-			if err != nil {
-				log.Fatalf("failed to add peer: %v", err)
-			}
-		case "🪐 show predecessor, successor, and finger table":
+		case "🪐 show Chord predecessor, successor, and finger table":
 			showChordInfo(node)
 		case "🔒 propose password cracking task":
 			err = crackPassword(node)
@@ -97,12 +90,6 @@ func postJoin(node peer.Peer) bool {
 			}
 		case "🔐 receive password cracking result":
 			receivePassword(node)
-		case "🕓 leave Chord":
-			err = leaveChord(node)
-			if err != nil {
-				log.Fatalf("failed to join Chord: %v", err)
-			}
-			return true
 		case "📖 show world state":
 			showWorldState(node)
 		case "📜 print contract status":

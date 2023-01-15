@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/fatih/color"
 
 	"fmt"
 	"reflect"
@@ -77,9 +78,10 @@ func BuildPlainContract(targetHash string, finisherAddr string, reward int64) st
 }
 
 func (c *Contract) PrintContractExecutionState() {
-	fmt.Println("📝📝📝 Contract Info.")
-	fmt.Println(c.ToStringBasic())
-	fmt.Println(PrintStateAST(c.GetCodeAST(), c.GetStateAST()))
+	color.Yellow("\n📝📝📝 Contract Info.")
+	color.Yellow(c.ToStringBasic())
+	color.Yellow(PrintStateAST(c.GetCodeAST(), c.GetStateAST()))
+	color.Yellow("\n")
 }
 
 // This function marshals the Contract instance into a byte representation.

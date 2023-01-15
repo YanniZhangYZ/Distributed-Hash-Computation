@@ -50,12 +50,13 @@ func SimuUserInterface(nbNodes int) {
 	}
 
 	node := nodes[0]
-	color.HiYellow("================================================\n"+
-		"=======  Node started!                   =======\n"+
-		"=======  UDP Address := %s  =======\n"+
-		"=======  Chord ID    := %03d              =======\n"+
-		"=======  Balance     := %03d              =======\n"+
-		"================================================\n",
-		node.GetAddr(), node.GetChordID(), node.GetBalance())
+	color.HiYellow("=======================================================\n"+
+		"=======             Node started!               =======\n"+
+		"=======  UDP Address        := %s  =======\n"+
+		"=======  Chord ID           := %3d              =======\n"+
+		"=======  Balance            := %3d              =======\n"+
+		"=======  Total No. of Peers := %3d              =======\n"+
+		"=======================================================\n",
+		node.GetAddr(), node.GetChordID(), node.GetBalance(), nbNodes)
 	postJoin(node)
 }
